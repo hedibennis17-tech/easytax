@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "EasyTax Canada — Déclaration d'impôt simplifiée",
-  description: "Préparez et transmettez votre déclaration fédérale et Québec en quelques minutes. Déposez vos documents, EasyTax fait le reste.",
+  title: "EasyTax Canada — Déclaration fiscale simplifiée",
+  description: "Déclarez vos impôts fédéraux et québécois simplement. Téléversez vos documents, répondez à quelques questions, et c'est tout.",
 };
 
 export default function RootLayout({
@@ -13,9 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className="antialiased">
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
