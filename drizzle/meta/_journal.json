@@ -8,6 +8,13 @@
       "when": 1790895943854,
       "tag": "0000_greedy_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790896874474,
+      "tag": "0001_cold_blur",
+      "breakpoints": true
     }
   ]
 }

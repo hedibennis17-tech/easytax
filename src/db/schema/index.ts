@@ -331,3 +331,160 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
     references: [taxReturns.id],
   }),
 }));
+
+// ─── ÉTAPE 2 : COFFRE-FORT DOCUMENTAIRE ──────────────────────────────────────
+
+export const documentSourceEnum = pgEnum("document_source", [
+  "user_upload",
+  "employer",
+  "manual",
+  "system",
+]);
+
+export const documentStatusEnum = pgEnum("document_status", [
+  "uploaded",
+  "stored",
+  "pending_review",
+  "ready_for_processing",
+  "processing",
+  "processed",
+  "needs_review",
+  "verified",
+  "rejected",
+  "archived",
+  "deleted",
+]);
+
+export const documentAuditActionEnum = pgEnum("document_audit_action", [
+  "document_uploaded",
+  "document_viewed",
+  "document_downloaded",
+  "document_archived",
+  "document_deleted",
+  "document_restored",
+  "document_duplicate_detected",
+]);
+
+// ─── TYPES DE DOCUMENTS (extensible sans modifier le code) ───────────────────
+
+export const documentTypes = pgTable("document_types", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  code: varchar("code", { length: 50 }).notNull().unique(), // ex: "T4", "RL-1"
+  labelFr: varchar("label_fr", { length: 255 }).notNull(),
+  labelEn: varchar("label_en", { length: 255 }).notNull(),
+  category: varchar("category", { length: 50 }).notNull(), // "employment", "investment", "medical", "other"
+  isFederal: boolean("is_federal").default(true),
+  isQuebec: boolean("is_quebec").default(false),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ─── DOCUMENTS ───────────────────────────────────────────────────────────────
+
+export const fiscalDocuments = pgTable("fiscal_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // Ownership — jamais accessible cross-user
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  taxProfileId: uuid("tax_profile_id")
+    .notNull()
+    .references(() => taxProfiles.id),
+  taxYearId: uuid("tax_year_id")
+    .notNull()
+    .references(() => taxYears.id),
+  taxReturnId: uuid("tax_return_id").references(() => taxReturns.id),
+  documentTypeId: uuid("document_type_id")
+    .notNull()
+    .references(() => documentTypes.id),
+  // Métadonnées fichier
+  originalFilename: varchar("original_filename", { length: 500 }).notNull(),
+  mimeType: varchar("mime_type", { length: 100 }).notNull(),
+  fileSizeBytes: integer("file_size_bytes").notNull(),
+  // Stockage — chemin interne non-prévisible, JAMAIS le nom original
+  storagePath: text("storage_path").notNull(), // ex: tax-documents/{userId}/{taxYearId}/{uuid}
+  storageKey: varchar("storage_key", { length: 1000 }).notNull().unique(),
+  // Intégrité
+  sha256Hash: varchar("sha256_hash", { length: 64 }), // détection doublons
+  // Source
+  source: documentSourceEnum("source").notNull().default("user_upload"),
+  // Statut workflow
+  status: documentStatusEnum("status").notNull().default("uploaded"),
+  // Pages (PDF multi-pages)
+  pageCount: integer("page_count"),
+  // Suppression douce
+  archivedAt: timestamp("archived_at"),
+  deletedAt: timestamp("deleted_at"),
+  // Dates
+  uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── PAGES DE DOCUMENT (pour PDF multi-pages, préparation OCR étape 3) ───────
+
+export const documentPages = pgTable("document_pages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  documentId: uuid("document_id")
+    .notNull()
+    .references(() => fiscalDocuments.id),
+  pageNumber: integer("page_number").notNull(),
+  storageKey: varchar("storage_key", { length: 1000 }), // page extraite si nécessaire
+  // Réservé étape 3 OCR — null pour l'instant
+  ocrStatus: varchar("ocr_status", { length: 50 }).default("pending"),
+  extractedData: text("extracted_data"), // JSON — rempli à l'étape 3
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ─── AUDIT LOG DOCUMENTS ─────────────────────────────────────────────────────
+
+export const documentAuditLogs = pgTable("document_audit_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  documentId: uuid("document_id")
+    .notNull()
+    .references(() => fiscalDocuments.id),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  action: documentAuditActionEnum("action").notNull(),
+  // Métadonnées non-sensibles uniquement — JAMAIS NAS, contenu, revenus
+  metadata: text("metadata"), // JSON: {ip, userAgent, filename (non sensible)}
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ─── RELATIONS ÉTAPE 2 ───────────────────────────────────────────────────────
+
+export const documentTypesRelations = relations(documentTypes, ({ many }) => ({
+  fiscalDocuments: many(fiscalDocuments),
+}));
+
+export const fiscalDocumentsRelations = relations(fiscalDocuments, ({ one, many }) => ({
+  taxProfile: one(taxProfiles, {
+    fields: [fiscalDocuments.taxProfileId],
+    references: [taxProfiles.id],
+  }),
+  taxYear: one(taxYears, {
+    fields: [fiscalDocuments.taxYearId],
+    references: [taxYears.id],
+  }),
+  taxReturn: one(taxReturns, {
+    fields: [fiscalDocuments.taxReturnId],
+    references: [taxReturns.id],
+  }),
+  documentType: one(documentTypes, {
+    fields: [fiscalDocuments.documentTypeId],
+    references: [documentTypes.id],
+  }),
+  pages: many(documentPages),
+  auditLogs: many(documentAuditLogs),
+}));
+
+export const documentPagesRelations = relations(documentPages, ({ one }) => ({
+  document: one(fiscalDocuments, {
+    fields: [documentPages.documentId],
+    references: [fiscalDocuments.id],
+  }),
+}));
+
+export const documentAuditLogsRelations = relations(documentAuditLogs, ({ one }) => ({
+  document: one(fiscalDocuments, {
+    fields: [documentAuditLogs.documentId],
+    references: [fiscalDocuments.id],
+  }),
+}));
