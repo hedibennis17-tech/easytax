@@ -63,6 +63,8 @@ export default async function DashboardPage() {
         <div className="flex items-center gap-3">
           <Link href="/documents" className="text-sm text-gray-500 hover:text-gray-900">Documents</Link>
           <Link href="/dossier" className="text-sm text-gray-500 hover:text-gray-900">Dossier</Link>
+          <Link href="/questionnaire" className="text-sm text-gray-500 hover:text-gray-900">Questionnaire</Link>
+          <Link href="/resume" className="text-sm text-gray-500 hover:text-gray-900">Résumé fiscal</Link>
           <UserButton />
         </div>
       </nav>

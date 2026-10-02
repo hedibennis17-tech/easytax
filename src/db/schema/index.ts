@@ -1102,3 +1102,342 @@ export const users = pgTable("users", {
 export const usersRelations = relations(users, ({ many }) => ({
   taxProfiles: many(taxProfiles),
 }));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ÉTAPE 4 — TAX ENGINE + QUESTIONNAIRE INTELLIGENT
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─── ENUMS ÉTAPE 4 ───────────────────────────────────────────────────────────
+
+export const incomeCategoryEnum = pgEnum("income_category", [
+  "employment",
+  "self_employment",
+  "pension",
+  "ei_benefits",
+  "social_assistance",
+  "interest",
+  "dividends_eligible",
+  "dividends_ineligible",
+  "capital_gains",
+  "rental",
+  "foreign_income",
+  "other_income",
+]);
+
+export const deductionCategoryEnum = pgEnum("deduction_category", [
+  "rrsp",
+  "union_dues",
+  "childcare",
+  "moving_expenses",
+  "employment_expenses",
+  "carrying_charges",
+  "other_deductions",
+]);
+
+export const creditCategoryEnum = pgEnum("credit_category", [
+  "basic_personal",
+  "age",
+  "spouse_or_cp",
+  "caregiver",
+  "disability",
+  "tuition",
+  "medical",
+  "donations",
+  "home_buyers",
+  "first_home_savings",
+  "climate_action",
+  "other_credits",
+]);
+
+export const calculationStatusEnum = pgEnum("calculation_status", [
+  "pending",
+  "in_progress",
+  "completed",
+  "stale",
+  "error",
+]);
+
+export const taxRuleTypeEnum = pgEnum("rule_type", [
+  "bracket",
+  "rate",
+  "flat_amount",
+  "exemption",
+  "threshold",
+  "credit_rate",
+  "phase_out",
+]);
+
+export const questionnaireStatusEnum = pgEnum("questionnaire_status", [
+  "not_started",
+  "in_progress",
+  "completed",
+]);
+
+// ─── TAX RULES ───────────────────────────────────────────────────────────────
+
+export const taxRules = pgTable("tax_rules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  jurisdictionId: uuid("jurisdiction_id")
+    .notNull()
+    .references(() => jurisdictions.id),
+  taxYearId: uuid("tax_year_id")
+    .notNull()
+    .references(() => taxYears.id),
+  ruleType: taxRuleTypeEnum("rule_type").notNull(),
+  ruleCode: varchar("rule_code", { length: 100 }).notNull(),
+  descriptionFr: text("description_fr"),
+  descriptionEn: text("description_en"),
+  // Montants en cents (bigint pour précision monétaire exacte)
+  amountCents: integer("amount_cents"),
+  rateBasisPoints: integer("rate_basis_points"), // ex: 2050 = 20.50%
+  minAmountCents: integer("min_amount_cents"),
+  maxAmountCents: integer("max_amount_cents"),
+  thresholdCents: integer("threshold_cents"),
+  // Versionnage
+  ruleVersion: varchar("rule_version", { length: 20 }).notNull().default("1.0"),
+  effectiveFrom: date("effective_from"),
+  effectiveTo: date("effective_to"),
+  isActive: boolean("is_active").notNull().default(true),
+  // Référence source
+  sourceReference: varchar("source_reference", { length: 255 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── INCOME ENTRIES ──────────────────────────────────────────────────────────
+
+export const incomeEntries = pgTable("income_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  taxProfileId: uuid("tax_profile_id")
+    .notNull()
+    .references(() => taxProfiles.id),
+  taxYearId: uuid("tax_year_id")
+    .notNull()
+    .references(() => taxYears.id),
+  taxReturnId: uuid("tax_return_id").references(() => taxReturns.id),
+  category: incomeCategoryEnum("category").notNull(),
+  // Source
+  sourceDocumentId: uuid("source_document_id").references(() => fiscalDocuments.id),
+  sourceType: varchar("source_type", { length: 50 }).notNull().default("manual"),
+  // Montant en cents — jamais de float pour l'argent
+  amountCents: integer("amount_cents").notNull().default(0),
+  description: varchar("description", { length: 500 }),
+  employerName: varchar("employer_name", { length: 255 }),
+  // Validation — le Tax Engine n'utilise QUE les données validées
+  isValidated: boolean("is_validated").notNull().default(false),
+  validatedAt: timestamp("validated_at"),
+  validatedByUserId: varchar("validated_by_user_id", { length: 255 }),
+  // Revenu étranger
+  isForeign: boolean("is_foreign").default(false),
+  foreignCurrency: varchar("foreign_currency", { length: 10 }),
+  foreignAmountCents: integer("foreign_amount_cents"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── DEDUCTION ENTRIES ───────────────────────────────────────────────────────
+
+export const deductionEntries = pgTable("deduction_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  taxProfileId: uuid("tax_profile_id")
+    .notNull()
+    .references(() => taxProfiles.id),
+  taxYearId: uuid("tax_year_id")
+    .notNull()
+    .references(() => taxYears.id),
+  taxReturnId: uuid("tax_return_id").references(() => taxReturns.id),
+  category: deductionCategoryEnum("category").notNull(),
+  sourceDocumentId: uuid("source_document_id").references(() => fiscalDocuments.id),
+  sourceType: varchar("source_type", { length: 50 }).notNull().default("manual"),
+  amountCents: integer("amount_cents").notNull().default(0),
+  description: varchar("description", { length: 500 }),
+  isValidated: boolean("is_validated").notNull().default(false),
+  validatedAt: timestamp("validated_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── CREDIT ENTRIES ──────────────────────────────────────────────────────────
+
+export const creditEntries = pgTable("credit_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  taxProfileId: uuid("tax_profile_id")
+    .notNull()
+    .references(() => taxProfiles.id),
+  taxYearId: uuid("tax_year_id")
+    .notNull()
+    .references(() => taxYears.id),
+  taxReturnId: uuid("tax_return_id").references(() => taxReturns.id),
+  category: creditCategoryEnum("category").notNull(),
+  sourceDocumentId: uuid("source_document_id").references(() => fiscalDocuments.id),
+  sourceType: varchar("source_type", { length: 50 }).notNull().default("manual"),
+  claimedAmountCents: integer("claimed_amount_cents").notNull().default(0),
+  description: varchar("description", { length: 500 }),
+  isValidated: boolean("is_validated").notNull().default(false),
+  validatedAt: timestamp("validated_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── TAX CALCULATIONS ────────────────────────────────────────────────────────
+
+export const taxCalculations = pgTable("tax_calculations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  taxReturnId: uuid("tax_return_id")
+    .notNull()
+    .references(() => taxReturns.id),
+  taxYearId: uuid("tax_year_id")
+    .notNull()
+    .references(() => taxYears.id),
+  status: calculationStatusEnum("status").notNull().default("pending"),
+  // Revenus (cents)
+  totalIncomeCents: integer("total_income_cents").notNull().default(0),
+  netIncomeCents: integer("net_income_cents").notNull().default(0),
+  taxableIncomeCents: integer("taxable_income_cents").notNull().default(0),
+  // Calcul fédéral (cents)
+  federalTaxBeforeCreditsCents: integer("federal_tax_before_credits_cents").notNull().default(0),
+  federalNonRefundableCreditsCents: integer("federal_non_refundable_credits_cents").notNull().default(0),
+  federalRefundableCreditsCents: integer("federal_refundable_credits_cents").notNull().default(0),
+  federalTaxPayableCents: integer("federal_tax_payable_cents").notNull().default(0),
+  federalTaxWithheldCents: integer("federal_tax_withheld_cents").notNull().default(0),
+  federalBalanceCents: integer("federal_balance_cents").notNull().default(0),
+  // Calcul provincial (cents)
+  provincialTaxBeforeCreditsCents: integer("provincial_tax_before_credits_cents").notNull().default(0),
+  provincialNonRefundableCreditsCents: integer("provincial_non_refundable_credits_cents").notNull().default(0),
+  provincialRefundableCreditsCents: integer("provincial_refundable_credits_cents").notNull().default(0),
+  provincialTaxPayableCents: integer("provincial_tax_payable_cents").notNull().default(0),
+  provincialTaxWithheldCents: integer("provincial_tax_withheld_cents").notNull().default(0),
+  provincialBalanceCents: integer("provincial_balance_cents").notNull().default(0),
+  // Total net
+  totalBalanceCents: integer("total_balance_cents").notNull().default(0),
+  // Détails lisibles (breakdown pour UI)
+  calculationDetails: text("calculation_details"),
+  // Audit
+  calculationVersion: varchar("calculation_version", { length: 20 }).notNull().default("1.0"),
+  rulesSnapshotVersion: varchar("rules_snapshot_version", { length: 50 }),
+  isPreliminary: boolean("is_preliminary").notNull().default(true),
+  errorMessage: text("error_message"),
+  calculatedAt: timestamp("calculated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── QUESTIONNAIRE SESSIONS ──────────────────────────────────────────────────
+
+export const questionnaireSessions = pgTable("questionnaire_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  taxProfileId: uuid("tax_profile_id")
+    .notNull()
+    .references(() => taxProfiles.id),
+  taxReturnId: uuid("tax_return_id")
+    .notNull()
+    .references(() => taxReturns.id),
+  taxYearId: uuid("tax_year_id")
+    .notNull()
+    .references(() => taxYears.id),
+  // Statut global
+  status: questionnaireStatusEnum("status").notNull().default("not_started"),
+  currentSection: varchar("current_section", { length: 50 }),
+  sectionsCompleted: text("sections_completed"), // JSON array
+  // Contexte inféré dynamiquement (évite les questions redondantes)
+  hasEmploymentIncome: boolean("has_employment_income"),
+  hasSelfEmployment: boolean("has_self_employment"),
+  hasInvestmentIncome: boolean("has_investment_income"),
+  hasRentalIncome: boolean("has_rental_income"),
+  hasForeignIncome: boolean("has_foreign_income"),
+  hasRrsp: boolean("has_rrsp"),
+  hasChildcare: boolean("has_childcare"),
+  numEmployers: integer("num_employers").default(0),
+  // Progression
+  questionsAnswered: integer("questions_answered").default(0),
+  lastQuestionCode: varchar("last_question_code", { length: 100 }),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── RELATIONS ÉTAPE 4 ───────────────────────────────────────────────────────
+
+export const taxRulesRelations = relations(taxRules, ({ one }) => ({
+  jurisdiction: one(jurisdictions, {
+    fields: [taxRules.jurisdictionId],
+    references: [jurisdictions.id],
+  }),
+  taxYear: one(taxYears, {
+    fields: [taxRules.taxYearId],
+    references: [taxYears.id],
+  }),
+}));
+
+export const incomeEntriesRelations = relations(incomeEntries, ({ one }) => ({
+  taxProfile: one(taxProfiles, {
+    fields: [incomeEntries.taxProfileId],
+    references: [taxProfiles.id],
+  }),
+  taxYear: one(taxYears, {
+    fields: [incomeEntries.taxYearId],
+    references: [taxYears.id],
+  }),
+  taxReturn: one(taxReturns, {
+    fields: [incomeEntries.taxReturnId],
+    references: [taxReturns.id],
+  }),
+  sourceDocument: one(fiscalDocuments, {
+    fields: [incomeEntries.sourceDocumentId],
+    references: [fiscalDocuments.id],
+  }),
+}));
+
+export const deductionEntriesRelations = relations(deductionEntries, ({ one }) => ({
+  taxProfile: one(taxProfiles, {
+    fields: [deductionEntries.taxProfileId],
+    references: [taxProfiles.id],
+  }),
+  taxReturn: one(taxReturns, {
+    fields: [deductionEntries.taxReturnId],
+    references: [taxReturns.id],
+  }),
+}));
+
+export const creditEntriesRelations = relations(creditEntries, ({ one }) => ({
+  taxProfile: one(taxProfiles, {
+    fields: [creditEntries.taxProfileId],
+    references: [taxProfiles.id],
+  }),
+  taxReturn: one(taxReturns, {
+    fields: [creditEntries.taxReturnId],
+    references: [taxReturns.id],
+  }),
+}));
+
+export const taxCalculationsRelations = relations(taxCalculations, ({ one }) => ({
+  taxReturn: one(taxReturns, {
+    fields: [taxCalculations.taxReturnId],
+    references: [taxReturns.id],
+  }),
+  taxYear: one(taxYears, {
+    fields: [taxCalculations.taxYearId],
+    references: [taxYears.id],
+  }),
+}));
+
+export const questionnaireSessionsRelations = relations(questionnaireSessions, ({ one }) => ({
+  taxProfile: one(taxProfiles, {
+    fields: [questionnaireSessions.taxProfileId],
+    references: [taxProfiles.id],
+  }),
+  taxReturn: one(taxReturns, {
+    fields: [questionnaireSessions.taxReturnId],
+    references: [taxReturns.id],
+  }),
+  taxYear: one(taxYears, {
+    fields: [questionnaireSessions.taxYearId],
+    references: [taxYears.id],
+  }),
+}));
