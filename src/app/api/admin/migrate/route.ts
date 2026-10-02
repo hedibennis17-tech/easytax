@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export async function POST(req: NextRequest) {
-  const token = req.headers.get("x-migrate-token");
+export async function GET(req: NextRequest) {
+  const token = req.nextUrl.searchParams.get("token") ?? req.headers.get("x-migrate-token");
   if (token !== process.env.MIGRATE_SECRET) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
