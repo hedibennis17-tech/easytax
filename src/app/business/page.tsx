@@ -1,8 +1,7 @@
-import { AppNav } from "@/components/AppNav";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { AppNav } from "@/components/AppNav";
 import { db } from "@/lib/db";
 import { organizations, organizationMemberships } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -11,7 +10,6 @@ export default async function BusinessPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  // Toutes les orgs de l'utilisateur — filtrées côté serveur
   const userOrgs = await db
     .select({
       id: organizations.id,
@@ -40,132 +38,161 @@ export default async function BusinessPage() {
   };
 
   const roleLabels: Record<string, string> = {
-    OWNER: "Propriétaire",
-    ADMIN: "Administrateur",
-    MEMBER: "Membre",
-    EMPLOYEE: "Employé",
-    ACCOUNTANT: "Comptable",
-    REVIEWER: "Réviseur",
+    OWNER: "Propriétaire", ADMIN: "Administrateur", MEMBER: "Membre",
+    EMPLOYEE: "Employé", ACCOUNTANT: "Comptable", REVIEWER: "Réviseur",
+  };
+
+  const typeIcons: Record<string, string> = {
+    BUSINESS: "🏛️", TAX_FIRM: "⚖️", SOLE_PROPRIETORSHIP: "🧑‍💼",
   };
 
   return (
-    <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
+    <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
       <AppNav />
+      <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 16px" }}>
 
-            <div className="max-w-4xl mx-auto px-6 py-10 space-y-6">
-        <div className="flex items-center justify-between">
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Espace Business</h1>
-            <p className="text-sm text-gray-400 mt-1">
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+              Espace Business
+            </h1>
+            <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 4 }}>
               {userOrgs.length === 0
-                ? "Aucune organisation pour le moment"
-                : `${userOrgs.length} organisation${userOrgs.length > 1 ? "s" : ""}`}
+                ? "Aucune organisation enregistrée"
+                : `${userOrgs.length} organisation${userOrgs.length > 1 ? "s" : ""} active${userOrgs.length > 1 ? "s" : ""}`}
             </p>
           </div>
-          <CreateOrgButton />
+          <Link href="/business/new" style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600,
+            background: "var(--et-red)", color: "#fff", textDecoration: "none",
+            boxShadow: "0 2px 8px rgba(229,52,42,0.25)",
+          }}>
+            + Créer une organisation
+          </Link>
         </div>
 
         {userOrgs.length === 0 ? (
-          <EmptyOrgs />
+          /* État vide */
+          <div style={{
+            border: "2px dashed var(--border)", borderRadius: 20,
+            padding: "64px 24px", textAlign: "center",
+            background: "var(--bg-card)",
+          }}>
+            <div style={{ fontSize: 52, marginBottom: 16 }}>🏢</div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+              Aucune organisation
+            </h2>
+            <p style={{ color: "var(--text-secondary)", fontSize: 14, maxWidth: 400, margin: "0 auto 24px" }}>
+              Créez votre entreprise ou cabinet comptable pour gérer vos documents,
+              employés et déclarations d&apos;entreprise.
+            </p>
+            <Link href="/business/new" style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "11px 24px", borderRadius: 12, fontSize: 14, fontWeight: 600,
+              background: "var(--et-red)", color: "#fff", textDecoration: "none",
+            }}>
+              + Créer mon organisation
+            </Link>
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {userOrgs.map((org) => (
-              <OrgCard
-                key={org.id}
-                org={org}
-                typeLabel={typeLabels[org.type] ?? org.type}
-                roleLabel={roleLabels[org.role] ?? org.role}
-              />
+              <div key={org.id} style={{
+                background: "var(--bg-card)", border: "1px solid var(--border)",
+                borderRadius: 18, padding: "20px 22px",
+                boxShadow: "var(--shadow-sm)",
+              }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
+                  <div style={{ display: "flex", gap: 14 }}>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: 12, fontSize: 22,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: "rgba(229,52,42,0.1)", flexShrink: 0,
+                    }}>
+                      {typeIcons[org.type] ?? "🏢"}
+                    </div>
+                    <div>
+                      <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 3px" }}>
+                        {org.legalName}
+                      </h2>
+                      {org.tradeName && (
+                        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 8px" }}>
+                          « {org.tradeName} »
+                        </p>
+                      )}
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <span style={{
+                          fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 100,
+                          background: "rgba(37,99,235,0.1)", color: "#2563EB",
+                        }}>{typeLabels[org.type] ?? org.type}</span>
+                        <span style={{
+                          fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 100,
+                          background: "rgba(22,163,74,0.1)", color: "#16A34A",
+                        }}>{roleLabels[org.role] ?? org.role}</span>
+                        {org.province && (
+                          <span style={{
+                            fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 100,
+                            background: "var(--bg-card-hover)", color: "var(--text-secondary)",
+                          }}>{org.province}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <Link href={`/business/${org.id}`} style={{
+                    padding: "7px 14px", borderRadius: 9, fontSize: 12, fontWeight: 600,
+                    background: "var(--bg-card-hover)", color: "var(--text-primary)",
+                    textDecoration: "none", border: "1px solid var(--border)", flexShrink: 0,
+                  }}>
+                    Ouvrir →
+                  </Link>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+                  {[
+                    { label: "Membres", value: "—" },
+                    { label: "Documents", value: "—" },
+                    { label: "Déclarations", value: "—" },
+                  ].map(({ label, value }) => (
+                    <div key={label} style={{
+                      background: "var(--bg-base)", borderRadius: 10, padding: "10px 12px", textAlign: "center",
+                    }}>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
-      </div>
-    </main>
-  );
-}
 
-function OrgCard({
-  org,
-  typeLabel,
-  roleLabel,
-}: {
-  org: { id: string; legalName: string; tradeName: string | null; province: string | null; createdAt: Date };
-  typeLabel: string;
-  roleLabel: string;
-}) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h2 className="font-bold text-gray-900 text-lg">{org.legalName}</h2>
-          {org.tradeName && (
-            <p className="text-sm text-gray-400">«&nbsp;{org.tradeName}&nbsp;»</p>
-          )}
-          <div className="flex gap-2 mt-2">
-            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-              {typeLabel}
-            </span>
-            <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
-              {roleLabel}
-            </span>
-            {org.province && (
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                {org.province}
-              </span>
-            )}
+        {/* Info types */}
+        <div style={{ marginTop: 32 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 14 }}>
+            Types d&apos;organisations disponibles
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 10 }}>
+            {[
+              { icon: "🏛️", name: "Entreprise incorporée", desc: "Inc., Ltd., Corp., s.e.n.c.r.l." },
+              { icon: "🧑‍💼", name: "Entreprise individuelle", desc: "Travailleur autonome enregistré" },
+              { icon: "⚖️", name: "Cabinet comptable", desc: "CPA, comptable, préparateur fiscal" },
+            ].map(({ icon, name, desc }) => (
+              <div key={name} style={{
+                background: "var(--bg-card)", border: "1px solid var(--border)",
+                borderRadius: 14, padding: "14px 16px", display: "flex", gap: 12,
+              }}>
+                <span style={{ fontSize: 22 }}>{icon}</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{name}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{desc}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-        <Link
-          href={`/business/${org.id}`}
-          className="text-sm text-red-600 hover:underline font-medium"
-        >
-          Ouvrir →
-        </Link>
-      </div>
 
-      <div className="grid grid-cols-3 gap-3 text-xs text-gray-500">
-        <div className="bg-gray-50 rounded-xl p-3 text-center">
-          <div className="text-lg font-bold text-gray-900">—</div>
-          <div>Membres</div>
-        </div>
-        <div className="bg-gray-50 rounded-xl p-3 text-center">
-          <div className="text-lg font-bold text-gray-900">—</div>
-          <div>Documents</div>
-        </div>
-        <div className="bg-gray-50 rounded-xl p-3 text-center">
-          <div className="text-lg font-bold text-gray-900">—</div>
-          <div>Déclarations</div>
-        </div>
-      </div>
+      </main>
     </div>
-  );
-}
-
-function EmptyOrgs() {
-  return (
-    <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
-      <div className="text-4xl mb-4">🏢</div>
-      <h2 className="font-bold text-gray-700 mb-2">Aucune organisation</h2>
-      <p className="text-sm text-gray-400 mb-6 max-w-sm mx-auto">
-        Créez votre entreprise ou cabinet comptable pour gérer vos documents,
-        employés et déclarations d&apos;entreprise.
-      </p>
-      <CreateOrgButton primary />
-    </div>
-  );
-}
-
-function CreateOrgButton({ primary }: { primary?: boolean }) {
-  return (
-    <Link
-      href="/business/new"
-      className={
-        primary
-          ? "bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors"
-          : "border border-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
-      }
-    >
-      + Créer une organisation
-    </Link>
   );
 }

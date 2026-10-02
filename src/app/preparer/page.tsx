@@ -1,8 +1,7 @@
-import { AppNav } from "@/components/AppNav";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { AppNav } from "@/components/AppNav";
 import { db } from "@/lib/db";
 import { preparerProfiles, preparerClientAssignments, taxProfiles } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -11,132 +10,186 @@ export default async function PreparerPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  // Profil préparateur — vérification côté serveur
-  const [profile] = await db
-    .select()
-    .from(preparerProfiles)
-    .where(eq(preparerProfiles.userId, userId))
-    .limit(1);
+  const [profile] = await db.select().from(preparerProfiles)
+    .where(eq(preparerProfiles.userId, userId)).limit(1);
 
-  // Clients actifs si préparateur
   const clients = profile
-    ? await db
-        .select({
-          assignmentId: preparerClientAssignments.id,
-          status: preparerClientAssignments.status,
-          assignedAt: preparerClientAssignments.assignedAt,
-          authorizedTaxYears: preparerClientAssignments.authorizedTaxYears,
-          clientId: taxProfiles.id,
-          clientFirstName: taxProfiles.firstName,
-          clientLastName: taxProfiles.lastName,
-          clientProvince: taxProfiles.province,
-        })
-        .from(preparerClientAssignments)
-        .innerJoin(taxProfiles, eq(preparerClientAssignments.clientProfileId, taxProfiles.id))
-        .where(
-          and(
-            eq(preparerClientAssignments.preparerId, profile.id),
-            eq(preparerClientAssignments.status, "active")
-          )
-        )
+    ? await db.select({
+        assignmentId: preparerClientAssignments.id,
+        status: preparerClientAssignments.status,
+        assignedAt: preparerClientAssignments.assignedAt,
+        authorizedTaxYears: preparerClientAssignments.authorizedTaxYears,
+        clientId: taxProfiles.id,
+        clientFirstName: taxProfiles.firstName,
+        clientLastName: taxProfiles.lastName,
+        clientProvince: taxProfiles.province,
+      })
+      .from(preparerClientAssignments)
+      .innerJoin(taxProfiles, eq(preparerClientAssignments.clientProfileId, taxProfiles.id))
+      .where(and(
+        eq(preparerClientAssignments.preparerId, profile.id),
+        eq(preparerClientAssignments.status, "active")
+      ))
     : [];
 
-  return (
-    <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
-      <AppNav />
+  const stats = [
+    { label: "Clients actifs",        value: clients.length, icon: "👥", color: "#2563EB" },
+    { label: "Dossiers en cours",     value: "—",            icon: "📋", color: "#7C3AED" },
+    { label: "En attente révision",   value: "—",            icon: "⏳", color: "#D97706" },
+  ];
 
-            <div className="max-w-4xl mx-auto px-6 py-10 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Espace Préparateur</h1>
-          <p className="text-sm text-gray-400 mt-1">Gérez vos clients et leurs dossiers fiscaux</p>
+  return (
+    <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
+      <AppNav />
+      <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 16px" }}>
+
+        {/* Header */}
+        <div style={{ marginBottom: 28 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+            Espace Préparateur
+          </h1>
+          <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 4 }}>
+            Gérez vos clients et leurs dossiers fiscaux
+          </p>
         </div>
 
         {!profile ? (
-          <RegisterPreparerBanner />
+          /* Pas de profil préparateur */
+          <div style={{
+            background: "var(--bg-card)", border: "2px dashed var(--border)",
+            borderRadius: 20, padding: "60px 24px", textAlign: "center",
+          }}>
+            <div style={{ fontSize: 52, marginBottom: 16 }}>🧑‍💼</div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+              Profil préparateur non activé
+            </h2>
+            <p style={{ color: "var(--text-secondary)", fontSize: 14, maxWidth: 400, margin: "0 auto 24px" }}>
+              Pour accéder à l&apos;espace préparateur, activez votre profil professionnel.
+              Vous pourrez ensuite gérer vos clients et leurs dossiers fiscaux.
+            </p>
+            <button style={{
+              padding: "11px 24px", borderRadius: 12, fontSize: 14, fontWeight: 600,
+              background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer",
+            }}>
+              Activer mon profil préparateur →
+            </button>
+
+            {/* Ce qu'offre l'espace préparateur */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10, marginTop: 32, textAlign: "left" }}>
+              {[
+                { icon: "👥", title: "Gestion clients",  desc: "Gérez tous vos clients dans un seul espace" },
+                { icon: "📁", title: "Dossiers partagés", desc: "Accédez aux dossiers autorisés par vos clients" },
+                { icon: "✅", title: "Révision fiscale",  desc: "Révisez et validez les déclarations" },
+                { icon: "🔒", title: "Accès sécurisé",   desc: "Chaque accès est autorisé explicitement" },
+              ].map(({ icon, title, desc }) => (
+                <div key={title} style={{
+                  background: "var(--bg-base)", borderRadius: 12, padding: "14px 16px",
+                  border: "1px solid var(--border)",
+                }}>
+                  <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{title}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : (
           <>
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
-              <StatCard value={clients.length} label="Clients actifs" icon="👥" />
-              <StatCard value="—" label="Dossiers en cours" icon="📋" />
-              <StatCard value="—" label="En attente révision" icon="⏳" />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
+              {stats.map(({ label, value, icon, color }) => (
+                <div key={label} style={{
+                  background: "var(--bg-card)", border: "1px solid var(--border)",
+                  borderRadius: 16, padding: "18px 16px", boxShadow: "var(--shadow-sm)",
+                }}>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 10, fontSize: 18,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: `${color}18`, marginBottom: 10,
+                  }}>{icon}</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)" }}>{value}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 3 }}>{label}</div>
+                </div>
+              ))}
             </div>
 
             {/* Liste clients */}
-            <section className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="font-bold text-gray-900">Clients assignés</h2>
-                <button className="text-sm text-red-600 hover:underline">+ Inviter un client</button>
+            <div style={{
+              background: "var(--bg-card)", border: "1px solid var(--border)",
+              borderRadius: 18, padding: "20px 22px", boxShadow: "var(--shadow-sm)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                  Clients assignés
+                </h2>
+                <button style={{
+                  padding: "7px 14px", borderRadius: 9, fontSize: 12, fontWeight: 600,
+                  background: "rgba(229,52,42,0.1)", color: "var(--et-red)",
+                  border: "none", cursor: "pointer",
+                }}>
+                  + Inviter un client
+                </button>
               </div>
 
               {clients.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="text-3xl mb-3">👥</div>
-                  <p className="text-sm text-gray-400">Aucun client assigné pour le moment.</p>
-                  <p className="text-xs text-gray-300 mt-1">Invitez vos clients à vous autoriser l&apos;accès à leur dossier.</p>
+                <div style={{ textAlign: "center", padding: "32px 0" }}>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>👥</div>
+                  <p style={{ color: "var(--text-secondary)", fontSize: 14, margin: "0 0 4px" }}>
+                    Aucun client assigné pour le moment.
+                  </p>
+                  <p style={{ color: "var(--text-muted)", fontSize: 12 }}>
+                    Invitez vos clients à vous autoriser l&apos;accès à leur dossier.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {clients.map((c) => {
-                    const years = c.authorizedTaxYears
-                      ? (JSON.parse(c.authorizedTaxYears) as number[])
-                      : [];
-
+                    const years = c.authorizedTaxYears ? (JSON.parse(c.authorizedTaxYears) as number[]) : [];
                     return (
-                      <div
-                        key={c.assignmentId}
-                        className="flex items-center justify-between bg-gray-50 rounded-xl p-4"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm">
+                      <div key={c.assignmentId} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "12px 14px", borderRadius: 12,
+                        background: "var(--bg-base)", border: "1px solid var(--border)",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div style={{
+                            width: 36, height: 36, borderRadius: 50, fontSize: 14, fontWeight: 700,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            background: "rgba(37,99,235,0.1)", color: "#2563EB",
+                          }}>
                             {c.clientFirstName?.[0] ?? "?"}
                           </div>
                           <div>
-                            <div className="font-medium text-gray-900 text-sm">
+                            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
                               {c.clientFirstName} {c.clientLastName}
                             </div>
-                            <div className="text-xs text-gray-400">
+                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
                               {c.clientProvince} · Années : {years.length > 0 ? years.join(", ") : "Toutes"}
                             </div>
                           </div>
                         </div>
-                        <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                          Actif
-                        </span>
+                        <span style={{
+                          fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 100,
+                          background: "rgba(22,163,74,0.1)", color: "#16A34A",
+                        }}>Actif</span>
                       </div>
                     );
                   })}
                 </div>
               )}
-            </section>
+            </div>
+
+            {/* Info sécurité */}
+            <div style={{
+              marginTop: 16, padding: "14px 18px", borderRadius: 12,
+              background: "rgba(37,99,235,0.07)", border: "1px solid rgba(37,99,235,0.2)",
+              fontSize: 13, color: "#2563EB",
+            }}>
+              🔒 Chaque accès à un dossier client nécessite une autorisation explicite du client.
+            </div>
           </>
         )}
-      </div>
-    </main>
-  );
-}
-
-function StatCard({ value, label, icon }: { value: number | string; label: string; icon: string }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-      <div className="text-2xl mb-1">{icon}</div>
-      <div className="text-2xl font-black text-gray-900">{value}</div>
-      <div className="text-xs text-gray-400 mt-0.5">{label}</div>
-    </div>
-  );
-}
-
-function RegisterPreparerBanner() {
-  return (
-    <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-10 text-center">
-      <div className="text-4xl mb-4">🧑‍💼</div>
-      <h2 className="font-bold text-gray-700 mb-2">Profil préparateur non configuré</h2>
-      <p className="text-sm text-gray-400 mb-6 max-w-sm mx-auto">
-        Pour accéder à l&apos;espace préparateur, vous devez d&apos;abord activer votre profil professionnel.
-      </p>
-      <button className="bg-red-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors">
-        Activer mon profil préparateur →
-      </button>
+      </main>
     </div>
   );
 }
