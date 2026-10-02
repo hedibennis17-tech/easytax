@@ -10,26 +10,33 @@ export default async function BusinessPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  const userOrgs = await db
-    .select({
-      id: organizations.id,
-      legalName: organizations.legalName,
-      tradeName: organizations.tradeName,
-      type: organizations.type,
-      status: organizations.status,
-      province: organizations.province,
-      role: organizationMemberships.role,
-      createdAt: organizations.createdAt,
-    })
-    .from(organizationMemberships)
-    .innerJoin(organizations, eq(organizationMemberships.organizationId, organizations.id))
-    .where(
-      and(
-        eq(organizationMemberships.userId, userId),
-        eq(organizationMemberships.status, "active"),
-        eq(organizations.status, "active")
-      )
-    );
+  let userOrgs: { id: string; legalName: string; tradeName: string | null; type: string; status: string; province: string | null; role: string; createdAt: Date }[] = [];
+  let dbError = false;
+  try {
+    userOrgs = await db
+      .select({
+        id: organizations.id,
+        legalName: organizations.legalName,
+        tradeName: organizations.tradeName,
+        type: organizations.type,
+        status: organizations.status,
+        province: organizations.province,
+        role: organizationMemberships.role,
+        createdAt: organizations.createdAt,
+      })
+      .from(organizationMemberships)
+      .innerJoin(organizations, eq(organizationMemberships.organizationId, organizations.id))
+      .where(
+        and(
+          eq(organizationMemberships.userId, userId),
+          eq(organizationMemberships.status, "active"),
+          eq(organizations.status, "active")
+        )
+      );
+  } catch (e) {
+    console.error("business page DB error:", e);
+    dbError = true;
+  }
 
   const typeLabels: Record<string, string> = {
     BUSINESS: "Entreprise incorporée",
@@ -73,7 +80,28 @@ export default async function BusinessPage() {
           </Link>
         </div>
 
-        {userOrgs.length === 0 ? (
+        {dbError ? (
+          /* Erreur DB — migration manquante */
+          <div style={{
+            background: "rgba(229,52,42,0.06)", border: "1.5px solid rgba(229,52,42,0.25)",
+            borderRadius: 18, padding: "40px 28px", textAlign: "center",
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 14 }}>⚠️</div>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--et-red)", marginBottom: 8 }}>
+              Migration de base de données requise
+            </h2>
+            <p style={{ color: "var(--text-secondary)", fontSize: 13, marginBottom: 20 }}>
+              Les tables de la migration 0006 doivent être appliquées. Lancez la migration via l'API admin.
+            </p>
+            <code style={{
+              display: "block", background: "var(--bg-base)", border: "1px solid var(--border)",
+              borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--text-secondary)",
+              fontFamily: "monospace",
+            }}>
+              GET /api/admin/migrate?token=MIGRATE_SECRET
+            </code>
+          </div>
+        ) : userOrgs.length === 0 ? (
           /* État vide */
           <div style={{
             border: "2px dashed var(--border)", borderRadius: 20,
