@@ -15,6 +15,13 @@
       "when": 1790896874474,
       "tag": "0001_cold_blur",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790899418658,
+      "tag": "0002_bouncy_supernaut",
+      "breakpoints": true
     }
   ]
 }
