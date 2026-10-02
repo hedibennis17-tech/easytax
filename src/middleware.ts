@@ -1,33 +1,32 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Routes publiques — accessibles sans authentification
-const isPublicRoute = createRouteMatcher([
-  "/",
-  "/sign-in",
-  "/sign-in/(.*)",
-  "/sign-up",
-  "/sign-up/(.*)",
-  "/login",
-  "/signup",
-  "/pricing(.*)",
-  "/about(.*)",
-  "/help(.*)",
-  "/confidentialite(.*)",
-  "/conditions(.*)",
-  "/securite(.*)",
-  "/contact(.*)",
+// Routes protégées — tout le reste est public
+const isProtectedRoute = createRouteMatcher([
+  "/dashboard(.*)",
+  "/dossier(.*)",
+  "/documents(.*)",
+  "/onboarding(.*)",
+  "/settings(.*)",
+  "/admin(.*)",
+  "/api/documents(.*)",
+  "/api/profile(.*)",
+  "/api/tax-returns(.*)",
+  "/api/access-codes(.*)",
+  "/api/questions(.*)",
+  "/api/jurisdictions(.*)",
+  "/api/user(.*)",
+  "/api/auth/sync(.*)",
+  "/api/auth/complete-onboarding(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
-  // Protéger toutes les routes non-publiques
-  if (!isPublicRoute(request)) {
+  if (isProtectedRoute(request)) {
     await auth.protect();
   }
 });
 
 export const config = {
   matcher: [
-    // Protéger toutes les routes sauf fichiers statiques Next.js
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
   ],
