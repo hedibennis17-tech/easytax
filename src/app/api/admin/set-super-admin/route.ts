@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
+import { db } from "@/lib/db";
+import { users } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
@@ -8,41 +10,30 @@ export async function GET(req: NextRequest) {
   if (token !== process.env.MIGRATE_SECRET) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
-
   if (!email) {
     return NextResponse.json({ error: "email requis" }, { status: 400 });
   }
 
-  const sql = neon(process.env.DATABASE_URL!);
-
-  // Vérifier si user existe
-  const existing = await sql(
-    `SELECT id, email, role, clerk_user_id FROM users WHERE email ILIKE $1 LIMIT 1`,
-    [email]
-  );
+  const existing = await db
+    .select({ id: users.id, email: users.email, role: users.role, clerkUserId: users.clerkUserId })
+    .from(users)
+    .where(sql`lower(${users.email}) = lower(${email})`)
+    .limit(1);
 
   if (existing.length === 0) {
-    // Créer l'user si pas encore connecté
     return NextResponse.json({
       error: "User non trouvé. Connecte-toi d'abord sur /dashboard puis rappelle cet endpoint.",
-      email,
     }, { status: 404 });
   }
 
-  // Upgrader en SUPER_ADMIN
-  await sql(
-    `UPDATE users SET role = 'SUPER_ADMIN', updated_at = NOW() WHERE email ILIKE $1`,
-    [email]
-  );
-
-  const updated = await sql(
-    `SELECT id, email, role, clerk_user_id FROM users WHERE email ILIKE $1 LIMIT 1`,
-    [email]
-  );
+  await db
+    .update(users)
+    .set({ role: "SUPER_ADMIN", updatedAt: new Date() })
+    .where(sql`lower(${users.email}) = lower(${email})`);
 
   return NextResponse.json({
     success: true,
-    user: updated[0],
+    user: { ...existing[0], role: "SUPER_ADMIN" },
     message: "✅ Compte upgradé en SUPER_ADMIN",
   });
 }
