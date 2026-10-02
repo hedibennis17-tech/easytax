@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { neon, neonConfig } from "@neondatabase/serverless";
+import { neon } from "@neondatabase/serverless";
 import { MIGRATIONS } from "@/lib/migrations-data";
 
-neonConfig.fetchConnectionCache = true;
-
-export async function POST(req: NextRequest) {
-  const token = req.headers.get("x-migrate-token");
-  if (token !== process.env.MIGRATE_SECRET) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
-
+async function runMigrations() {
   const sql = neon(process.env.DATABASE_URL!);
   const results: string[] = [];
   const errors: string[] = [];
 
   for (const migration of MIGRATIONS) {
     let ok = 0, skip = 0;
-
     for (const stmt of migration.statements) {
       try {
         await sql.unsafe(stmt);
@@ -26,8 +18,7 @@ export async function POST(req: NextRequest) {
         if (
           msg.includes("already exists") ||
           msg.includes("duplicate") ||
-          msg.includes("DuplicateObject") ||
-          msg.includes("already exists as")
+          msg.includes("DuplicateObject")
         ) {
           skip++;
         } else {
@@ -35,14 +26,27 @@ export async function POST(req: NextRequest) {
         }
       }
     }
-
-    results.push(`${migration.file}: ${ok} exécutés, ${skip} déjà existants`);
+    results.push(`${migration.file}: ${ok} OK, ${skip} skipped`);
   }
+  return { results, errors };
+}
 
-  return NextResponse.json({
-    success: errors.length === 0,
-    results,
-    errors,
-    totalMigrations: MIGRATIONS.length,
-  });
+// GET — déclenché depuis le browser directement
+export async function GET(req: NextRequest) {
+  const token = req.nextUrl.searchParams.get("token");
+  if (token !== process.env.MIGRATE_SECRET) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+  const { results, errors } = await runMigrations();
+  return NextResponse.json({ success: errors.length === 0, results, errors });
+}
+
+// POST — conservé pour compatibilité
+export async function POST(req: NextRequest) {
+  const token = req.headers.get("x-migrate-token");
+  if (token !== process.env.MIGRATE_SECRET) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+  const { results, errors } = await runMigrations();
+  return NextResponse.json({ success: errors.length === 0, results, errors });
 }
