@@ -65,6 +65,9 @@ export default async function DashboardPage() {
           <Link href="/dossier" className="text-sm text-gray-500 hover:text-gray-900">Dossier</Link>
           <Link href="/questionnaire" className="text-sm text-gray-500 hover:text-gray-900">Questionnaire</Link>
           <Link href="/resume" className="text-sm text-gray-500 hover:text-gray-900">Résumé fiscal</Link>
+          <Link href="/business" className="text-sm text-gray-500 hover:text-gray-900">Business</Link>
+          <Link href="/preparer" className="text-sm text-gray-500 hover:text-gray-900">Préparateur</Link>
+          <Link href="/admin" className="text-sm text-gray-500 hover:text-gray-900">Admin</Link>
           <UserButton />
         </div>
       </nav>

@@ -5,23 +5,34 @@ const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
   "/dossier(.*)",
   "/documents(.*)",
+  "/questionnaire(.*)",
+  "/resume(.*)",
   "/onboarding(.*)",
   "/settings(.*)",
+  // Étape 4.5 — nouveaux espaces
+  "/business(.*)",
+  "/preparer(.*)",
   "/admin(.*)",
+  // APIs protégées
   "/api/documents(.*)",
   "/api/profile(.*)",
   "/api/tax-returns(.*)",
+  "/api/tax-engine(.*)",
   "/api/access-codes(.*)",
   "/api/questions(.*)",
+  "/api/answers(.*)",
   "/api/jurisdictions(.*)",
   "/api/user(.*)",
   "/api/auth(.*)",
+  "/api/organizations(.*)",
+  "/api/invitations(.*)",
+  "/api/preparer(.*)",
+  "/api/notifications(.*)",
 ]);
 
 const isAdminMigrateRoute = createRouteMatcher(["/api/admin/migrate"]);
 
 export default clerkMiddleware(async (auth, request) => {
-  // Route de migration — vérifiée par token secret, pas par Clerk
   if (isAdminMigrateRoute(request)) {
     return NextResponse.next();
   }

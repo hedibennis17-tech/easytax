@@ -1441,3 +1441,241 @@ export const questionnaireSessionsRelations = relations(questionnaireSessions, (
     references: [taxYears.id],
   }),
 }));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ÉTAPE 4.5 — ORGANIZATIONS, MEMBERSHIPS, PREPARER, INVITATIONS, NOTIFICATIONS
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─── ENUMS ÉTAPE 4.5 ─────────────────────────────────────────────────────────
+
+export const orgTypeEnum = pgEnum("org_type", [
+  "BUSINESS",
+  "TAX_FIRM",
+  "SOLE_PROPRIETORSHIP",
+]);
+
+export const orgStatusEnum = pgEnum("org_status", [
+  "active",
+  "suspended",
+  "archived",
+]);
+
+export const membershipRoleEnum = pgEnum("membership_role", [
+  "OWNER",
+  "ADMIN",
+  "MEMBER",
+  "EMPLOYEE",
+  "ACCOUNTANT",
+  "REVIEWER",
+]);
+
+export const membershipStatusEnum = pgEnum("membership_status", [
+  "active",
+  "invited",
+  "suspended",
+  "removed",
+]);
+
+export const invitationTypeEnum = pgEnum("invitation_type", [
+  "ORG_MEMBER",
+  "PREPARER_CLIENT",
+  "EMPLOYEE",
+]);
+
+export const invitationStatusEnum = pgEnum("invitation_status", [
+  "pending",
+  "accepted",
+  "expired",
+  "cancelled",
+]);
+
+export const assignmentStatusEnum = pgEnum("assignment_status", [
+  "pending",
+  "active",
+  "completed",
+  "revoked",
+]);
+
+// ─── ORGANIZATIONS ────────────────────────────────────────────────────────────
+// Entreprise incorporée, cabinet comptable, ou entreprise individuelle enregistrée
+// ≠ tax_profiles (personne physique)   ≠ employers (entité T4 uniquement)
+
+export const organizations = pgTable("organizations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // Propriétaire (user Clerk qui a créé l'org)
+  ownerUserId: varchar("owner_user_id", { length: 255 }).notNull(),
+  type: orgTypeEnum("type").notNull().default("BUSINESS"),
+  status: orgStatusEnum("status").notNull().default("active"),
+  // Identité légale
+  legalName: varchar("legal_name", { length: 255 }).notNull(),
+  tradeName: varchar("trade_name", { length: 255 }),
+  // Numéro d'entreprise (BN) — chiffré, jamais exposé en clair
+  businessNumberEncrypted: text("business_number_encrypted"),
+  businessNumberLast4: varchar("business_number_last4", { length: 4 }),
+  businessNumberVerified: boolean("business_number_verified").default(false),
+  // Adresse
+  province: varchar("province", { length: 5 }),
+  address: varchar("address", { length: 255 }),
+  city: varchar("city", { length: 100 }),
+  postalCode: varchar("postal_code", { length: 10 }),
+  // Contact
+  phone: varchar("phone", { length: 20 }),
+  email: varchar("email", { length: 255 }),
+  website: varchar("website", { length: 255 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── ORGANIZATION MEMBERSHIPS ─────────────────────────────────────────────────
+// Lien user ↔ organisation avec rôle granulaire
+// RÈGLE ABSOLUE : vérification toujours côté serveur
+
+export const organizationMemberships = pgTable("organization_memberships", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  role: membershipRoleEnum("role").notNull().default("MEMBER"),
+  status: membershipStatusEnum("status").notNull().default("active"),
+  // Traçabilité
+  invitedByUserId: varchar("invited_by_user_id", { length: 255 }),
+  invitedAt: timestamp("invited_at"),
+  acceptedAt: timestamp("accepted_at"),
+  // Permissions granulaires — JSON array de strings
+  // ex: ["read_documents","submit_returns","manage_employees"]
+  permissions: text("permissions"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── PREPARER PROFILES ────────────────────────────────────────────────────────
+
+export const preparerProfiles = pgTable("preparer_profiles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id", { length: 255 }).notNull().unique(),
+  // Cabinet optionnel
+  organizationId: uuid("organization_id").references(() => organizations.id),
+  licenseNumber: varchar("license_number", { length: 100 }),
+  specialty: varchar("specialty", { length: 255 }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── PREPARER CLIENT ASSIGNMENTS ──────────────────────────────────────────────
+// Relation EXPLICITE préparateur ↔ client
+// Un préparateur ne voit un client QUE si cette relation existe et est active
+
+export const preparerClientAssignments = pgTable("preparer_client_assignments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  preparerId: uuid("preparer_id")
+    .notNull()
+    .references(() => preparerProfiles.id),
+  clientProfileId: uuid("client_profile_id")
+    .notNull()
+    .references(() => taxProfiles.id),
+  status: assignmentStatusEnum("status").notNull().default("pending"),
+  // Années fiscales autorisées — JSON array d'entiers [2024, 2025]
+  authorizedTaxYears: text("authorized_tax_years"),
+  // Permissions accordées par le client
+  permissions: text("permissions"),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
+  revokedAt: timestamp("revoked_at"),
+  revokedByUserId: varchar("revoked_by_user_id", { length: 255 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── INVITATIONS ──────────────────────────────────────────────────────────────
+
+export const invitations = pgTable("invitations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  type: invitationTypeEnum("type").notNull(),
+  // Contexte
+  organizationId: uuid("organization_id").references(() => organizations.id),
+  preparerId: uuid("preparer_id").references(() => preparerProfiles.id),
+  // Destinataire
+  invitedEmail: varchar("invited_email", { length: 255 }).notNull(),
+  invitedUserId: varchar("invited_user_id", { length: 255 }),
+  // Rôle proposé
+  role: membershipRoleEnum("role"),
+  // Token sécurisé — ne jamais exposer dans une URL prévisible
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  status: invitationStatusEnum("status").notNull().default("pending"),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  cancelledAt: timestamp("cancelled_at"),
+  createdByUserId: varchar("created_by_user_id", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+// Jamais de données fiscales sensibles (NAS, montants, etc.)
+
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  // Type extensible sans migration future
+  type: varchar("type", { length: 100 }).notNull(),
+  // Contenu bilingue
+  titleFr: varchar("title_fr", { length: 255 }).notNull(),
+  titleEn: varchar("title_en", { length: 255 }),
+  bodyFr: text("body_fr"),
+  bodyEn: text("body_en"),
+  // Lecture
+  isRead: boolean("is_read").notNull().default(false),
+  readAt: timestamp("read_at"),
+  // Lien vers ressource concernée
+  relatedResourceType: varchar("related_resource_type", { length: 50 }),
+  relatedResourceId: uuid("related_resource_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ─── RELATIONS ÉTAPE 4.5 ─────────────────────────────────────────────────────
+
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  memberships: many(organizationMemberships),
+  preparers: many(preparerProfiles),
+  invitations: many(invitations),
+}));
+
+export const organizationMembershipsRelations = relations(organizationMemberships, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationMemberships.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const preparerProfilesRelations = relations(preparerProfiles, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [preparerProfiles.organizationId],
+    references: [organizations.id],
+  }),
+  clientAssignments: many(preparerClientAssignments),
+  invitations: many(invitations),
+}));
+
+export const preparerClientAssignmentsRelations = relations(preparerClientAssignments, ({ one }) => ({
+  preparer: one(preparerProfiles, {
+    fields: [preparerClientAssignments.preparerId],
+    references: [preparerProfiles.id],
+  }),
+  clientProfile: one(taxProfiles, {
+    fields: [preparerClientAssignments.clientProfileId],
+    references: [taxProfiles.id],
+  }),
+}));
+
+export const invitationsRelations = relations(invitations, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [invitations.organizationId],
+    references: [organizations.id],
+  }),
+  preparer: one(preparerProfiles, {
+    fields: [invitations.preparerId],
+    references: [preparerProfiles.id],
+  }),
+}));

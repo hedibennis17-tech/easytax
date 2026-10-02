@@ -43,6 +43,13 @@
       "when": 1790910000000,
       "tag": "0005_tax_engine",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790920000000,
+      "tag": "0006_organizations",
+      "breakpoints": true
     }
   ]
 }
