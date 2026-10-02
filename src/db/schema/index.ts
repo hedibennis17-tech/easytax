@@ -356,6 +356,15 @@ export const documentStatusEnum = pgEnum("document_status", [
   "rejected",
   "archived",
   "deleted",
+  // Étape 3 — pipeline OCR
+  "ocr_completed",
+  "classified",
+  "extracted",
+  "ready_for_tax_return",
+  "ocr_failed",
+  "classification_failed",
+  "extraction_failed",
+  "processing_failed",
 ]);
 
 export const documentAuditActionEnum = pgEnum("document_audit_action", [
@@ -366,6 +375,16 @@ export const documentAuditActionEnum = pgEnum("document_audit_action", [
   "document_deleted",
   "document_restored",
   "document_duplicate_detected",
+  // Étape 3 — OCR pipeline
+  "document_ocr_started",
+  "document_ocr_completed",
+  "document_ocr_failed",
+  "document_classified",
+  "document_extraction_started",
+  "document_extraction_completed",
+  "document_extraction_failed",
+  "document_extraction_reviewed",
+  "document_extraction_validated",
 ]);
 
 // ─── TYPES DE DOCUMENTS (extensible sans modifier le code) ───────────────────
@@ -431,9 +450,13 @@ export const documentPages = pgTable("document_pages", {
     .references(() => fiscalDocuments.id),
   pageNumber: integer("page_number").notNull(),
   storageKey: varchar("storage_key", { length: 1000 }), // page extraite si nécessaire
-  // Réservé étape 3 OCR — null pour l'instant
-  ocrStatus: varchar("ocr_status", { length: 50 }).default("pending"),
-  extractedData: text("extracted_data"), // JSON — rempli à l'étape 3
+  // Étape 3 OCR
+  ocrStatus: varchar("ocr_status", { length: 50 }).default("pending"), // pending | processing | completed | failed
+  ocrText: text("ocr_text"),             // texte brut extrait par OCR
+  ocrConfidence: integer("ocr_confidence"), // 0-100
+  ocrCompletedAt: timestamp("ocr_completed_at"),
+  ocrError: text("ocr_error"),
+  extractedData: text("extracted_data"), // JSON structuré — rempli par l'extracteur
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -912,5 +935,125 @@ export const governmentAuditLogsRelations = relations(governmentAuditLogs, ({ on
   taxProfile: one(taxProfiles, {
     fields: [governmentAuditLogs.taxProfileId],
     references: [taxProfiles.id],
+  }),
+}));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ÉTAPE 3 — OCR + EXTRACTION FISCALE
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const extractionStatusEnum = pgEnum("extraction_status", [
+  "pending",
+  "in_progress",
+  "completed",
+  "needs_review",
+  "validated",
+  "failed",
+]);
+
+export const fieldValidationStatusEnum = pgEnum("field_validation_status", [
+  "unreviewed",
+  "confirmed",
+  "corrected",
+  "rejected",
+]);
+
+// ─── DOCUMENT EXTRACTIONS ────────────────────────────────────────────────────
+// Une extraction par document — résultat global du pipeline OCR+classification
+
+export const documentExtractions = pgTable("document_extractions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // Ownership
+  fiscalDocumentId: uuid("fiscal_document_id")
+    .notNull()
+    .unique()
+    .references(() => fiscalDocuments.id),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  // Classification détectée
+  detectedDocumentTypeId: uuid("detected_document_type_id")
+    .references(() => documentTypes.id),
+  classificationConfidence: integer("classification_confidence"), // 0-100
+  classificationReason: text("classification_reason"),
+  // Année et juridiction détectées
+  detectedTaxYear: integer("detected_tax_year"),
+  detectedJurisdictionId: uuid("detected_jurisdiction_id")
+    .references(() => jurisdictions.id),
+  // Statut global extraction
+  status: extractionStatusEnum("status").notNull().default("pending"),
+  // Provider OCR utilisé
+  ocrProvider: varchar("ocr_provider", { length: 50 }), // "google", "mock", etc.
+  extractionVersion: varchar("extraction_version", { length: 20 }).default("1.0"),
+  // Confiance globale 0-100
+  overallConfidence: integer("overall_confidence"),
+  // Flags
+  needsHumanReview: boolean("needs_human_review").default(false),
+  yearMismatchWarning: boolean("year_mismatch_warning").default(false),
+  // Timestamps
+  processingStartedAt: timestamp("processing_started_at"),
+  ocrCompletedAt: timestamp("ocr_completed_at"),
+  classifiedAt: timestamp("classified_at"),
+  extractedAt: timestamp("extracted_at"),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedByUserId: varchar("reviewed_by_user_id", { length: 255 }),
+  validatedAt: timestamp("validated_at"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── EXTRACTION FIELDS ───────────────────────────────────────────────────────
+// Champs individuels extraits — UN enregistrement par case/champ détecté
+
+export const extractionFields = pgTable("extraction_fields", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  extractionId: uuid("extraction_id")
+    .notNull()
+    .references(() => documentExtractions.id),
+  // Identification du champ
+  fieldCode: varchar("field_code", { length: 100 }).notNull(), // ex: "box_14", "employment_income", "employer_name"
+  fieldLabel: varchar("field_label", { length: 255 }),          // ex: "Case 14 — Revenus d'emploi"
+  pageNumber: integer("page_number"),
+  // Valeur brute OCR — jamais écrasée
+  rawOcrValue: text("raw_ocr_value"),
+  ocrConfidence: integer("ocr_confidence"), // 0-100 pour ce champ spécifique
+  // Valeur validée — null si pas encore confirmée
+  validatedValue: text("validated_value"),
+  validationStatus: fieldValidationStatusEnum("validation_status")
+    .notNull()
+    .default("unreviewed"),
+  // Historique correction
+  previousValue: text("previous_value"),
+  correctedByUserId: varchar("corrected_by_user_id", { length: 255 }),
+  correctedAt: timestamp("corrected_at"),
+  correctionNote: text("correction_note"),
+  // Flags
+  needsReview: boolean("needs_review").default(false),
+  isRequired: boolean("is_required").default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── RELATIONS ÉTAPE 3 ───────────────────────────────────────────────────────
+
+export const documentExtractionsRelations = relations(documentExtractions, ({ one, many }) => ({
+  fiscalDocument: one(fiscalDocuments, {
+    fields: [documentExtractions.fiscalDocumentId],
+    references: [fiscalDocuments.id],
+  }),
+  detectedDocumentType: one(documentTypes, {
+    fields: [documentExtractions.detectedDocumentTypeId],
+    references: [documentTypes.id],
+  }),
+  detectedJurisdiction: one(jurisdictions, {
+    fields: [documentExtractions.detectedJurisdictionId],
+    references: [jurisdictions.id],
+  }),
+  fields: many(extractionFields),
+}));
+
+export const extractionFieldsRelations = relations(extractionFields, ({ one }) => ({
+  extraction: one(documentExtractions, {
+    fields: [extractionFields.extractionId],
+    references: [documentExtractions.id],
   }),
 }));
