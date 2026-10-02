@@ -1057,3 +1057,48 @@ export const extractionFieldsRelations = relations(extractionFields, ({ one }) =
     references: [documentExtractions.id],
   }),
 }));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ÉTAPE 3A — AUTHENTIFICATION + RÔLES
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const userRoleEnum = pgEnum("user_role", [
+  "INDIVIDUAL",   // Particulier — déclare ses propres impôts
+  "PREPARER",     // Préparateur fiscal — gère plusieurs clients
+  "BUSINESS",     // Entreprise — gère ses employés
+  "ADMIN",        // Administrateur EasyTax
+  "SUPER_ADMIN",  // Super administrateur
+]);
+
+export const userStatusEnum = pgEnum("user_status", [
+  "active",
+  "inactive",
+  "suspended",
+  "pending_verification",
+]);
+
+// ─── USERS (table interne EasyTax liée à Clerk) ───────────────────────────────
+// Jamais de mot de passe ici — Clerk gère l'auth complètement
+
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // Clerk ID — point d'entrée de toute la sécurité
+  clerkUserId: varchar("clerk_user_id", { length: 255 }).notNull().unique(),
+  email: varchar("email", { length: 255 }).notNull(),
+  firstName: varchar("first_name", { length: 100 }),
+  lastName: varchar("last_name", { length: 100 }),
+  role: userRoleEnum("role").notNull().default("INDIVIDUAL"),
+  status: userStatusEnum("status").notNull().default("active"),
+  // Onboarding
+  onboardingCompleted: boolean("onboarding_completed").default(false),
+  // Jamais de mot de passe — Clerk gère ça
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  lastSignInAt: timestamp("last_sign_in_at"),
+});
+
+// ─── RELATIONS users ──────────────────────────────────────────────────────────
+
+export const usersRelations = relations(users, ({ many }) => ({
+  taxProfiles: many(taxProfiles),
+}));

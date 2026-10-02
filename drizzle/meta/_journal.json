@@ -29,6 +29,13 @@
       "when": 1790900231850,
       "tag": "0003_daffy_bulldozer",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790901979719,
+      "tag": "0004_simple_slyde",
+      "breakpoints": true
     }
   ]
 }
