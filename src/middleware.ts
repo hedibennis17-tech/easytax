@@ -15,24 +15,17 @@ const isProtectedRoute = createRouteMatcher([
   "/api/questions(.*)",
   "/api/jurisdictions(.*)",
   "/api/user(.*)",
-  "/api/auth/sync(.*)",
-  "/api/auth/complete-onboarding(.*)",
-  // Route admin migration — protégée par token secret, pas par Clerk
-  // "/api/admin/migrate" exclue intentionnellement
+  "/api/auth(.*)",
 ]);
 
-// Routes complètement exemptées de Clerk — protégées par leur propre mécanisme
-const isExemptRoute = createRouteMatcher([
-  "/api/admin(.*)",
-  "/api/debug(.*)",
-]);
+const isAdminMigrateRoute = createRouteMatcher(["/api/admin/migrate"]);
 
 export default clerkMiddleware(async (auth, request) => {
-  // Routes admin : bypass total de Clerk (token secret gère la sécurité)
-  if (isExemptRoute(request)) {
+  // Route de migration — vérifiée par token secret, pas par Clerk
+  if (isAdminMigrateRoute(request)) {
     return NextResponse.next();
   }
-  // Routes privées : Clerk obligatoire
+
   if (isProtectedRoute(request)) {
     await auth.protect();
   }
@@ -41,6 +34,6 @@ export default clerkMiddleware(async (auth, request) => {
 export const config = {
   matcher: [
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    "/(api(?!/admin))(.*)",
+    "/(api|trpc)(.*)",
   ],
 };
