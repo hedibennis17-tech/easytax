@@ -1,4 +1,4 @@
-import { AppNav } from "@/components/AppNav";
+import { NavWrapper } from "@/components/NavWrapper";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -13,7 +13,7 @@ export default async function ResumePage() {
 
   return (
     <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
-      <AppNav />
+      <NavWrapper />
 
             <div className="max-w-3xl mx-auto px-6 py-10 space-y-6">
         <div>

@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { AppNav } from "@/components/AppNav";
+import { NavWrapper } from "@/components/NavWrapper";
 import { db } from "@/lib/db";
 import { organizations, organizationMemberships } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -9,6 +9,16 @@ import { eq, and } from "drizzle-orm";
 export default async function BusinessPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
+
+  // Guard rôle côté serveur — double sécurité après middleware
+  try {
+    const { getUserByClerkId } = await import("@/lib/user-service");
+    const user = await getUserByClerkId(userId);
+    const allowed: string[] = ["BUSINESS", "ADMIN", "SUPER_ADMIN"];
+    if (user && !allowed.includes(user.role)) {
+      redirect("/dashboard");
+    }
+  } catch { /* silencieux */ }
 
   let userOrgs: { id: string; legalName: string; tradeName: string | null; type: string; status: string; province: string | null; role: string; createdAt: Date }[] = [];
   let dbError = false;
@@ -55,7 +65,7 @@ export default async function BusinessPage() {
 
   return (
     <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
-      <AppNav />
+      <NavWrapper />
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 16px" }}>
 
         {/* Header */}

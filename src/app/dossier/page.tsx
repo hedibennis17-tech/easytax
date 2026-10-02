@@ -1,4 +1,4 @@
-import { AppNav } from "@/components/AppNav";
+import { NavWrapper } from "@/components/NavWrapper";
 import Link from "next/link";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -50,7 +50,7 @@ export default function DossierPage() {
   return (
     <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
       {/* Nav */}
-      <AppNav />
+      <NavWrapper />
 
             <div className="max-w-4xl mx-auto px-6 py-10 space-y-6">
 

@@ -1,5 +1,5 @@
 "use client";
-import { AppNav } from "@/components/AppNav";
+import { NavClient } from "@/components/NavClient";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -66,7 +66,7 @@ export default function NewOrgPage() {
   if (step === "type") {
     return (
       <main className="min-h-screen bg-gray-50">
-        <AppNav />
+        <NavClient />
 
         <div className="max-w-xl mx-auto px-6 py-12">
           <div className="mb-8">
@@ -101,7 +101,7 @@ export default function NewOrgPage() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <AppNav />
+      <NavClient />
 
       <div className="max-w-xl mx-auto px-6 py-12">
         <div className="mb-8">

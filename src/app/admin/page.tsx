@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { AppNav } from "@/components/AppNav";
+import { NavWrapper } from "@/components/NavWrapper";
 import { db } from "@/lib/db";
 import { users, organizations, fiscalDocuments, taxReturns } from "@/db/schema";
 import { count, eq } from "drizzle-orm";
@@ -41,7 +41,7 @@ export default async function AdminPage() {
 
   return (
     <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
-      <AppNav />
+      <NavWrapper />
       <main style={{ maxWidth: 1050, margin: "0 auto", padding: "32px 16px" }}>
 
         {/* Header */}

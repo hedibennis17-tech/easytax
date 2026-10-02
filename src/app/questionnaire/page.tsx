@@ -1,5 +1,5 @@
 "use client";
-import { AppNav } from "@/components/AppNav";
+import { NavClient } from "@/components/NavClient";
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
@@ -225,7 +225,7 @@ export default function QuestionnairePage() {
   if (done) {
     return (
       <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
-        <AppNav />
+        <NavClient />
 
         <div className="max-w-2xl mx-auto px-6 py-12">
           <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm text-center">
@@ -282,7 +282,7 @@ export default function QuestionnairePage() {
 
   return (
     <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
-      <AppNav />
+      <NavClient />
 
       <div className="max-w-2xl mx-auto px-6 py-10">
         {/* Barre de progression */}

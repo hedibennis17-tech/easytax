@@ -1,7 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { AppNav } from "@/components/AppNav";
+import { NavWrapper } from "@/components/NavWrapper";
 import { db } from "@/lib/db";
 import { users, fiscalDocuments, taxReturns, taxProfiles } from "@/db/schema";
 import { eq, count } from "drizzle-orm";
@@ -54,7 +54,7 @@ export default async function DashboardPage() {
 
   return (
     <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
-      <AppNav />
+      <NavWrapper />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8">
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { AppNav } from "@/components/AppNav";
+import { NavClient } from "@/components/NavClient";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 
@@ -165,7 +165,7 @@ export default function DocumentsPage() {
 
   return (
     <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
-      <AppNav />
+      <NavClient />
 
             <div className="max-w-4xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-6">

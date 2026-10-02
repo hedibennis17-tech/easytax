@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { AppNav } from "@/components/AppNav";
+import { NavWrapper } from "@/components/NavWrapper";
 import { db } from "@/lib/db";
 import { preparerProfiles, preparerClientAssignments, taxProfiles } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -9,6 +9,16 @@ import { eq, and } from "drizzle-orm";
 export default async function PreparerPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
+
+  // Guard rôle côté serveur — double sécurité après middleware
+  try {
+    const { getUserByClerkId } = await import("@/lib/user-service");
+    const user = await getUserByClerkId(userId);
+    const allowed: string[] = ["PREPARER", "ADMIN", "SUPER_ADMIN"];
+    if (user && !allowed.includes(user.role)) {
+      redirect("/dashboard");
+    }
+  } catch { /* silencieux */ }
 
   const [profile] = await db.select().from(preparerProfiles)
     .where(eq(preparerProfiles.userId, userId)).limit(1);
@@ -40,7 +50,7 @@ export default async function PreparerPage() {
 
   return (
     <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
-      <AppNav />
+      <NavWrapper />
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 16px" }}>
 
         {/* Header */}
