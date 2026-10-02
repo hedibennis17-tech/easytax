@@ -37,3 +37,44 @@ export async function GET(req: NextRequest) {
     message: "✅ Compte upgradé en SUPER_ADMIN",
   });
 }
+
+// Route pour créer un super admin directement depuis Clerk userId
+export async function POST(req: NextRequest) {
+  const token = req.nextUrl.searchParams.get("token");
+  if (token !== process.env.MIGRATE_SECRET) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const { clerkUserId, email, firstName, lastName } = body;
+
+  if (!clerkUserId || !email) {
+    return NextResponse.json({ error: "clerkUserId et email requis" }, { status: 400 });
+  }
+
+  // Upsert — créer ou mettre à jour
+  const existing = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.clerkUserId, clerkUserId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db.update(users)
+      .set({ role: "SUPER_ADMIN", email, firstName, lastName, updatedAt: new Date() })
+      .where(eq(users.clerkUserId, clerkUserId));
+  } else {
+    await db.insert(users).values({
+      clerkUserId,
+      email,
+      firstName: firstName ?? null,
+      lastName: lastName ?? null,
+      role: "SUPER_ADMIN",
+      status: "active",
+      onboardingCompleted: true,
+      lastSignInAt: new Date(),
+    });
+  }
+
+  return NextResponse.json({ success: true, message: "✅ SUPER_ADMIN créé/upgradé" });
+}
