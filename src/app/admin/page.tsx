@@ -1,3 +1,4 @@
+import { AppNav } from "@/components/AppNav";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -53,22 +54,10 @@ export default async function AdminPage() {
   const isSuperAdmin = ctx.role === "SUPER_ADMIN";
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-1">
-          <span className="text-xl font-bold text-red-600">Easy</span>
-          <span className="text-xl font-bold text-gray-900">Tax</span>
-          <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold">
-            {isSuperAdmin ? "SUPER ADMIN" : "ADMIN"}
-          </span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-900">Dashboard</Link>
-          <UserButton />
-        </div>
-      </nav>
+    <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
+      <AppNav />
 
-      <div className="max-w-5xl mx-auto px-6 py-10 space-y-6">
+            <div className="max-w-5xl mx-auto px-6 py-10 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Console d&apos;administration</h1>
           <p className="text-sm text-gray-400 mt-1">Vue globale de la plateforme EasyTax</p>

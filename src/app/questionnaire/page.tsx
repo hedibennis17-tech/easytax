@@ -1,4 +1,5 @@
 "use client";
+import { AppNav } from "@/components/AppNav";
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
@@ -223,14 +224,8 @@ export default function QuestionnairePage() {
 
   if (done) {
     return (
-      <main className="min-h-screen bg-gray-50">
-        <nav className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-1">
-            <span className="text-xl font-bold text-red-600">Easy</span>
-            <span className="text-xl font-bold text-gray-900">Tax</span>
-          </Link>
-          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-900">Dashboard</Link>
-        </nav>
+      <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
+        <AppNav />
 
         <div className="max-w-2xl mx-auto px-6 py-12">
           <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm text-center">
@@ -286,16 +281,8 @@ export default function QuestionnairePage() {
   if (!current) return null;
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-1">
-          <span className="text-xl font-bold text-red-600">Easy</span>
-          <span className="text-xl font-bold text-gray-900">Tax</span>
-        </Link>
-        <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-900">
-          Sauvegarder et quitter
-        </Link>
-      </nav>
+    <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
+      <AppNav />
 
       <div className="max-w-2xl mx-auto px-6 py-10">
         {/* Barre de progression */}

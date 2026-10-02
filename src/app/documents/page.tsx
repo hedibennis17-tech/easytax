@@ -1,5 +1,6 @@
 "use client";
 
+import { AppNav } from "@/components/AppNav";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 
@@ -163,19 +164,10 @@ export default function DocumentsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-1">
-          <span className="text-xl font-bold text-red-600">Easy</span>
-          <span className="text-xl font-bold text-gray-900">Tax</span>
-        </Link>
-        <div className="flex items-center gap-4 text-sm text-gray-500">
-          <Link href="/dashboard" className="hover:text-gray-900">Dashboard</Link>
-          <span className="font-medium text-gray-900">Mes documents</span>
-        </div>
-      </nav>
+    <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
+      <AppNav />
 
-      <div className="max-w-4xl mx-auto px-6 py-10">
+            <div className="max-w-4xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Mes documents fiscaux</h1>

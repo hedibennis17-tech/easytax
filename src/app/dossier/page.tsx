@@ -1,3 +1,4 @@
+import { AppNav } from "@/components/AppNav";
 import Link from "next/link";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -47,24 +48,11 @@ export default function DossierPage() {
   const quebecStatus = STATUS_LABELS[DEMO_RETURN.quebecStatus];
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
       {/* Nav */}
-      <nav className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-1">
-          <span className="text-xl font-bold text-red-600">Easy</span>
-          <span className="text-xl font-bold text-gray-900">Tax</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-500">
-            {DEMO_PROFILE.firstName} {DEMO_PROFILE.lastName}
-          </span>
-          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-red-600 font-bold text-sm">
-            {DEMO_PROFILE.firstName[0]}
-          </div>
-        </div>
-      </nav>
+      <AppNav />
 
-      <div className="max-w-4xl mx-auto px-6 py-10 space-y-6">
+            <div className="max-w-4xl mx-auto px-6 py-10 space-y-6">
 
         {/* En-tête */}
         <div>
