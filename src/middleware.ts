@@ -1,6 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextRequest, NextResponse } from "next/server";
 
-// Routes protégées — tout le reste est public
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
   "/dossier(.*)",
@@ -19,7 +19,18 @@ const isProtectedRoute = createRouteMatcher([
   "/api/auth/complete-onboarding(.*)",
 ]);
 
+// Routes complètement exemptées de Clerk — protégées par leur propre mécanisme
+const isExemptRoute = createRouteMatcher([
+  "/api/admin(.*)",
+  "/api/debug(.*)",
+]);
+
 export default clerkMiddleware(async (auth, request) => {
+  // Routes admin : bypass total de Clerk (token secret gère la sécurité)
+  if (isExemptRoute(request)) {
+    return NextResponse.next();
+  }
+  // Routes privées : Clerk obligatoire
   if (isProtectedRoute(request)) {
     await auth.protect();
   }
@@ -28,6 +39,6 @@ export default clerkMiddleware(async (auth, request) => {
 export const config = {
   matcher: [
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    "/(api(?!/admin))(.*)",
+    "/(api|trpc)(.*)",
   ],
 };
