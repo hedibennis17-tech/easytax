@@ -164,8 +164,15 @@ export default function BusinessQuestionnairePage() {
     pct: triageQs.length > 0 ? Math.round((triageQs.filter(q => answers[q.id] !== undefined).length / triageQs.length) * 100) : 0,
   };
 
+  // Province d'exploitation: extraite des réponses triage (bi_province ou exploitation principale)
+  const bizProvince = String(answers["biz_province"] ?? answers["bi_province"] ?? "");
+
   const sectionProgress = [triageProgress, ...visibleSections.map(s => {
-    const sQs = ALL_QUESTIONS.filter(q => q.section === s.code && evalCond(q.showIf, answers));
+    const sQs = ALL_QUESTIONS.filter(q =>
+      q.section === s.code &&
+      evalCond(q.showIf, answers) &&
+      (!q.provinceOnly || !bizProvince || q.provinceOnly.includes(bizProvince))
+    );
     const answered = sQs.filter(q => answers[q.id] !== undefined).length;
     return { code: s.code, fr: s.fr, en: s.en, icon: s.icon, total: sQs.length, answered, pct: sQs.length > 0 ? Math.round((answered / sQs.length) * 100) : 0 };
   })];
@@ -176,9 +183,26 @@ export default function BusinessQuestionnairePage() {
 
   const currentQ: Question | undefined = curSectionQs[qIdx];
 
-  const allApplicable = ALL_QUESTIONS.filter(q => evalCond(q.showIf, answers));
-  const totalApplicable = triageQs.length + allApplicable.filter(q => q.section !== "triage_biz").length;
-  const totalAnswered = Object.keys(answers).length;
+  // COMPTEURS UNIFIÉS — même source que sectionProgress
+  const visibleSectionCodes = new Set(visibleSections.map(s => s.code));
+  const sectionApplicable = ALL_QUESTIONS.filter(q =>
+    q.section !== "triage_biz" &&
+    visibleSectionCodes.has(q.section) &&
+    evalCond(q.showIf, answers) &&
+    (!q.provinceOnly || !bizProvince || q.provinceOnly.includes(bizProvince))
+  ).length;
+  const totalApplicable = triageQs.length + sectionApplicable;
+  // Compter seulement les réponses aux questions applicables
+  const applicableIds = new Set([
+    ...triageQs.map(q => q.id),
+    ...ALL_QUESTIONS.filter(q =>
+      q.section !== "triage_biz" &&
+      visibleSectionCodes.has(q.section) &&
+      evalCond(q.showIf, answers) &&
+      (!q.provinceOnly || !bizProvince || q.provinceOnly.includes(bizProvince))
+    ).map(q => q.id),
+  ]);
+  const totalAnswered = Object.keys(answers).filter(id => applicableIds.has(id)).length;
   const globalPct = totalApplicable > 0 ? Math.min(99, Math.round((totalAnswered / totalApplicable) * 100)) : 0;
 
   const resetInput = () => { setTextVal(""); setMultiVal([]); };

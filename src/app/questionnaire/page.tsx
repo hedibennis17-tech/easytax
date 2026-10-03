@@ -369,11 +369,29 @@ export default function QuestionnairePage() {
   const displayQs = !triageDone ? triageQs : curSectionQs;
   const currentQ: Question | undefined = displayQs[qIdx];
 
-  // Compteurs — inclure triage dans le total applicable
-  const triageApplicable = triageQs.length; // toujours 6
-  const sectionApplicable = allApplicable.filter(q => q.section !== "triage").length;
+  // COMPTEURS UNIFIÉS — même source que sectionProgress
+  // Triage: toujours affiché (6 questions)
+  const triageApplicable = triageQs.length;
+  // Sections visibles seulement, questions filtrées par province + conditions
+  const visibleSectionCodes = new Set(visibleSections.map(s => s.code));
+  const sectionApplicable = ALL_QUESTIONS.filter(q =>
+    q.section !== "triage" &&
+    visibleSectionCodes.has(q.section) &&
+    evalCond(q.showIf, answers) &&
+    (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince))
+  ).length;
   const totalApplicable = triageApplicable + sectionApplicable;
-  const totalAnswered = Object.keys(answers).length;
+  // totalAnswered: compter seulement les réponses aux questions applicables
+  const applicableIds = new Set([
+    ...triageQs.map(q => q.id),
+    ...ALL_QUESTIONS.filter(q =>
+      q.section !== "triage" &&
+      visibleSectionCodes.has(q.section) &&
+      evalCond(q.showIf, answers) &&
+      (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince))
+    ).map(q => q.id),
+  ]);
+  const totalAnswered = Object.keys(answers).filter(id => applicableIds.has(id)).length;
   const globalPct = totalApplicable > 0 ? Math.min(99, Math.round((totalAnswered / totalApplicable) * 100)) : 0;
 
   // Progression par section (sans triage)
@@ -385,8 +403,13 @@ export default function QuestionnairePage() {
     pct: triageQs.length > 0 ? Math.round((triageQs.filter(q => answers[q.id] !== undefined).length / triageQs.length) * 100) : 0,
   };
 
+  // SOURCE UNIQUE pour tous les compteurs: getAllQuestionsWithProvince() filtré par province + conditions
   const sectionProgress = [triageProgress, ...visibleSections.map(s => {
-    const sQs = ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === s.code && evalCond(q.showIf, answers));
+    const sQs = ALL_QUESTIONS.filter(q =>
+      q.section === s.code &&
+      evalCond(q.showIf, answers) &&
+      (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince))
+    );
     const answered = sQs.filter(q => answers[q.id] !== undefined).length;
     return { code: s.code, fr: s.fr, en: s.en, icon: s.icon, total: sQs.length, answered, pct: sQs.length > 0 ? Math.round((answered / sQs.length) * 100) : 0 };
   })];
