@@ -46,7 +46,7 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
   const federalCalc = calculateTax(
     taxableIncomeCents,
     rules.federalBrackets,
-    rules.federalBasicPersonalCents,
+    rules.federalBasicPersonalConfig?.fullAmountCents ?? rules.federalBasicPersonalCents,
     input.credits
   );
 
@@ -56,7 +56,7 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
       ? calculateTax(
           taxableIncomeCents,
           rules.provincialBrackets,
-          rules.provincialBasicPersonalCents,
+          rules.provincialBasicPersonalConfig?.fullAmountCents ?? rules.provincialBasicPersonalCents,
           input.credits
         )
       : emptyTaxCalc();
@@ -86,6 +86,8 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
     federalTaxWithheldCents: input.taxWithheldFederalCents,
     federalBalanceCents,
 
+    provincialSurtaxCents: 0,
+    provincialRefundableCreditsCents: 0,
     provincialTaxBeforeCreditsCents: provincialCalc.taxBeforeCreditsCents,
     provincialBasicPersonalCreditCents: provincialCalc.basicPersonalCreditCents,
     provincialOtherCreditsCents: provincialCalc.otherCreditsCents,
@@ -110,12 +112,14 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
         {
           name: "Montant personnel de base (fédéral)",
           amountCents: federalCalc.basicPersonalCreditCents,
+          isRefundable: false,
         },
         ...(rules.provincialBrackets.length > 0
           ? [
               {
                 name: "Montant personnel de base (provincial)",
                 amountCents: provincialCalc.basicPersonalCreditCents,
+                isRefundable: false,
               },
             ]
           : []),
