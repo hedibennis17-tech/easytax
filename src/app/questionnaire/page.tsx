@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { NavClient } from "@/components/NavClient";
+import { saveDraftLocal, loadDraftLocal, formatLastSaved } from "@/lib/draft";
 import {
   ALL_INDIVIDUAL_QUESTIONS,
   INDIVIDUAL_SECTIONS,
@@ -291,8 +292,31 @@ export default function QuestionnairePage() {
   const [multiVal, setMultiVal]   = useState<string[]>([]);
   const [secIdx,   setSecIdx]     = useState(0);
   const [qIdx,     setQIdx]       = useState(0);
-  const [saving,   setSaving]     = useState(false);
-  const [done,     setDone]       = useState(false);
+  const [saving,     setSaving]     = useState(false);
+  const [done,       setDone]       = useState(false);
+  const [lastSaved,  setLastSaved]  = useState<string>("");
+  const [userId,     setUserId]     = useState<string>("guest");
+  const TAX_YEAR = "2025";
+  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Charger l'user ID
+  useEffect(() => {
+    fetch("/api/user/me").then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.id) setUserId(d.id);
+    }).catch(() => {});
+  }, []);
+
+  // Charger le brouillon au démarrage
+  useEffect(() => {
+    if (userId === "guest") return;
+    const draft = loadDraftLocal(userId, TAX_YEAR);
+    if (draft && draft.status === "in_progress" && Object.keys(draft.answers).length > 0) {
+      setAnswers(draft.answers);
+      setSecIdx(draft.sectionIdx);
+      setQIdx(draft.questionIdx);
+      setLastSaved(formatLastSaved(draft.lastSavedAt));
+    }
+  }, [userId]);
 
   // Redirect non-INDIVIDUAL
   useEffect(() => {
@@ -338,11 +362,19 @@ export default function QuestionnairePage() {
   const globalPct = totalApplicable > 0 ? Math.min(99, Math.round((totalAnswered / totalApplicable) * 100)) : 0;
 
   // Progression par section (sans triage)
-  const sectionProgress = visibleSections.map(s => {
+  // Progression triage en premier
+  const triageProgress = {
+    code: "triage", fr: "Triage", icon: "🧭",
+    total: triageQs.length,
+    answered: triageQs.filter(q => answers[q.id] !== undefined).length,
+    pct: triageQs.length > 0 ? Math.round((triageQs.filter(q => answers[q.id] !== undefined).length / triageQs.length) * 100) : 0,
+  };
+
+  const sectionProgress = [triageProgress, ...visibleSections.map(s => {
     const sQs = ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === s.code && evalCond(q.showIf, answers));
     const answered = sQs.filter(q => answers[q.id] !== undefined).length;
     return { code: s.code, fr: s.fr, icon: s.icon, total: sQs.length, answered, pct: sQs.length > 0 ? Math.round((answered / sQs.length) * 100) : 0 };
-  });
+  })];
 
   const resetInput = () => { setTextVal(""); setNumVal(""); setDateVal(""); setMultiVal([]); };
 
@@ -351,6 +383,18 @@ export default function QuestionnairePage() {
     setAnswers(newAnswers);
     setSaving(true);
     resetInput();
+
+    // Sauvegarder le brouillon localement
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    saveTimeout.current = setTimeout(() => {
+      saveDraftLocal(userId, TAX_YEAR, {
+        answers: newAnswers,
+        sectionIdx: secIdx,
+        questionIdx: qIdx + 1,
+        triageDone: triageQs.every(q => newAnswers[q.id] !== undefined),
+      });
+      setLastSaved("À l'instant");
+    }, 500);
 
     try {
       await fetch("/api/answers", {
@@ -444,37 +488,57 @@ export default function QuestionnairePage() {
           <div style={{ height: 3, background: "#dde8e5", borderRadius: 3, overflow: "hidden" }}>
             <div style={{ height: "100%", width: `${globalPct}%`, background: "#0b6b67", borderRadius: 3, transition: "width 400ms ease" }} />
           </div>
-          <div style={{ fontSize: 11, color: "#a0b4b0", marginTop: 3 }}>
-            {totalAnswered} / {totalApplicable} questions répondues
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
+            <span style={{ fontSize: 11, color: "#a0b4b0" }}>
+              {totalAnswered} / {totalApplicable} questions
+            </span>
+            {lastSaved && (
+              <span style={{ fontSize: 11, color: "#9fd4cc" }}>
+                💾 {lastSaved}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* ── Onglets sections (sans triage) ───────────────────── */}
-        {triageDone && (
-          <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 4, marginBottom: 16 }}>
-            {sectionProgress.map((s, i) => {
-              const active = i === secIdx;
-              const complete = s.pct === 100 && s.total > 0;
-              return (
-                <button
-                  key={s.code}
-                  onClick={() => { setSecIdx(i); setQIdx(0); resetInput(); }}
-                  style={{
-                    flexShrink: 0, padding: "5px 11px", borderRadius: 8, fontSize: 12,
-                    fontWeight: active ? 700 : 400, cursor: "pointer",
-                    background: active ? "#0b6b67" : complete ? "#f0faf8" : "#fff",
-                    color: active ? "#fff" : complete ? "#0b6b67" : "#526865",
-                    border: `1px solid ${active ? "#0b6b67" : complete ? "#9fd4cc" : "#dde8e5"}`,
-                    transition: "all 120ms",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {s.icon} {s.fr}{complete && !active ? " ✓" : ""}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        {/* ── Onglets scrollables — triage + sections ────────── */}
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 14, scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          <button
+            onClick={() => { setSecIdx(0); setQIdx(0); resetInput(); }}
+            style={{
+              flexShrink: 0, padding: "5px 12px", borderRadius: 8, fontSize: 12,
+              fontWeight: !triageDone ? 700 : 400, cursor: "pointer",
+              background: !triageDone ? "#0b6b67" : triageProgress.pct === 100 ? "#f0faf8" : "#fff",
+              color: !triageDone ? "#fff" : triageProgress.pct === 100 ? "#0b6b67" : "#526865",
+              border: `1px solid ${!triageDone ? "#0b6b67" : triageProgress.pct === 100 ? "#9fd4cc" : "#dde8e5"}`,
+              whiteSpace: "nowrap",
+            }}
+          >
+            🧭 Triage {triageProgress.answered}/{triageProgress.total}{triageDone ? " ✓" : ""}
+          </button>
+          {visibleSections.map((s, i) => {
+            const sp = sectionProgress.find(x => x.code === s.code);
+            const active = triageDone && i === secIdx;
+            const complete = (sp?.pct ?? 0) === 100 && (sp?.total ?? 0) > 0;
+            return (
+              <button
+                key={s.code}
+                onClick={() => { if (triageDone) { setSecIdx(i); setQIdx(0); resetInput(); } }}
+                style={{
+                  flexShrink: 0, padding: "5px 12px", borderRadius: 8, fontSize: 12,
+                  fontWeight: active ? 700 : 400,
+                  cursor: triageDone ? "pointer" : "default",
+                  opacity: triageDone ? 1 : 0.4,
+                  background: active ? "#0b6b67" : complete ? "#f0faf8" : "#fff",
+                  color: active ? "#fff" : complete ? "#0b6b67" : "#526865",
+                  border: `1px solid ${active ? "#0b6b67" : complete ? "#9fd4cc" : "#dde8e5"}`,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {s.icon} {s.fr}{sp && sp.total > 0 ? ` ${sp.answered}/${sp.total}` : ""}{complete && !active ? " ✓" : ""}
+              </button>
+            );
+          })}
+        </div>
 
         {/* ── Carte question ───────────────────────────────────── */}
         {currentQ ? (
