@@ -230,6 +230,17 @@ export const MODULE_VALIDATION_BIZ: Question[] = [
 
 // ─── EXPORT CONSOLIDÉ ENTREPRISE ─────────────────────────────────────────────
 
+// ─── Fonction avec module provincial ─────────────────────────────────────
+export function getAllBusinessQuestionsWithProvince(): Question[] {
+  return [...ALL_BUSINESS_QUESTIONS, ...MODULE_FISCALITE_PROVINCIALE];
+}
+
+export function getBusinessQuestionsForProvince(province: string): Question[] {
+  return MODULE_FISCALITE_PROVINCIALE.filter(q =>
+    !q.provinceOnly || q.provinceOnly.includes(province)
+  );
+}
+
 export const ALL_BUSINESS_QUESTIONS: Question[] = [
   ...TRIAGE_BUSINESS,
   ...MODULE_IDENTIFICATION,
@@ -254,6 +265,424 @@ export const BUSINESS_SECTIONS = [
   { code: "paie",          fr: "Employés / Paie",     en: "Employees / Payroll", icon: "👥", showIf: "bt1=true" },
   { code: "taxes",         fr: "TPS/TVH / TVQ",       en: "GST/HST / QST",  icon: "🧮", showIf: "bt2=true"  },
   { code: "immo",          fr: "Immobilisations",     en: "Capital assets",  icon: "🚜", showIf: "bt3=true"  },
+  { code: "fiscalite_prov", fr: "Fiscalité provinciale", en: "Provincial tax",  icon: "🏛️", alwaysShow: true    },
   { code: "docs_biz",      fr: "Documents",           en: "Documents",       icon: "📎", alwaysShow: true    },
   { code: "validation_biz",fr: "Validation",          en: "Validation",      icon: "✅", alwaysShow: true    },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODULE FISCALITÉ PROVINCIALE ENTREPRISES — 45 questions conditionnelles
+// Source: Banque_de_questions_conditionnelles_par_province___Entreprises_2025.html
+// Taux 2025 vérifiés (ARC, Revenu Québec, budgets provinciaux)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const MODULE_FISCALITE_PROVINCIALE: Question[] = [
+
+  // ── QUÉBEC — 8 questions ─────────────────────────────────────────────────
+  // Taux 2025: général 11,5% · petites entreprises 3,2% (seuil 500 000$ + test 5 500h)
+  // Déclaration CO-17 distincte (français uniquement) · Agence: Revenu Québec
+  {
+    id: "QC-E01", section: "fiscalite_prov", order: 501,
+    fr: "La société a-t-elle totalisé au moins 5 500 heures rémunérées en 2025 (ou l'année précédente) ?",
+    en: "Did the corporation total at least 5,500 remunerated hours in 2025 (or the previous year)?",
+    type: "BOOLEAN", required: true,
+    hint: "Sans 5 500 heures : aucune déduction pour petites entreprises QC. Réduction linéaire entre 5 000 et 5 500 h.",
+    provinceOnly: ["QC"],
+  },
+  {
+    id: "QC-E02", section: "fiscalite_prov", order: 502,
+    fr: "La société a-t-elle engagé des dépenses de R-D, d'innovation ou de précommercialisation au Québec (exercices débutant après le 25 mars 2025) ? Quel montant ?",
+    en: "Did the corporation incur R&D, innovation or pre-commercialization expenses in Québec (fiscal years starting after March 25, 2025)? What amount?",
+    type: "MONEY", required: false,
+    hint: "CRIC : 30% remboursable sur le premier 1 M$, 20% au-delà. Remplace 8 anciens crédits.",
+    provinceOnly: ["QC"],
+  },
+  {
+    id: "QC-E03", section: "fiscalite_prov", order: 503,
+    fr: "La société exerce-t-elle des activités de développement des affaires électroniques intégrant l'IA dans une mesure importante (min. 6 employés à temps plein) ?",
+    en: "Does the corporation carry on e-business development activities significantly integrating AI (min. 6 full-time employees)?",
+    type: "BOOLEAN", required: false,
+    hint: "CDAE-IA : 30% au total en 2025 (23% remb. + 7% non remb.).",
+    provinceOnly: ["QC"],
+  },
+  {
+    id: "QC-E04", section: "fiscalite_prov", order: 504,
+    fr: "La société a-t-elle acquis de l'équipement ou des logiciels admissibles au Québec en 2025 (zone de vitalité économique) ? Quel montant ?",
+    en: "Did the corporation acquire eligible equipment or software in Québec in 2025 (economic vitality zone)? What amount?",
+    type: "MONEY", required: false,
+    hint: "C3i remboursable : 15% / 20% / 25% selon la zone (jusqu'au 31 déc. 2029).",
+    provinceOnly: ["QC"],
+  },
+  {
+    id: "QC-E05", section: "fiscalite_prov", order: 505,
+    fr: "La société a-t-elle engagé des dépenses de main-d'œuvre pour la production de titres multimédias au Québec en 2025 ? Quel montant ?",
+    en: "Did the corporation incur labour expenses for multimedia title production in Québec in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Multimédia QC : 37,5% (avec version française) / 30% / 26,25%.",
+    provinceOnly: ["QC"],
+  },
+  {
+    id: "QC-E06", section: "fiscalite_prov", order: 506,
+    fr: "La société a-t-elle engagé des dépenses de production cinématographique ou télévisuelle au Québec en 2025 (SODEC) ? Quel montant ?",
+    en: "Did the corporation incur film or television production expenses in Québec in 2025 (SODEC)? What amount?",
+    type: "MONEY", required: false,
+    hint: "SODEC : 32%→40% (+8% animation/effets visuels, +8% régional). Services 25%+16%. Doublage 35%.",
+    provinceOnly: ["QC"],
+  },
+  {
+    id: "QC-E07", section: "fiscalite_prov", order: 507,
+    fr: "La société réalise-t-elle un grand projet d'investissement au Québec (≥ 100 M$, ou 50 M$ en région désignée) ?",
+    en: "Is the corporation carrying out a major investment project in Québec (≥ $100M, or $50M in a designated region)?",
+    type: "BOOLEAN", required: false,
+    hint: "Nouveau congé fiscal 10 ans : 15%/20%/25% des dépenses, plafond 1 G$.",
+    provinceOnly: ["QC"],
+  },
+  {
+    id: "QC-E08", section: "fiscalite_prov", order: 508,
+    fr: "La société a-t-elle versé des salaires admissibles dans les médias écrits au Québec en 2025 ? Quel montant ?",
+    en: "Did the corporation pay eligible print media wages in Québec in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Médias écrits QC : 35% (plafond 85 000$/employé).",
+    provinceOnly: ["QC"],
+  },
+
+  // ── ONTARIO — 7 questions ────────────────────────────────────────────────
+  // Taux 2025: général 11,5% · petites entreprises 3,2% (seuil 500 000$)
+  // M&P 10% via crédit (pas un taux affiché) · T2 via ARC
+  {
+    id: "ON-E01", section: "fiscalite_prov", order: 511,
+    fr: "La société a-t-elle engagé des dépenses admissibles de RS&DE en Ontario en 2025 ? Quel montant ?",
+    en: "Did the corporation incur eligible SR&ED expenditures in Ontario in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "OITC 8% remboursable (max 3 M$ de dépenses) + ORDTC 3,5% non remboursable — empilables.",
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-E02", section: "fiscalite_prov", order: 512,
+    fr: "La société a-t-elle engagé des dépenses de R-D en vertu d'un contrat avec un institut de recherche admissible en Ontario en 2025 ? Quel montant ?",
+    en: "Did the corporation incur R&D expenses under contract with an eligible research institute in Ontario in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "OBRITC 20% remboursable (max 4 M$/an).",
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-E03", section: "fiscalite_prov", order: 513,
+    fr: "La société a-t-elle engagé des dépenses de production cinématographique ou télévisuelle en Ontario en 2025 ? Quel montant ?",
+    en: "Did the corporation incur film or television production expenses in Ontario in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "OFTTC 35% main-d'œuvre (+10% régional, 40% débutants) · OPSTC 21,5% all-spend · OCASE 18% animation.",
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-E04", section: "fiscalite_prov", order: 514,
+    fr: "La société a-t-elle développé des médias numériques interactifs (jeux vidéo) en Ontario en 2025 ? Quel montant de main-d'œuvre ?",
+    en: "Did the corporation develop interactive digital media (video games) in Ontario in 2025? What labour amount?",
+    type: "MONEY", required: false,
+    hint: "OIDMTC 40% (produits non déterminés) / 35% (déterminés).",
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-E05", section: "fiscalite_prov", order: 515,
+    fr: "La société (SPCC) a-t-elle acquis des biens en capital admissibles entre le 15 mai 2025 et le 31 décembre 2029 ? Quel montant ?",
+    en: "Did the corporation (CCPC) acquire eligible capital property between May 15, 2025 and December 31, 2029? What amount?",
+    type: "MONEY", required: false,
+    hint: "OMMITC 15% remboursable (nouveau 2025, temporaire, max 20 M$/an, jusqu'au 31 déc. 2029).",
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-E06", section: "fiscalite_prov", order: 516,
+    fr: "La société a-t-elle investi plus de 50 000 $ dans un bâtiment commercial ou industriel en région désignée de l'Ontario en 2025 ? Quel montant ?",
+    en: "Did the corporation invest over $50,000 in a commercial or industrial building in a designated Ontario region in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "ROITC 10% remboursable (max 45 000$/an, aboli le 1er janv. 2027).",
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-E07", section: "fiscalite_prov", order: 517,
+    fr: "La société a-t-elle exercé des activités de fabrication et transformation en Ontario en 2025 ?",
+    en: "Did the corporation carry on manufacturing and processing activities in Ontario in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Crédit M&P ON — taux effectif 10% (combiné fédéral + provincial).",
+    provinceOnly: ["ON"],
+  },
+
+  // ── ALBERTA — 3 questions ────────────────────────────────────────────────
+  // Taux 2025: général 8,0% (le plus bas au Canada) · PE 2,0% (seuil 500 000$)
+  // Déclaration AT1 distincte (pas d'accord de perception avec l'ARC — comme QC)
+  {
+    id: "AB-E01", section: "fiscalite_prov", order: 521,
+    fr: "La société a-t-elle engagé des dépenses de R-D admissibles en Alberta en 2025 ? Quel montant ?",
+    en: "Did the corporation incur eligible R&D expenses in Alberta in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Innovation Employment Grant remboursable : 8% jusqu'au niveau de base + 20% sur le dépassement (plafond 4 M$ de dépenses/an). L'ancien crédit RS&DE albertain est aboli depuis 2020.",
+    provinceOnly: ["AB"],
+  },
+  {
+    id: "AB-E02", section: "fiscalite_prov", order: 522,
+    fr: "La société a-t-elle engagé des coûts de production cinématographique ou télévisuelle en Alberta en 2025 (min. 500 000 $) ? Quel montant ?",
+    en: "Did the corporation incur film or television production costs in Alberta in 2025 (min. $500,000)? What amount?",
+    type: "MONEY", required: false,
+    hint: "Film and Television Tax Credit AB remboursable : 22% ou 30% (plafond annuel 105 M$).",
+    provinceOnly: ["AB"],
+  },
+  {
+    id: "AB-E03", section: "fiscalite_prov", order: 523,
+    fr: "La société est-elle constituée en Alberta (déclaration provinciale AT1 distincte de la T2 fédérale) ?",
+    en: "Is the corporation incorporated in Alberta (separate provincial AT1 return)?",
+    type: "BOOLEAN", required: true,
+    hint: "L'Alberta administre son propre impôt des sociétés, comme le Québec. Déclaration AT1 obligatoire.",
+    provinceOnly: ["AB"],
+  },
+
+  // ── COLOMBIE-BRITANNIQUE — 3 questions ──────────────────────────────────
+  // Taux 2025: général 12,0% · PE 2,0% (seuil 500 000$) · M&P 12,0%
+  {
+    id: "BC-E01", section: "fiscalite_prov", order: 531,
+    fr: "La société a-t-elle engagé des dépenses admissibles de RS&DE en Colombie-Britannique en 2025 ? Quel montant ?",
+    en: "Did the corporation incur eligible SR&ED expenses in British Columbia in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit RS&DE C.-B. : 10% (remboursable si SPCC, non remboursable sinon). Incompatible avec IDMTC la même année.",
+    provinceOnly: ["BC"],
+  },
+  {
+    id: "BC-E02", section: "fiscalite_prov", order: 532,
+    fr: "La société a-t-elle versé des salaires admissibles pour des médias numériques interactifs en C.-B. en 2025 ? Quel montant ?",
+    en: "Did the corporation pay eligible interactive digital media salaries in B.C. in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "IDMTC remboursable : 17,5% jusqu'au 31 août 2025, puis 25% dès le 1er sept. 2025 (rendu permanent). Incompatible avec RS&DE la même année.",
+    provinceOnly: ["BC"],
+  },
+  {
+    id: "BC-E03", section: "fiscalite_prov", order: 533,
+    fr: "La société a-t-elle engagé des dépenses de production cinématographique en C.-B. en 2025 (Film Incentive BC ou Production Services) ? Quel montant ?",
+    en: "Did the corporation incur film production expenses in B.C. in 2025 (Film Incentive BC or Production Services)? What amount?",
+    type: "MONEY", required: false,
+    hint: "Film Incentive BC 35% (+12,5% régional, +6% région éloignée, +16% DAVE). Production Services 28% (+bonis).",
+    provinceOnly: ["BC"],
+  },
+
+  // ── SASKATCHEWAN — 4 questions ───────────────────────────────────────────
+  // Taux 2025: général 12,0% · PE 1,0% (seuil 600 000$ — le plus élevé CA) · M&P 10,0%
+  // Tranche 500k$-600k$: 16% combiné (15% fédéral + 1% SK)
+  {
+    id: "SK-E01", section: "fiscalite_prov", order: 541,
+    fr: "La société a-t-elle acquis des biens admissibles de fabrication et transformation en Saskatchewan en 2025 ? Quel coût en capital ?",
+    en: "Did the corporation acquire eligible manufacturing and processing property in Saskatchewan in 2025? What capital cost?",
+    type: "MONEY", required: false,
+    hint: "Crédit d'investissement M&T SK : 6% entièrement remboursable.",
+    provinceOnly: ["SK"],
+  },
+  {
+    id: "SK-E02", section: "fiscalite_prov", order: 542,
+    fr: "Des investisseurs ont-ils investi dans la société en 2025 (technologies, fabrication alimentaire/boissons, machinerie) ? Quel montant ?",
+    en: "Did investors invest in the corporation in 2025 (technology, food/beverage manufacturing, machinery)? What amount?",
+    type: "MONEY", required: false,
+    hint: "STSI 45% non remboursable (plafond 7 M$/an, jusqu'au 31 mars 2027). SMEITC 45% non remboursable (pilote 1er juil. 2025–30 juin 2028, max 225 000$/an/investisseur).",
+    provinceOnly: ["SK"],
+  },
+  {
+    id: "SK-E03", section: "fiscalite_prov", order: 543,
+    fr: "La société tire-t-elle des revenus de propriété intellectuelle commercialisée en Saskatchewan ? Quel montant ?",
+    en: "Does the corporation earn income from intellectual property commercialized in Saskatchewan? What amount?",
+    type: "MONEY", required: false,
+    hint: "SCII (« patent box ») : taux provincial réduit à 6% pendant 10 ans sur les revenus de PI admissible.",
+    provinceOnly: ["SK"],
+  },
+  {
+    id: "SK-E04", section: "fiscalite_prov", order: 544,
+    fr: "La société a-t-elle engagé des dépenses d'exploration minière en Saskatchewan en 2025 ? Quel montant ?",
+    en: "Did the corporation incur mineral exploration expenses in Saskatchewan in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit d'exploration minière SK (SMETC) : 30%.",
+    provinceOnly: ["SK"],
+  },
+
+  // ── MANITOBA — 4 questions ───────────────────────────────────────────────
+  // Taux 2025: général 12,0% · PE 0% (seuil 500 000$) — seule province à 0%
+  {
+    id: "MB-E01", section: "fiscalite_prov", order: 551,
+    fr: "La société a-t-elle acquis des biens admissibles de fabrication au Manitoba en 2025 (bâtiments, machinerie, équipement) ? Quel coût ?",
+    en: "Did the corporation acquire eligible manufacturing property in Manitoba in 2025 (buildings, machinery, equipment)? What cost?",
+    type: "MONEY", required: false,
+    hint: "MITC 8% = 1% non remboursable + 7% remboursable (report 3 ans arrière / 10 ans avant).",
+    provinceOnly: ["MB"],
+  },
+  {
+    id: "MB-E02", section: "fiscalite_prov", order: 552,
+    fr: "La société a-t-elle engagé des dépenses de R-D au Manitoba en 2025 ? Quel montant ?",
+    en: "Did the corporation incur R&D expenses in Manitoba in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit R-D Manitoba : 20% partiellement remboursable.",
+    provinceOnly: ["MB"],
+  },
+  {
+    id: "MB-E03", section: "fiscalite_prov", order: 553,
+    fr: "La société a-t-elle engagé des dépenses de production cinématographique ou vidéo au Manitoba en 2025 ? Quel montant (salaires admissibles et/ou coût de production) ?",
+    en: "Did the corporation incur film or video production expenses in Manitoba in 2025? What amount (eligible salaries and/or production cost)?",
+    type: "MONEY", required: false,
+    hint: "Film/vidéo MB entièrement remboursable : 45% des salaires (jusqu'à 65% avec bonis) OU 30% du coût de production (+8% = 38% si producteur manitobain).",
+    provinceOnly: ["MB"],
+  },
+  {
+    id: "MB-E04", section: "fiscalite_prov", order: 554,
+    fr: "La société a-t-elle engagé des dépenses admissibles de médias numériques interactifs au Manitoba en 2025 ? Quel montant ?",
+    en: "Did the corporation incur eligible interactive digital media expenses in Manitoba in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "MIDMTC 40% remboursable (plafond 500 000$/projet).",
+    provinceOnly: ["MB"],
+  },
+
+  // ── NOUVEAU-BRUNSWICK — 2 questions ─────────────────────────────────────
+  // Taux 2025: général 14,0% · PE 2,5% (seuil 500 000$) · M&P 14,0%
+  {
+    id: "NB-E01", section: "fiscalite_prov", order: 561,
+    fr: "La société a-t-elle engagé des dépenses admissibles de RS&DE au Nouveau-Brunswick en 2025 ? Quel montant ?",
+    en: "Did the corporation incur eligible SR&ED expenses in New Brunswick in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit RS&DE NB : 15% entièrement remboursable (annexe T2SCH360).",
+    provinceOnly: ["NB"],
+  },
+  {
+    id: "NB-E02", section: "fiscalite_prov", order: 562,
+    fr: "La société a-t-elle engagé des dépenses de production cinématographique ou télévisuelle au Nouveau-Brunswick en 2025 ? Quel montant ?",
+    en: "Did the corporation incur film or television production expenses in New Brunswick in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Incitatif à la production NB (subvention, pas un crédit T2) : jusqu'à 40% des salaires (volet main-d'œuvre) ou 25%-30% all-spend.",
+    provinceOnly: ["NB"],
+  },
+
+  // ── NOUVELLE-ÉCOSSE — 4 questions ────────────────────────────────────────
+  // Taux 2025: général 14,0% · PE mixte 1,75% (2,5%→1,5% le 1er avr. 2025)
+  // Plafond mixte 650 685$ (500k$→700k$ le 1er avr. 2025)
+  // ⚠️ Exercice civil 2025 = taux mixte automatique dans le moteur
+  {
+    id: "NS-E01", section: "fiscalite_prov", order: 571,
+    fr: "La société a-t-elle engagé des dépenses admissibles de RS&DE en Nouvelle-Écosse en 2025 ? Quel montant ?",
+    en: "Did the corporation incur eligible SR&ED expenses in Nova Scotia in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit RS&DE NS : 15% entièrement remboursable.",
+    provinceOnly: ["NS"],
+  },
+  {
+    id: "NS-E02", section: "fiscalite_prov", order: 572,
+    fr: "La société a-t-elle engagé des dépenses admissibles de médias numériques en Nouvelle-Écosse en 2025 ? Quel montant ?",
+    en: "Did the corporation incur eligible digital media expenses in Nova Scotia in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Médias numériques NS : 50% remboursable (+10% en zone désignée, dépenses avant le 1er janv. 2031).",
+    provinceOnly: ["NS"],
+  },
+  {
+    id: "NS-E03", section: "fiscalite_prov", order: 573,
+    fr: "La société a-t-elle engagé des dépenses d'animation numérique en Nouvelle-Écosse en 2025 (key animation) ? Quel montant ?",
+    en: "Did the corporation incur digital animation expenses in Nova Scotia in 2025 (key animation)? What amount?",
+    type: "MONEY", required: false,
+    hint: "Animation NS : 50% + 17,5% de la main-d'œuvre d'animation (salaire admissible max 150 000$/employé).",
+    provinceOnly: ["NS"],
+  },
+  {
+    id: "NS-E04", section: "fiscalite_prov", order: 574,
+    fr: "La société a-t-elle investi dans une PME innovante admissible de la Nouvelle-Écosse en 2025 ? Quel montant ?",
+    en: "Did the corporation invest in an eligible innovative Nova Scotia SME in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Équité pour l'innovation NS : 15% non remboursable (investissement 50 000$–500 000$/an, report 3 ans arrière / 7 ans avant).",
+    provinceOnly: ["NS"],
+  },
+
+  // ── ÎLE-DU-PRINCE-ÉDOUARD — 2 questions ─────────────────────────────────
+  // Taux 2025: général 16%→15% (1er juil. 2025) · PE 1,0% (seuil 500k$→600k$ 1er juil.)
+  // Aucun crédit RS&DE provincial à l'Î.-P.-É.
+  {
+    id: "PE-E01", section: "fiscalite_prov", order: 581,
+    fr: "La société a-t-elle acquis des biens en capital admissibles à l'Î.-P.-É. en 2025 ? Quel coût ?",
+    en: "Did the corporation acquire eligible capital property in P.E.I. in 2025? What cost?",
+    type: "MONEY", required: false,
+    hint: "Crédit d'impôt à l'investissement PE — non remboursable (taux à confirmer selon certificat provincial).",
+    provinceOnly: ["PE"],
+  },
+  {
+    id: "PE-E02", section: "fiscalite_prov", order: 582,
+    fr: "La société a-t-elle créé des postes à temps plein à l'Î.-P.-É. en 2025 (salaire brut ≥ 35 000 $/an) ? Combien ?",
+    en: "Did the corporation create full-time positions in P.E.I. in 2025 (gross salary ≥ $35,000/year)? How many?",
+    type: "NUMBER", required: false,
+    hint: "Innovation and Development Labour Rebate PE : remise de 25% des salaires admissibles (subvention provinciale, pas un crédit T2).",
+    provinceOnly: ["PE"],
+  },
+
+  // ── TERRE-NEUVE-ET-LABRADOR — 4 questions ────────────────────────────────
+  // Taux 2025: général 15,0% · PE 2,5% (seuil 500 000$) · M&P 15,0%
+  // Crédits film/médias parmi les plus généreux au Canada
+  {
+    id: "NL-E01", section: "fiscalite_prov", order: 591,
+    fr: "La société a-t-elle engagé des dépenses admissibles de RS&DE à Terre-Neuve-et-Labrador en 2025 ? Quel montant ?",
+    en: "Did the corporation incur eligible SR&ED expenses in Newfoundland and Labrador in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit RS&DE NL : 15% remboursable.",
+    provinceOnly: ["NL"],
+  },
+  {
+    id: "NL-E02", section: "fiscalite_prov", order: 592,
+    fr: "La société a-t-elle engagé des dépenses de production cinématographique ou vidéo à T.-N.-L. en 2025 ? Quel montant (salaires admissibles et/ou coûts totaux) ?",
+    en: "Did the corporation incur film or video production expenses in N.L. in 2025? What amount (eligible salaries and/or total costs)?",
+    type: "MONEY", required: false,
+    hint: "Film NL remboursable : 40% (moindre de 40% des salaires ou 25% du budget, plafond 5 M$). Nouveau 2025 « all-spend » : 40% des coûts totaux, plafond 20 M$/projet.",
+    provinceOnly: ["NL"],
+  },
+  {
+    id: "NL-E03", section: "fiscalite_prov", order: 593,
+    fr: "La société a-t-elle engagé des dépenses admissibles de médias numériques interactifs à T.-N.-L. en 2025 ? Quel montant ?",
+    en: "Did the corporation incur eligible interactive digital media expenses in N.L. in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Médias numériques NL 40% remboursable (plafonds 40 000$/employé/an et 2 M$/société/an, permanent).",
+    provinceOnly: ["NL"],
+  },
+  {
+    id: "NL-E04", section: "fiscalite_prov", order: 594,
+    fr: "La société a-t-elle investi dans des technologies vertes à T.-N.-L. en 2025 ? Quel montant ?",
+    en: "Did the corporation invest in green technologies in N.L. in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit remboursable pour les technologies vertes NL.",
+    provinceOnly: ["NL"],
+  },
+
+  // ── TERRITOIRES DU NORD-OUEST — 1 question ──────────────────────────────
+  // Taux 2025: général 11,5% · PE 2,0% (seuil 500 000$) · Aucun changement 2025
+  {
+    id: "NT-E01", section: "fiscalite_prov", order: 601,
+    fr: "La société a-t-elle versé des contributions politiques territoriales aux T.N.-O. en 2025 ? Quel montant ?",
+    en: "Did the corporation make territorial political contributions in the N.W.T. in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit pour contributions politiques territoriales NT — max 500$ (100% des premiers 100$, 50% jusqu'à 900$).",
+    provinceOnly: ["NT"],
+  },
+
+  // ── NUNAVUT — 1 question ─────────────────────────────────────────────────
+  // Taux 2025: général 12,0% · PE 3,0% (seuil 500 000$) · Aucun changement 2025
+  {
+    id: "NU-E01", section: "fiscalite_prov", order: 611,
+    fr: "La société a-t-elle versé des contributions politiques territoriales au Nunavut en 2025 ? Quel montant ?",
+    en: "Did the corporation make territorial political contributions in Nunavut in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit pour contributions politiques territoriales NU — max 500$.",
+    provinceOnly: ["NU"],
+  },
+
+  // ── YUKON — 2 questions ──────────────────────────────────────────────────
+  // Taux 2025: général 12,0% · PE 0% (seuil 500 000$) · M&P 2,5% (seul territoire avec taux M&P réduit)
+  // Taux combiné M&P: 17,5% (15% fédéral + 2,5% YT)
+  {
+    id: "YT-E01", section: "fiscalite_prov", order: 621,
+    fr: "La société a-t-elle exercé des activités de fabrication et transformation au Yukon en 2025 ?",
+    en: "Did the corporation carry on manufacturing and processing activities in Yukon in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Yukon = seul territoire avec un taux M&P distinct : 2,5% (combiné 17,5%). Très avantageux pour la fabrication.",
+    provinceOnly: ["YT"],
+  },
+  {
+    id: "YT-E02", section: "fiscalite_prov", order: 622,
+    fr: "La société a-t-elle versé des contributions politiques territoriales au Yukon en 2025 ? Quel montant ?",
+    en: "Did the corporation make territorial political contributions in Yukon in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit pour contributions politiques territoriales YT — max 650$.",
+    provinceOnly: ["YT"],
+  },
 ];
