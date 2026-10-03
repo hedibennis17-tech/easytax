@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useApp } from "@/components/ThemeProvider";
 import { useRouter } from "next/navigation";
 import { NavClient } from "@/components/NavClient";
 import { saveDraftLocal, loadDraftLocal, formatLastSaved } from "@/lib/draft";
@@ -46,7 +47,7 @@ function FieldBoolean({ value, onChange }: { value: boolean | null; onChange: (v
 }
 
 // ── Champ SINGLE_CHOICE ───────────────────────────────────────────────────
-function FieldSingle({ q, value, onChange }: { q: Question; value: string; onChange: (v: string) => void }) {
+function FieldSingle({ q, value, onChange, lang = "fr" }: { q: Question; value: string; onChange: (v: string) => void; lang?: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
       {(q.options ?? []).map(opt => (
@@ -62,7 +63,7 @@ function FieldSingle({ q, value, onChange }: { q: Question; value: string; onCha
             cursor: "pointer", transition: "all 120ms",
           }}
         >
-          {opt.fr}
+          {lang === "en" ? opt.en : opt.fr}
         </button>
       ))}
     </div>
@@ -70,7 +71,7 @@ function FieldSingle({ q, value, onChange }: { q: Question; value: string; onCha
 }
 
 // ── Champ MULTI_CHOICE ────────────────────────────────────────────────────
-function FieldMulti({ q, value, onChange }: { q: Question; value: string[]; onChange: (v: string[]) => void }) {
+function FieldMulti({ q, value, onChange, lang = "fr" }: { q: Question; value: string[]; onChange: (v: string[]) => void; lang?: string }) {
   const toggle = (v: string) => onChange(value.includes(v) ? value.filter(x => x !== v) : [...value, v]);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
@@ -97,7 +98,7 @@ function FieldMulti({ q, value, onChange }: { q: Question; value: string[]; onCh
             }}>
               {checked && <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}
             </span>
-            {opt.fr}
+            {lang === "en" ? opt.en : opt.fr}
           </button>
         );
       })}
@@ -287,6 +288,7 @@ function FieldPerson({ q, onConfirm }: { q: Question; onConfirm: () => void }) {
 // ── PAGE PRINCIPALE ────────────────────────────────────────────────────────
 export default function QuestionnairePage() {
   const router = useRouter();
+  const { lang } = useApp();
   const [answers, setAnswers]     = useState<Record<string, unknown>>({});
   const [textVal,  setTextVal]    = useState("");
   const [numVal,   setNumVal]     = useState("");
@@ -377,7 +379,7 @@ export default function QuestionnairePage() {
   // Progression par section (sans triage)
   // Progression triage en premier
   const triageProgress = {
-    code: "triage", fr: "Triage", icon: "🧭",
+    code: "triage", fr: "Triage", en: "Triage", icon: "🧭",
     total: triageQs.length,
     answered: triageQs.filter(q => answers[q.id] !== undefined).length,
     pct: triageQs.length > 0 ? Math.round((triageQs.filter(q => answers[q.id] !== undefined).length / triageQs.length) * 100) : 0,
@@ -386,7 +388,7 @@ export default function QuestionnairePage() {
   const sectionProgress = [triageProgress, ...visibleSections.map(s => {
     const sQs = ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === s.code && evalCond(q.showIf, answers));
     const answered = sQs.filter(q => answers[q.id] !== undefined).length;
-    return { code: s.code, fr: s.fr, icon: s.icon, total: sQs.length, answered, pct: sQs.length > 0 ? Math.round((answered / sQs.length) * 100) : 0 };
+    return { code: s.code, fr: s.fr, en: s.en, icon: s.icon, total: sQs.length, answered, pct: sQs.length > 0 ? Math.round((answered / sQs.length) * 100) : 0 };
   })];
 
   const resetInput = () => { setTextVal(""); setNumVal(""); setDateVal(""); setMultiVal([]); };
@@ -494,7 +496,7 @@ export default function QuestionnairePage() {
             <span>
               {!triageDone
                 ? "Quelques questions rapides pour commencer"
-                : `${currentSection?.icon ?? ""} ${currentSection?.fr ?? ""} — Déclaration 2025`}
+                : `${currentSection?.icon ?? ""} ${lang === "en" ? (currentSection?.en ?? "") : (currentSection?.fr ?? "")} — ${lang === "en" ? "Tax Return 2025" : "Déclaration 2025"}`}
             </span>
             <span style={{ fontWeight: 700, color: "#0b6b67" }}>{globalPct}%</span>
           </div>
@@ -570,12 +572,12 @@ export default function QuestionnairePage() {
 
             {/* Question */}
             <h2 style={{ fontSize: 16, fontWeight: 700, color: "#0f1f1e", margin: "0 0 8px", lineHeight: 1.4 }}>
-              {currentQ.fr}
+              {lang === "en" ? currentQ.en : currentQ.fr}
             </h2>
 
             {/* Hint */}
-            {currentQ.hint && (
-              <p style={{ fontSize: 12, color: "#7a9c97", margin: "0 0 16px", lineHeight: 1.5 }}>{currentQ.hint}</p>
+            {(lang === "en" ? (currentQ.hintEn ?? currentQ.hint) : currentQ.hint) && (
+              <p style={{ fontSize: 12, color: "#7a9c97", margin: "0 0 16px", lineHeight: 1.5 }}>{lang === "en" ? (currentQ.hintEn ?? currentQ.hint) : currentQ.hint}</p>
             )}
 
             {/* Badge document requis */}
@@ -702,7 +704,7 @@ export default function QuestionnairePage() {
             {sectionProgress.filter(s => s.total > 0).map(s => (
               <div key={s.code} style={{ marginBottom: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#526865", marginBottom: 3 }}>
-                  <span>{s.icon} {s.fr}</span>
+                  <span>{s.icon} {lang === "en" ? s.en : s.fr}</span>
                   <span style={{ fontWeight: 600, color: s.pct === 100 ? "#059669" : "#526865" }}>
                     {s.answered}/{s.total}
                   </span>
