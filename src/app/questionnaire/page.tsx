@@ -3,479 +3,515 @@ import { NavClient } from "@/components/NavClient";
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  QUESTION_DEFINITIONS,
-  getApplicableQuestions,
-  getModulesToActivate,
-  calculateProgress,
-  getRequiredDocuments,
-  MODULE_LABELS,
-  type ModuleCode,
-  type QuestionDef,
-} from "@/lib/questionnaire-engine";
+  ALL_INDIVIDUAL_QUESTIONS,
+  INDIVIDUAL_SECTIONS,
+  type Question,
+} from "@/lib/questionnaire-individual";
 
-// ── SECTIONS avec ordre et labels ─────────────────────────────────────────────
-const SECTIONS = [
-  { code: "identity",        fr: "Identité",          en: "Identity",        icon: "👤" },
-  { code: "employment",      fr: "Emploi",            en: "Employment",      icon: "💼" },
-  { code: "self_employment", fr: "Travail autonome",  en: "Self-employment", icon: "🧑‍💼" },
-  { code: "investment",      fr: "Revenus & location",en: "Income & rental", icon: "📈" },
-  { code: "deductions",      fr: "Déductions",        en: "Deductions",      icon: "📉" },
-  { code: "family",          fr: "Famille",           en: "Family",          icon: "👨‍👩‍👧" },
-  { code: "credits",         fr: "Crédits",           en: "Credits",         icon: "✅" },
-  { code: "provincial",      fr: "Québec",            en: "Quebec",          icon: "⚜️" },
-] as const;
+// ── ÉVALUATION DES CONDITIONS ─────────────────────────────────────────────────
+function evalCondition(condition: string | undefined, answers: Record<string, unknown>): boolean {
+  if (!condition) return true;
+  const [key, val] = condition.split("=");
+  const actual = String(answers[key] ?? "");
+  if (val === "true")  return actual === "true"  || actual === "oui" || actual === "1";
+  if (val === "false") return actual === "false" || actual === "non" || actual === "0";
+  return actual === val;
+}
 
-type Lang = "fr" | "en";
+// ── COMPOSANTS CHAMPS ──────────────────────────────────────────────────────────
+function FieldBoolean({ q, value, onChange }: { q: Question; value: boolean | null; onChange: (v: boolean) => void }) {
+  return (
+    <div style={{ display: "flex", gap: 12 }}>
+      <button onClick={() => onChange(true)}
+        style={{ flex: 1, padding: "13px 0", borderRadius: 12, fontSize: 15, fontWeight: 600,
+          background: value === true ? "var(--et-red)" : "var(--bg-base)",
+          color: value === true ? "#fff" : "var(--text-secondary)",
+          border: `2px solid ${value === true ? "var(--et-red)" : "var(--border)"}`,
+          cursor: "pointer", transition: "all 120ms" }}>
+        Oui
+      </button>
+      <button onClick={() => onChange(false)}
+        style={{ flex: 1, padding: "13px 0", borderRadius: 12, fontSize: 15, fontWeight: 600,
+          background: value === false ? "var(--bg-base)" : "var(--bg-base)",
+          color: value === false ? "var(--text-primary)" : "var(--text-secondary)",
+          border: `2px solid ${value === false ? "var(--text-primary)" : "var(--border)"}`,
+          cursor: "pointer", transition: "all 120ms" }}>
+        Non
+      </button>
+    </div>
+  );
+}
+
+function FieldSingleChoice({ q, value, onChange }: { q: Question; value: string; onChange: (v: string) => void }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {(q.options ?? []).map((opt) => (
+        <button key={opt.value} onClick={() => onChange(opt.value)}
+          style={{ padding: "12px 16px", borderRadius: 12, textAlign: "left", fontSize: 14, fontWeight: value === opt.value ? 600 : 400,
+            background: value === opt.value ? "rgba(229,52,42,0.07)" : "var(--bg-base)",
+            color: value === opt.value ? "var(--et-red)" : "var(--text-secondary)",
+            border: `2px solid ${value === opt.value ? "var(--et-red)" : "var(--border)"}`,
+            cursor: "pointer", transition: "all 120ms" }}>
+          {opt.fr}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function FieldMultiChoice({ q, value, onChange }: { q: Question; value: string[]; onChange: (v: string[]) => void }) {
+  const toggle = (v: string) => {
+    const next = value.includes(v) ? value.filter(x => x !== v) : [...value, v];
+    onChange(next);
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {(q.options ?? []).map((opt) => {
+        const checked = value.includes(opt.value);
+        return (
+          <button key={opt.value} onClick={() => toggle(opt.value)}
+            style={{ padding: "12px 16px", borderRadius: 12, textAlign: "left", fontSize: 14, fontWeight: checked ? 600 : 400,
+              background: checked ? "rgba(37,99,235,0.07)" : "var(--bg-base)",
+              color: checked ? "#2563EB" : "var(--text-secondary)",
+              border: `2px solid ${checked ? "#2563EB" : "var(--border)"}`,
+              cursor: "pointer", transition: "all 120ms",
+              display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${checked ? "#2563EB" : "var(--border)"}`,
+              background: checked ? "#2563EB" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {checked && <span style={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>✓</span>}
+            </span>
+            {opt.fr}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function FieldText({ q, value, onChange, onConfirm }: { q: Question; value: string; onChange: (v: string) => void; onConfirm: () => void }) {
+  return (
+    <div>
+      <input type="text" value={value} onChange={e => onChange(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") onConfirm(); }}
+        placeholder={q.placeholder ?? ""}
+        style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--border)",
+          background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 14, outline: "none",
+          marginBottom: 12, boxSizing: "border-box" }}
+        autoFocus />
+      <button onClick={onConfirm} disabled={!value.trim()}
+        style={{ width: "100%", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
+          background: value.trim() ? "var(--et-red)" : "var(--border)",
+          color: value.trim() ? "#fff" : "var(--text-muted)", border: "none", cursor: "pointer" }}>
+        Continuer →
+      </button>
+    </div>
+  );
+}
+
+function FieldMoney({ q, value, onChange, onConfirm }: { q: Question; value: string; onChange: (v: string) => void; onConfirm: () => void }) {
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", border: "1.5px solid var(--border)", borderRadius: 10, overflow: "hidden", marginBottom: 12, background: "var(--bg-input)" }}>
+        <span style={{ padding: "12px 14px", background: "var(--bg-card-hover)", fontWeight: 700, color: "var(--text-secondary)", fontSize: 15, borderRight: "1px solid var(--border)" }}>$</span>
+        <input type="number" value={value} onChange={e => onChange(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") onConfirm(); }}
+          placeholder="0,00" min={0} step="0.01"
+          style={{ flex: 1, padding: "12px 14px", border: "none", background: "transparent", color: "var(--text-primary)", fontSize: 15, outline: "none" }}
+          autoFocus />
+      </div>
+      <button onClick={onConfirm}
+        style={{ width: "100%", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
+          background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer" }}>
+        Confirmer →
+      </button>
+    </div>
+  );
+}
+
+function FieldNumber({ q, value, onChange, onConfirm }: { q: Question; value: string; onChange: (v: string) => void; onConfirm: () => void }) {
+  return (
+    <div>
+      <input type="number" value={value} onChange={e => onChange(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") onConfirm(); }}
+        placeholder={q.placeholder ?? "0"} min={0}
+        style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--border)",
+          background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 15, outline: "none",
+          marginBottom: 12, boxSizing: "border-box" }}
+        autoFocus />
+      <button onClick={onConfirm} disabled={!value}
+        style={{ width: "100%", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
+          background: value ? "var(--et-red)" : "var(--border)",
+          color: value ? "#fff" : "var(--text-muted)", border: "none", cursor: "pointer" }}>
+        Continuer →
+      </button>
+    </div>
+  );
+}
+
+function FieldDate({ q, value, onChange, onConfirm }: { q: Question; value: string; onChange: (v: string) => void; onConfirm: () => void }) {
+  return (
+    <div>
+      <input type="date" value={value} onChange={e => onChange(e.target.value)}
+        style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--border)",
+          background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 15, outline: "none",
+          marginBottom: 12, boxSizing: "border-box" }}
+        autoFocus />
+      <button onClick={onConfirm} disabled={!value}
+        style={{ width: "100%", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
+          background: value ? "var(--et-red)" : "var(--border)",
+          color: value ? "#fff" : "var(--text-muted)", border: "none", cursor: "pointer" }}>
+        Continuer →
+      </button>
+    </div>
+  );
+}
+
+function FieldAddress({ q, value, onChange, onConfirm }: { q: Question; value: string; onChange: (v: string) => void; onConfirm: () => void }) {
+  return (
+    <div>
+      {["Numéro et rue", "Appartement / unité (optionnel)", "Ville", "Province", "Code postal"].map((label, i) => (
+        <input key={i} type="text" placeholder={label}
+          style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid var(--border)",
+            background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 14, outline: "none",
+            marginBottom: 8, boxSizing: "border-box" }} />
+      ))}
+      <button onClick={onConfirm}
+        style={{ width: "100%", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
+          background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer", marginTop: 4 }}>
+        Confirmer l&apos;adresse →
+      </button>
+    </div>
+  );
+}
+
+function FieldPerson({ q, value, onChange, onConfirm }: { q: Question; value: string; onChange: (v: string) => void; onConfirm: () => void }) {
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>{q.hint}</p>
+      {["Nom complet", "NAS (optionnel)", "Date de naissance", "Revenu net 2025"].map((label, i) => (
+        <input key={i} type={i === 2 ? "date" : i === 3 ? "number" : "text"} placeholder={label}
+          style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid var(--border)",
+            background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 14, outline: "none",
+            marginBottom: 8, boxSizing: "border-box" }} />
+      ))}
+      <button onClick={onConfirm}
+        style={{ width: "100%", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
+          background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer", marginTop: 4 }}>
+        Ajouter →
+      </button>
+    </div>
+  );
+}
+
+// ── PAGE PRINCIPALE ────────────────────────────────────────────────────────────
 
 export default function QuestionnairePage() {
   const router = useRouter();
-  const [lang] = useState<Lang>("fr");
+  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [textVal,  setTextVal]  = useState("");
+  const [numVal,   setNumVal]   = useState("");
+  const [dateVal,  setDateVal]  = useState("");
+  const [multiVal, setMultiVal] = useState<string[]>([]);
+  const [sectionIdx, setSectionIdx] = useState(0);
+  const [questionIdx, setQuestionIdx] = useState(0);
+  const [saving, setSaving]     = useState(false);
+  const [done, setDone]         = useState(false);
 
-  // Redirect admin vers /admin — le questionnaire est pour les INDIVIDUAL uniquement
+  // Redirect non-INDIVIDUAL
   useEffect(() => {
-    fetch("/api/user/me")
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.role && ["ADMIN", "SUPER_ADMIN", "BUSINESS", "PREPARER"].includes(data.role)) {
-          const redirectMap: Record<string, string> = {
-            ADMIN: "/admin", SUPER_ADMIN: "/admin",
-            BUSINESS: "/business", PREPARER: "/preparer",
-          };
-          router.replace(redirectMap[data.role] ?? "/dashboard");
-        }
-      })
-      .catch(() => {});
+    fetch("/api/user/me").then(r => r.ok ? r.json() : null).then(data => {
+      if (data?.role && !["INDIVIDUAL"].includes(data.role)) {
+        const map: Record<string, string> = { ADMIN: "/admin", SUPER_ADMIN: "/admin", BUSINESS: "/business", PREPARER: "/preparer" };
+        router.replace(map[data.role] ?? "/dashboard");
+      }
+    }).catch(() => {});
   }, [router]);
-  const t = (fr: string, en: string) => lang === "fr" ? fr : en;
 
-  // État principal
-  const [answers, setAnswers]           = useState<Record<string, string | boolean | null>>({});
-  const [activeModules, setModules]     = useState<ModuleCode[]>([]);
-  const [currentSection, setSection]    = useState(0);
-  const [currentQIdx, setQIdx]          = useState(0);
-  const [saving, setSaving]             = useState(false);
-  const [done, setDone]                 = useState(false);
-  const [textInput, setTextInput]       = useState("");
-  const [numInput, setNumInput]         = useState("");
+  // Sections visibles
+  const visibleSections = INDIVIDUAL_SECTIONS.filter(s =>
+    s.alwaysShow || evalCondition((s as {showIf?: string}).showIf, answers)
+  );
 
-  // Questions applicables (recalculé à chaque réponse)
-  const applicable = getApplicableQuestions("INDIVIDUAL", activeModules, answers);
-  const sectionCode = SECTIONS[currentSection]?.code ?? "identity";
-  const sectionQs   = applicable.filter((q) => q.section === sectionCode);
-  const current: QuestionDef | undefined = sectionQs[currentQIdx];
+  const currentSection = visibleSections[sectionIdx];
+  const sectionQuestions = ALL_INDIVIDUAL_QUESTIONS
+    .filter(q => q.section === currentSection?.code && evalCondition(q.showIf, answers))
+    .sort((a, b) => a.order - b.order);
 
-  // Progression dynamique
-  const requiredDocs = getRequiredDocuments(activeModules, answers);
-  const progress = calculateProgress(applicable, answers, 0, requiredDocs.filter(d => d.required).length, 0);
-  const sectionPct = sectionQs.length > 0
-    ? Math.round((sectionQs.filter(q => answers[q.code] !== undefined && answers[q.code] !== null).length / sectionQs.length) * 100)
+  const currentQ: Question | undefined = sectionQuestions[questionIdx];
+  const totalAnswered = Object.keys(answers).length;
+  const totalApplicable = ALL_INDIVIDUAL_QUESTIONS.filter(q => evalCondition(q.showIf, answers)).length;
+  const globalPct = totalApplicable > 0 ? Math.min(99, Math.round((totalAnswered / totalApplicable) * 100)) : 0;
+
+  const sectionPct = sectionQuestions.length > 0
+    ? Math.round((sectionQuestions.filter(q => answers[q.id] !== undefined).length / sectionQuestions.length) * 100)
     : 100;
 
-  // Modules actifs badges
-  const modulesBadges = activeModules.filter(m => MODULE_LABELS[m]);
+  const resetInput = () => { setTextVal(""); setNumVal(""); setDateVal(""); setMultiVal([]); };
 
-  const saveAnswer = useCallback(async (code: string, value: string | boolean) => {
-    setSaving(true);
-    const newAnswers = { ...answers, [code]: value };
+  const saveAndNext = useCallback(async (qId: string, value: unknown) => {
+    const newAnswers = { ...answers, [qId]: value };
     setAnswers(newAnswers);
-
-    // Mettre à jour les modules actifs
-    const newModules = getModulesToActivate(newAnswers);
-    setModules(newModules);
-
-    // Sauvegarde API
+    setSaving(true);
+    resetInput();
     try {
       await fetch("/api/answers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          questionCode: code,
-          answerValue: String(value),
-          taxReturnId: "current",
-          taxYearId: "2025",
-        }),
+        body: JSON.stringify({ questionCode: qId, answerValue: String(value), taxReturnId: "current", taxYearId: "2025" }),
       });
     } catch { /* silencieux */ }
     setSaving(false);
-  }, [answers]);
 
-  const goNext = useCallback(() => {
-    const nextIdx = currentQIdx + 1;
-    if (nextIdx < sectionQs.length) {
-      setQIdx(nextIdx);
-      setTextInput(""); setNumInput("");
+    // Avancer
+    const nextQIdx = questionIdx + 1;
+    const nextQ = sectionQuestions
+      .filter(q => evalCondition(q.showIf, newAnswers))
+      .find((_, i) => i > questionIdx);
+
+    if (nextQ) {
+      const newSectionQs = ALL_INDIVIDUAL_QUESTIONS
+        .filter(q => q.section === currentSection?.code && evalCondition(q.showIf, newAnswers))
+        .sort((a, b) => a.order - b.order);
+      const nextIdx = newSectionQs.findIndex(q => q.id === nextQ.id);
+      setQuestionIdx(Math.max(0, nextIdx));
     } else {
-      // Chercher la prochaine section avec des questions
-      let foundSection = false;
-      for (let s = currentSection + 1; s < SECTIONS.length; s++) {
-        const nextSectionQs = applicable.filter(q => q.section === SECTIONS[s].code);
-        if (nextSectionQs.length > 0) {
-          setSection(s); setQIdx(0); setTextInput(""); setNumInput("");
-          foundSection = true;
-          break;
-        }
+      const newVisibleSections = INDIVIDUAL_SECTIONS.filter(s =>
+        s.alwaysShow || evalCondition((s as {showIf?: string}).showIf, newAnswers)
+      );
+      const nextSecIdx = sectionIdx + 1;
+      if (nextSecIdx < newVisibleSections.length) {
+        setSectionIdx(nextSecIdx);
+        setQuestionIdx(0);
+      } else {
+        setDone(true);
       }
-      if (!foundSection) setDone(true);
     }
-  }, [currentQIdx, currentSection, sectionQs, applicable]);
+  }, [answers, questionIdx, sectionQuestions, currentSection, sectionIdx]);
 
-  const handleBoolean = useCallback(async (value: boolean) => {
-    if (!current) return;
-    await saveAnswer(current.code, value);
-    goNext();
-  }, [current, saveAnswer, goNext]);
+  const handleBack = () => {
+    if (questionIdx > 0) setQuestionIdx(i => i - 1);
+    else if (sectionIdx > 0) { setSectionIdx(s => s - 1); setQuestionIdx(0); }
+    resetInput();
+  };
 
-  const handleText = useCallback(async () => {
-    if (!current || !textInput.trim()) return;
-    await saveAnswer(current.code, textInput.trim());
-    goNext();
-  }, [current, textInput, saveAnswer, goNext]);
-
-  const handleNumber = useCallback(async () => {
-    if (!current || !numInput) return;
-    await saveAnswer(current.code, numInput);
-    goNext();
-  }, [current, numInput, saveAnswer, goNext]);
-
-  // ── VUE TERMINÉE ────────────────────────────────────────────────────────────
+  // ── ÉCRAN FIN ─────────────────────────────────────────────────────────────
   if (done) {
-    const docs = getRequiredDocuments(activeModules, answers);
     return (
       <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
         <NavClient />
-        <div style={{ maxWidth: 680, margin: "0 auto", padding: "32px 16px" }}>
-          {/* Header */}
-          <div style={{ textAlign: "center", marginBottom: 32 }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+        <div style={{ maxWidth: 640, margin: "0 auto", padding: "32px 16px" }}>
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: "36px 28px", textAlign: "center" }}>
+            <div style={{ fontSize: 52, marginBottom: 16 }}>🎉</div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" }}>
-              {t("Questionnaire terminé !", "Questionnaire complete!")}
+              Questionnaire complété !
             </h1>
-            <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
-              {t(`${progress.questionsAnswered} questions répondues · Progression globale : ${progress.globalPct} %`,
-                 `${progress.questionsAnswered} questions answered · Overall progress: ${progress.globalPct}%`)}
+            <p style={{ color: "var(--text-secondary)", fontSize: 14, marginBottom: 24 }}>
+              {totalAnswered} réponses enregistrées · Progression {globalPct}%
             </p>
-          </div>
-
-          {/* Modules activés */}
-          {modulesBadges.length > 0 && (
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: "16px 20px", marginBottom: 16 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>
-                {t("Modules activés pour votre dossier", "Modules activated for your file")}
-              </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {modulesBadges.map(m => {
-                  const ml = MODULE_LABELS[m];
-                  return (
-                    <span key={m} style={{
-                      display: "inline-flex", alignItems: "center", gap: 5,
-                      padding: "4px 10px", borderRadius: 100, fontSize: 12, fontWeight: 600,
-                      background: "rgba(37,99,235,0.1)", color: "#2563EB",
-                    }}>
-                      {ml.icon} {lang === "fr" ? ml.fr : ml.en}
-                    </span>
-                  );
-                })}
-              </div>
+            <div style={{ background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.25)", borderRadius: 12, padding: "12px 16px", marginBottom: 24, fontSize: 13, color: "#D97706", textAlign: "left" }}>
+              ⚠️ Ces informations sont préliminaires. Téléversez vos documents et attendez la validation avant le calcul fiscal.
             </div>
-          )}
-
-          {/* Documents requis */}
-          {docs.length > 0 && (
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: "16px 20px", marginBottom: 16 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>
-                {t("Documents requis pour votre dossier", "Documents required for your file")}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {docs.map((doc, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 10, background: "var(--bg-base)" }}>
-                    <span style={{ fontSize: 16 }}>📄</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
-                        {lang === "fr" ? doc.labelFr : doc.labelEn}
-                      </div>
-                    </div>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 100,
-                      background: doc.required ? "rgba(220,38,38,0.1)" : "rgba(107,114,128,0.1)",
-                      color: doc.required ? "#DC2626" : "#6B7280",
-                    }}>
-                      {doc.required ? t("Requis", "Required") : t("Optionnel", "Optional")}
-                    </span>
-                  </div>
-                ))}
-              </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => router.push("/documents")}
+                style={{ flex: 1, padding: "13px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer" }}>
+                Téléverser mes documents →
+              </button>
+              <button onClick={() => { setDone(false); setSectionIdx(0); setQuestionIdx(0); }}
+                style={{ padding: "13px 18px", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "var(--bg-card)", color: "var(--text-secondary)", border: "1px solid var(--border)", cursor: "pointer" }}>
+                Réviser
+              </button>
             </div>
-          )}
-
-          {/* Avertissement */}
-          <div style={{ background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.25)", borderRadius: 12, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#D97706" }}>
-            ⚠️ {t("Ces résultats sont préliminaires. Téléversez vos documents et faites valider vos données avant le calcul fiscal.",
-                   "These results are preliminary. Upload your documents and have your data validated before the tax calculation.")}
-          </div>
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button
-              onClick={() => router.push("/documents")}
-              style={{ flex: 1, padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer" }}
-            >
-              {t("Téléverser mes documents →", "Upload my documents →")}
-            </button>
-            <button
-              onClick={() => { setDone(false); setSection(0); setQIdx(0); }}
-              style={{ padding: "12px 18px", borderRadius: 12, fontSize: 14, fontWeight: 600, background: "var(--bg-card)", color: "var(--text-secondary)", border: "1px solid var(--border)", cursor: "pointer" }}
-            >
-              {t("Réviser", "Review")}
-            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  // ── VUE PRINCIPALE ───────────────────────────────────────────────────────────
+  // ── VUE PRINCIPALE ─────────────────────────────────────────────────────────
   return (
     <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
       <NavClient />
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "20px 16px 60px" }}>
 
-      <div style={{ maxWidth: 680, margin: "0 auto", padding: "24px 16px" }}>
-
-        {/* ── Barre de progression globale ─────────────────────────────── */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
-              {t("Déclaration 2025", "2025 Return")} — {SECTIONS[currentSection]?.icon} {t(SECTIONS[currentSection]?.fr ?? "", SECTIONS[currentSection]?.en ?? "")}
-            </span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--et-red)" }}>
-              {progress.globalPct}%
-            </span>
+        {/* Barre de progression globale */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-secondary)", marginBottom: 5 }}>
+            <span>Déclaration 2025 — {currentSection?.icon} {currentSection?.fr}</span>
+            <span style={{ fontWeight: 700, color: "var(--et-red)" }}>{globalPct}%</span>
           </div>
-          <div style={{ height: 6, background: "var(--border)", borderRadius: 100, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${progress.globalPct}%`, background: "var(--et-red)", borderRadius: 100, transition: "width 400ms ease" }} />
+          <div style={{ height: 5, background: "var(--border)", borderRadius: 100, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${globalPct}%`, background: "var(--et-red)", borderRadius: 100, transition: "width 400ms ease" }} />
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "var(--text-muted)" }}>
-            <span>{t(`${progress.questionsAnswered} / ${progress.questionsApplicable} questions`, `${progress.questionsAnswered} / ${progress.questionsApplicable} questions`)}</span>
-            <span>{sectionQs.length > 0 ? `${currentQIdx + 1} / ${sectionQs.length} ${t("dans cette section", "in this section")}` : ""}</span>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+            {totalAnswered} / {totalApplicable} questions · Section {sectionIdx + 1}/{visibleSections.length}
           </div>
         </div>
 
-        {/* ── Étapes sections ──────────────────────────────────────────── */}
-        <div style={{ display: "flex", gap: 4, marginBottom: 24, overflowX: "auto", paddingBottom: 4 }}>
-          {SECTIONS.map((s, i) => {
-            const sQs = applicable.filter(q => q.section === s.code);
-            if (sQs.length === 0) return null;
-            const answered = sQs.filter(q => answers[q.code] !== undefined && answers[q.code] !== null).length;
-            const pct = Math.round((answered / sQs.length) * 100);
-            const active = i === currentSection;
-            const done = pct === 100;
+        {/* Navigation sections */}
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 20 }}>
+          {visibleSections.map((s, i) => {
+            const sQs = ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === s.code && evalCondition(q.showIf, answers));
+            const answered = sQs.filter(q => answers[q.id] !== undefined).length;
+            const pct = sQs.length > 0 ? Math.round((answered / sQs.length) * 100) : 0;
+            const active = i === sectionIdx;
+            const complete = pct === 100 && sQs.length > 0;
             return (
-              <button key={s.code}
-                onClick={() => { setSection(i); setQIdx(0); }}
-                style={{
-                  flexShrink: 0, padding: "6px 12px", borderRadius: 10, fontSize: 12,
+              <button key={s.code} onClick={() => { setSectionIdx(i); setQuestionIdx(0); resetInput(); }}
+                style={{ flexShrink: 0, padding: "5px 12px", borderRadius: 9, fontSize: 12,
                   fontWeight: active ? 700 : 500, cursor: "pointer",
-                  background: active ? "var(--et-red)" : done ? "rgba(22,163,74,0.1)" : "var(--bg-card)",
-                  color: active ? "#fff" : done ? "#16A34A" : "var(--text-secondary)",
-                  border: `1px solid ${active ? "var(--et-red)" : done ? "rgba(22,163,74,0.3)" : "var(--border)"}`,
-                  transition: "all 120ms",
-                }}>
-                {s.icon} {lang === "fr" ? s.fr : s.en}
-                {done && !active && " ✓"}
+                  background: active ? "var(--et-red)" : complete ? "rgba(22,163,74,0.1)" : "var(--bg-card)",
+                  color: active ? "#fff" : complete ? "#16A34A" : "var(--text-secondary)",
+                  border: `1.5px solid ${active ? "var(--et-red)" : complete ? "rgba(22,163,74,0.35)" : "var(--border)"}`,
+                  transition: "all 120ms" }}>
+                {s.icon} {s.fr}{complete && !active ? " ✓" : ""}
               </button>
             );
           })}
         </div>
 
-        {/* ── Modules actifs ───────────────────────────────────────────── */}
-        {modulesBadges.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
-            {modulesBadges.slice(0, 5).map(m => {
-              const ml = MODULE_LABELS[m];
-              if (!ml) return null;
-              return (
-                <span key={m} style={{
-                  fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 100,
-                  background: "rgba(37,99,235,0.09)", color: "#2563EB",
-                }}>
-                  {ml.icon} {lang === "fr" ? ml.fr : ml.en}
-                </span>
-              );
-            })}
-          </div>
-        )}
+        {/* Carte question */}
+        {currentQ ? (
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: "24px 22px", boxShadow: "var(--shadow-md)", marginBottom: 16 }}>
 
-        {/* ── Carte question ───────────────────────────────────────────── */}
-        {current ? (
-          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: "28px 24px", boxShadow: "var(--shadow-md)" }}>
-
-            {/* Indicateur section */}
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 16 }}>
-              {SECTIONS.find(s => s.code === current.section)?.icon}{" "}
-              {lang === "fr"
-                ? SECTIONS.find(s => s.code === current.section)?.fr
-                : SECTIONS.find(s => s.code === current.section)?.en}
-              {current.required && (
-                <span style={{ marginLeft: 8, color: "var(--et-red)" }}>*</span>
-              )}
+            {/* Section + numéro */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                {currentSection?.icon} {currentSection?.fr}
+                {currentQ.required && <span style={{ color: "var(--et-red)", marginLeft: 4 }}>*</span>}
+              </span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                {questionIdx + 1} / {sectionQuestions.filter(q => evalCondition(q.showIf, answers)).length}
+              </span>
             </div>
 
             {/* Question */}
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px", lineHeight: 1.4 }}>
-              {lang === "fr" ? current.textFr : current.textEn}
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px", lineHeight: 1.4 }}>
+              {currentQ.fr}
             </h2>
 
             {/* Hint */}
-            {(current.hintFr || current.hintEn) && (
-              <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 24px", lineHeight: 1.5 }}>
-                {lang === "fr" ? current.hintFr : current.hintEn}
+            {currentQ.hint && (
+              <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 18px", lineHeight: 1.5 }}>
+                {currentQ.hint}
               </p>
             )}
 
             {/* Document requis */}
-            {current.documentRequired && (
-              <div style={{
-                display: "flex", alignItems: "center", gap: 8,
-                background: "rgba(37,99,235,0.07)", border: "1px solid rgba(37,99,235,0.2)",
-                borderRadius: 10, padding: "8px 12px", marginBottom: 20, fontSize: 12, color: "#2563EB",
-              }}>
-                📎 {t(`Document requis : ${current.documentRequired}`, `Required document: ${current.documentRequired}`)}
+            {currentQ.documentRequired && (
+              <div style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(37,99,235,0.07)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: 9, padding: "7px 12px", marginBottom: 18, fontSize: 12, color: "#2563EB" }}>
+                📎 Document requis : <strong>{currentQ.documentRequired}</strong>
               </div>
             )}
 
-            {/* Réponse selon le type */}
-            {current.type === "BOOLEAN" && (
-              <div style={{ display: "flex", gap: 12 }}>
-                <button onClick={() => handleBoolean(true)} disabled={saving} style={{
-                  flex: 1, padding: "14px 0", borderRadius: 12, fontSize: 15, fontWeight: 700,
-                  background: answers[current.code] === true ? "var(--et-red)" : "var(--et-red)",
-                  color: "#fff", border: "none", cursor: "pointer", opacity: saving ? 0.6 : 1, transition: "all 120ms",
-                }}>
-                  {t("Oui", "Yes")}
-                </button>
-                <button onClick={() => handleBoolean(false)} disabled={saving} style={{
-                  flex: 1, padding: "14px 0", borderRadius: 12, fontSize: 15, fontWeight: 600,
-                  background: "var(--bg-base)", color: "var(--text-secondary)",
-                  border: "1.5px solid var(--border)", cursor: "pointer", opacity: saving ? 0.6 : 1, transition: "all 120ms",
-                }}>
-                  {t("Non", "No")}
-                </button>
-              </div>
+            {/* Champ selon le type */}
+            {currentQ.type === "BOOLEAN" && (
+              <FieldBoolean q={currentQ}
+                value={answers[currentQ.id] === true ? true : answers[currentQ.id] === false ? false : null}
+                onChange={v => saveAndNext(currentQ.id, v)} />
             )}
-
-            {(current.type === "TEXT" || current.type === "ADDRESS") && (
+            {currentQ.type === "SINGLE_CHOICE" && (
+              <FieldSingleChoice q={currentQ}
+                value={String(answers[currentQ.id] ?? "")}
+                onChange={v => saveAndNext(currentQ.id, v)} />
+            )}
+            {currentQ.type === "MULTI_CHOICE" && (
               <div>
-                <input
-                  type="text"
-                  value={textInput}
-                  onChange={e => setTextInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") handleText(); }}
-                  placeholder={t("Saisir votre réponse...", "Enter your answer...")}
-                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 14, outline: "none", marginBottom: 12 }}
-                  autoFocus
-                />
-                <button onClick={handleText} disabled={!textInput.trim() || saving} style={{
-                  width: "100%", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
-                  background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer",
-                  opacity: (!textInput.trim() || saving) ? 0.5 : 1,
-                }}>
-                  {t("Continuer →", "Continue →")}
+                <FieldMultiChoice q={currentQ}
+                  value={multiVal}
+                  onChange={setMultiVal} />
+                <button onClick={() => { if (multiVal.length > 0) saveAndNext(currentQ.id, multiVal.join(",")); }}
+                  disabled={multiVal.length === 0}
+                  style={{ width: "100%", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, marginTop: 14,
+                    background: multiVal.length > 0 ? "var(--et-red)" : "var(--border)",
+                    color: multiVal.length > 0 ? "#fff" : "var(--text-muted)", border: "none", cursor: "pointer" }}>
+                  Confirmer ({multiVal.length} sélectionnés) →
                 </button>
               </div>
             )}
-
-            {(current.type === "NUMBER" || current.type === "MONEY" || current.type === "DECIMAL") && (
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                  {current.type === "MONEY" && (
-                    <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text-secondary)" }}>$</span>
-                  )}
-                  <input
-                    type="number"
-                    value={numInput}
-                    onChange={e => setNumInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") handleNumber(); }}
-                    placeholder={current.type === "MONEY" ? "0.00" : "0"}
-                    min={0}
-                    style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 14, outline: "none" }}
-                    autoFocus
-                  />
-                </div>
-                <button onClick={handleNumber} disabled={!numInput || saving} style={{
-                  width: "100%", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
-                  background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer",
-                  opacity: (!numInput || saving) ? 0.5 : 1,
-                }}>
-                  {t("Continuer →", "Continue →")}
-                </button>
-              </div>
+            {currentQ.type === "TEXT" && (
+              <FieldText q={currentQ} value={textVal} onChange={setTextVal}
+                onConfirm={() => { if (textVal.trim()) saveAndNext(currentQ.id, textVal.trim()); }} />
+            )}
+            {currentQ.type === "MONEY" && (
+              <FieldMoney q={currentQ} value={numVal} onChange={setNumVal}
+                onConfirm={() => { saveAndNext(currentQ.id, numVal || "0"); }} />
+            )}
+            {currentQ.type === "NUMBER" && (
+              <FieldNumber q={currentQ} value={numVal} onChange={setNumVal}
+                onConfirm={() => { if (numVal) saveAndNext(currentQ.id, numVal); }} />
+            )}
+            {currentQ.type === "DATE" && (
+              <FieldDate q={currentQ} value={dateVal} onChange={setDateVal}
+                onConfirm={() => { if (dateVal) saveAndNext(currentQ.id, dateVal); }} />
+            )}
+            {currentQ.type === "ADDRESS" && (
+              <FieldAddress q={currentQ} value={textVal} onChange={setTextVal}
+                onConfirm={() => saveAndNext(currentQ.id, "adresse_confirmée")} />
+            )}
+            {currentQ.type === "PERSON" && (
+              <FieldPerson q={currentQ} value={textVal} onChange={setTextVal}
+                onConfirm={() => saveAndNext(currentQ.id, "personne_ajoutée")} />
             )}
 
-            {/* Sauvegarde */}
-            {saving && (
-              <p style={{ textAlign: "center", fontSize: 11, color: "var(--text-muted)", marginTop: 12 }}>
-                {t("Sauvegarde...", "Saving...")}
-              </p>
+            {/* Passer si optionnel */}
+            {!currentQ.required && (
+              <button onClick={() => saveAndNext(currentQ.id, "skipped")}
+                style={{ width: "100%", padding: "9px 0", borderRadius: 10, fontSize: 12, fontWeight: 500, marginTop: 10,
+                  background: "transparent", color: "var(--text-muted)", border: "1px dashed var(--border)", cursor: "pointer" }}>
+                Passer cette question →
+              </button>
             )}
+
+            {saving && <p style={{ textAlign: "center", fontSize: 11, color: "var(--text-muted)", marginTop: 10 }}>Sauvegarde...</p>}
           </div>
         ) : (
-          /* Section sans questions — passer à la suivante */
-          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: "32px 24px", textAlign: "center" }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>✓</div>
-            <h2 style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
-              {t("Section non applicable", "Section not applicable")}
-            </h2>
-            <p style={{ color: "var(--text-secondary)", fontSize: 13, marginBottom: 20 }}>
-              {t("Aucune question ne vous concerne dans cette section.", "No questions apply to you in this section.")}
-            </p>
-            <button onClick={goNext} style={{
-              padding: "10px 24px", borderRadius: 12, fontSize: 14, fontWeight: 700,
-              background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer",
-            }}>
-              {t("Section suivante →", "Next section →")}
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: "28px 22px", textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 10 }}>✓</div>
+            <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>Section complète ou non applicable.</p>
+            <button onClick={() => {
+              const next = sectionIdx + 1;
+              if (next < visibleSections.length) { setSectionIdx(next); setQuestionIdx(0); }
+              else setDone(true);
+            }}
+              style={{ padding: "10px 22px", borderRadius: 12, fontSize: 14, fontWeight: 700, marginTop: 14,
+                background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer" }}>
+              Section suivante →
             </button>
           </div>
         )}
 
-        {/* ── Navigation ─────────────────────────────────────────────── */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20 }}>
-          <button
-            onClick={() => {
-              if (currentQIdx > 0) setQIdx(i => i - 1);
-              else if (currentSection > 0) { setSection(s => s - 1); setQIdx(0); }
-            }}
-            disabled={currentSection === 0 && currentQIdx === 0}
-            style={{
-              padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 500,
-              background: "var(--bg-card)", color: "var(--text-secondary)",
-              border: "1px solid var(--border)", cursor: "pointer",
-              opacity: (currentSection === 0 && currentQIdx === 0) ? 0.4 : 1,
-            }}>
-            ← {t("Précédent", "Previous")}
+        {/* Navigation précédent / sauvegarder */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+          <button onClick={handleBack} disabled={sectionIdx === 0 && questionIdx === 0}
+            style={{ padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 500,
+              background: "var(--bg-card)", color: "var(--text-secondary)", border: "1px solid var(--border)",
+              cursor: "pointer", opacity: (sectionIdx === 0 && questionIdx === 0) ? 0.4 : 1 }}>
+            ← Précédent
           </button>
-
-          <button
-            onClick={() => router.push("/dossier")}
-            style={{ padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 500, background: "transparent", color: "var(--text-muted)", border: "none", cursor: "pointer" }}>
-            {t("Sauvegarder et quitter", "Save and exit")}
+          <button onClick={() => router.push("/dossier")}
+            style={{ padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 500,
+              background: "transparent", color: "var(--text-muted)", border: "none", cursor: "pointer" }}>
+            Sauvegarder et quitter
           </button>
         </div>
 
-        {/* ── Progression par section ──────────────────────────────────── */}
-        <div style={{ marginTop: 28, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: "16px 20px" }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>
-            {t("Progression par section", "Progress by section")}
+        {/* Progression par section */}
+        <div style={{ marginTop: 20, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "14px 18px" }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+            Progression par section
           </p>
-          {SECTIONS.map((s) => {
-            const sQs = applicable.filter(q => q.section === s.code);
+          {visibleSections.map((s) => {
+            const sQs = ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === s.code && evalCondition(q.showIf, answers));
             if (sQs.length === 0) return null;
-            const answered = sQs.filter(q => answers[q.code] !== undefined && answers[q.code] !== null).length;
+            const answered = sQs.filter(q => answers[q.id] !== undefined).length;
             const pct = Math.round((answered / sQs.length) * 100);
             return (
-              <div key={s.code} style={{ marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>
-                  <span>{s.icon} {lang === "fr" ? s.fr : s.en}</span>
+              <div key={s.code} style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-secondary)", marginBottom: 3 }}>
+                  <span>{s.icon} {s.fr}</span>
                   <span style={{ fontWeight: 600, color: pct === 100 ? "#16A34A" : "var(--text-secondary)" }}>{pct}%</span>
                 </div>
-                <div style={{ height: 4, background: "var(--border)", borderRadius: 100, overflow: "hidden" }}>
+                <div style={{ height: 3, background: "var(--border)", borderRadius: 100, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#16A34A" : "var(--et-red)", borderRadius: 100, transition: "width 300ms" }} />
                 </div>
               </div>
