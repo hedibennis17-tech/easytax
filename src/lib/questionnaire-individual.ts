@@ -17,7 +17,7 @@
 
 export type FieldType =
   | "BOOLEAN" | "SINGLE_CHOICE" | "MULTI_CHOICE"
-  | "TEXT" | "NUMBER" | "MONEY" | "DATE" | "ADDRESS" | "PERSON";
+  | "TEXT" | "NUMBER" | "MONEY" | "DATE" | "ADDRESS" | "PERSON" | "DOCUMENT";
 
 export interface QuestionOption {
   value: string;
@@ -630,15 +630,16 @@ export const MODULE_QUEBEC: Question[] = [
 ];
 
 // ─── MODULE DOCUMENTS (7 questions) ─────────────────────────────────────────
+// Type DOCUMENT = bloc upload avec support multi-feuillets
 
 export const MODULE_DOCUMENTS: Question[] = [
-  { id: "doc1", section: "documents", order: 1, fr: "T4 — Rémunération d'un employeur", en: "T4 — Employment income", type: "BOOLEAN", required: false, showIf: "t1=true", documentRequired: "T4" },
-  { id: "doc2", section: "documents", order: 2, fr: "Relevé 1 (RL-1) — Revenus d'emploi (Québec)", en: "RL-1 — Employment income (Québec)", type: "BOOLEAN", required: false, showIf: "t1=true", documentRequired: "RL-1" },
-  { id: "doc3", section: "documents", order: 3, fr: "T5 — Revenus de placements", en: "T5 — Investment income", type: "BOOLEAN", required: false, showIf: "t4=true", documentRequired: "T5" },
-  { id: "doc4", section: "documents", order: 4, fr: "T4A — Autres revenus (pension, bourses, etc.)", en: "T4A — Other income (pension, scholarships, etc.)", type: "BOOLEAN", required: false, documentRequired: "T4A" },
-  { id: "doc5", section: "documents", order: 5, fr: "T4E — Prestations d'assurance-emploi", en: "T4E — Employment Insurance benefits", type: "BOOLEAN", required: false, showIf: "r13=true", documentRequired: "T4E" },
-  { id: "doc6", section: "documents", order: 6, fr: "Reçus de cotisation REER", en: "RRSP contribution receipts", type: "BOOLEAN", required: false, showIf: "d1=true", documentRequired: "RRSP_RECEIPT" },
-  { id: "doc7", section: "documents", order: 7, fr: "Autres documents fiscaux", en: "Other tax documents", type: "TEXT", required: false, placeholder: "Précisez les autres documents" },
+  { id: "doc1", section: "documents", order: 1, fr: "T4 — Rémunération d'un employeur", en: "T4 — Employment income slip", type: "DOCUMENT", required: false, showIf: "t1=true", documentRequired: "T4", hint: "Ajoutez un bloc par employeur (T4 #1, T4 #2...)" },
+  { id: "doc2", section: "documents", order: 2, fr: "Relevé 1 (RL-1) — Revenus d'emploi (Québec)", en: "RL-1 — Employment income (Québec)", type: "DOCUMENT", required: false, showIf: "t1=true", documentRequired: "RL-1", hint: "Un RL-1 par employeur" },
+  { id: "doc3", section: "documents", order: 3, fr: "T5 — Relevé de revenus de placements", en: "T5 — Investment income slip", type: "DOCUMENT", required: false, showIf: "t4=true", documentRequired: "T5", hint: "Un T5 par institution financière" },
+  { id: "doc4", section: "documents", order: 4, fr: "T4A — Autres revenus (pension, bourses, case 048...)", en: "T4A — Other income (pension, scholarships, box 048...)", type: "DOCUMENT", required: false, documentRequired: "T4A", hint: "Pension, bourses, allocations de retraite" },
+  { id: "doc5", section: "documents", order: 5, fr: "T4E — Prestations d'assurance-emploi", en: "T4E — Employment Insurance benefits", type: "DOCUMENT", required: false, showIf: "r13=true", documentRequired: "T4E" },
+  { id: "doc6", section: "documents", order: 6, fr: "Reçus de cotisation REER", en: "RRSP contribution receipts", type: "DOCUMENT", required: false, showIf: "d1=true", documentRequired: "RRSP_RECEIPT", hint: "Reçus de votre institution financière" },
+  { id: "doc7", section: "documents", order: 7, fr: "Autres documents fiscaux", en: "Other tax documents", type: "DOCUMENT", required: false, hint: "T3, T5013, RL-2, T2202, reçus médicaux, dons, etc." },
 ];
 
 // ─── MODULE RÉVISION (13 questions) ──────────────────────────────────────────
