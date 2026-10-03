@@ -330,9 +330,11 @@ export default function QuestionnairePage() {
   const displayQs = !triageDone ? triageQs : curSectionQs;
   const currentQ: Question | undefined = displayQs[qIdx];
 
-  // Compteurs
-  const totalAnswered  = Object.keys(answers).length;
-  const totalApplicable = allApplicable.length;
+  // Compteurs — inclure triage dans le total applicable
+  const triageApplicable = triageQs.length; // toujours 6
+  const sectionApplicable = allApplicable.filter(q => q.section !== "triage").length;
+  const totalApplicable = triageApplicable + sectionApplicable;
+  const totalAnswered = Object.keys(answers).length;
   const globalPct = totalApplicable > 0 ? Math.min(99, Math.round((totalAnswered / totalApplicable) * 100)) : 0;
 
   // Progression par section (sans triage)
@@ -614,8 +616,8 @@ export default function QuestionnairePage() {
           </button>
         </div>
 
-        {/* ── Progression par section ──────────────────────────── */}
-        {triageDone && sectionProgress.some(s => s.total > 0) && (
+        {/* ── Progression par section — toujours visible ─────── */}
+        {sectionProgress.some(s => s.total > 0) && (
           <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "14px 16px" }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#a0b4b0", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>
               Progression
@@ -636,10 +638,28 @@ export default function QuestionnairePage() {
           </div>
         )}
 
-        {/* Triage en cours — pas encore de progression par section */}
+        {/* Triage en cours — afficher sa propre progression */}
         {!triageDone && (
-          <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "14px 16px", fontSize: 13, color: "#7a9c97", textAlign: "center" }}>
-            Ces 6 questions rapides permettent de personaliser votre questionnaire.
+          <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "14px 16px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#a0b4b0", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
+              Personnalisation
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#526865", marginBottom: 3 }}>
+                <span>🧭 Questions de triage</span>
+                <span style={{ fontWeight: 600, color: "#0b6b67" }}>{triageQs.filter(q => answers[q.id] !== undefined).length}/{triageQs.length}</span>
+              </div>
+              <div style={{ height: 3, background: "#edf2f0", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%",
+                  width: `${Math.round((triageQs.filter(q => answers[q.id] !== undefined).length / triageQs.length) * 100)}%`,
+                  background: "#0b6b67", borderRadius: 3, transition: "width 300ms",
+                }} />
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: "#a0b4b0" }}>
+              Ces 6 questions permettent de personnaliser votre questionnaire.
+            </div>
           </div>
         )}
 
