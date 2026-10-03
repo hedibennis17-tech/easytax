@@ -62,7 +62,10 @@ export const FEDERAL_RULES_2025: TaxRulesForYear = {
   provincialBasicPersonalCents: 0,
   federalBrackets: FEDERAL_BRACKETS_2025,
   provincialBrackets: [],
-  federalCreditRate: creditRate(1500),
+  // ⚠️ Ligne 34990: crédits calculés à 14,5% (pas 15%)
+  // Crédit compensatoire = (A − 8 319,38$) × 3,45% en sus
+  // Voir: provincial-engine.ts pour le calcul exact
+  federalCreditRate: creditRate(1450), // 14,5% — taux réel 2025
   provincialCreditRate: creditRate(0),
   filingDeadline:  "2026-04-30",
   paymentDeadline: "2026-04-30",
@@ -87,10 +90,11 @@ export const QC_RULES_2025: TaxRulesForYear = {
   provincialBasicPersonalCents: d(17_183),
   federalBrackets: FEDERAL_BRACKETS_2025,
   provincialBrackets: [
-    { minCents: d(0),         maxCents: d(51_780),  rateBasisPoints: 1400 },
-    { minCents: d(51_780),    maxCents: d(103_545), rateBasisPoints: 1900 },
-    { minCents: d(103_545),   maxCents: d(126_000), rateBasisPoints: 2400 },
-    { minCents: d(126_000),   maxCents: null,        rateBasisPoints: 2575 },
+    // Source: Revenu Québec TP-1 2025 — indexation 2,85%
+    { minCents: d(0),         maxCents: d(53_255),  rateBasisPoints: 1400 },
+    { minCents: d(53_255),    maxCents: d(106_495), rateBasisPoints: 1900 },
+    { minCents: d(106_495),   maxCents: d(129_590), rateBasisPoints: 2400 },
+    { minCents: d(129_590),   maxCents: null,        rateBasisPoints: 2575 },
   ],
   federalCreditRate: creditRate(1500),
   provincialCreditRate: creditRate(1400),
@@ -151,10 +155,11 @@ export const ON_RULES_2025: TaxRulesForYear = {
   provincialCreditRate: creditRate(505),
   // SURTAXE ON — seule province avec surtaxe en 2025
   provincialSurtax: {
-    threshold1Cents: d(5_315),
-    rateBP1: 2000,  // +20%
-    threshold2Cents: d(6_802),
-    rateBP2: 3600,  // +36% supplémentaire
+    // Source: ARC T4032 ON 2025 — seule province avec surtaxe en 2025
+    threshold1Cents: d(5_710),
+    rateBP1: 2000,  // +20% sur l'impôt de base > 5 710$
+    threshold2Cents: d(7_307),
+    rateBP2: 3600,  // +36% cumulatif sur l'impôt de base > 7 307$
   },
   refundableCredits: [
     {
