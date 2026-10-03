@@ -330,8 +330,9 @@ export default function QuestionnairePage() {
     }).catch(() => {});
   }, [router]);
 
-  // Province détectée (depuis le profil ou les réponses du triage)
-  const userProvince = (answers["province"] as string) ??
+  // Province détectée depuis la question pancanadienne de résidence.
+  const userProvince = (answers["q1"] as string) ??
+                       (answers["province"] as string) ??
                        (answers["profil_province"] as string) ?? null;
 
   // ── Filtre provinceOnly — exclure les questions d'autres provinces ────────
@@ -349,14 +350,23 @@ export default function QuestionnairePage() {
 
   // Questions visibles dans la section courante (incluant triage en arrière-plan)
   const ALL_QUESTIONS = getAllQuestionsWithProvince();
-  const allApplicable = ALL_QUESTIONS.filter(q => evalCond(q.showIf, answers) && (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)));
+  const isSectionVisible = (sectionCode: string) => {
+    const section = INDIVIDUAL_SECTIONS.find(s => s.code === sectionCode);
+    return Boolean(section && (section.alwaysShow || evalCond((section as { showIf?: string }).showIf, answers)));
+  };
+  const isQuestionApplicable = (q: Question) =>
+    (q.section === "triage" || isSectionVisible(q.section)) &&
+    evalCond(q.showIf, answers) &&
+    (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince));
+  // Une seule source de vérité pour le total du haut et les compteurs de sections.
+  const allApplicable = ALL_QUESTIONS.filter(isQuestionApplicable);
   const sectionQs = ALL_QUESTIONS
-    .filter(q => (q.section === currentSection?.code || q.section === "triage") && evalCond(q.showIf, answers))
+    .filter(q => (q.section === currentSection?.code || q.section === "triage") && isQuestionApplicable(q))
     .sort((a, b) => a.order - b.order);
 
   // Questions de la section courante seulement (pas triage)
   const curSectionQs = ALL_QUESTIONS
-    .filter(q => q.section === currentSection?.code && evalCond(q.showIf, answers) && (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)))
+    .filter(q => q.section === currentSection?.code && isQuestionApplicable(q))
     .sort((a, b) => a.order - b.order);
 
   // Si on est au début, montrer triage d'abord
@@ -371,7 +381,7 @@ export default function QuestionnairePage() {
   const triageApplicable = triageQs.length; // toujours 6
   const sectionApplicable = allApplicable.filter(q => q.section !== "triage").length;
   const totalApplicable = triageApplicable + sectionApplicable;
-  const totalAnswered = Object.keys(answers).length;
+  const totalAnswered = allApplicable.filter(q => answers[q.id] !== undefined && answers[q.id] !== null).length;
   const globalPct = totalApplicable > 0 ? Math.min(99, Math.round((totalAnswered / totalApplicable) * 100)) : 0;
 
   // Progression par section (sans triage)
@@ -384,8 +394,8 @@ export default function QuestionnairePage() {
   };
 
   const sectionProgress = [triageProgress, ...visibleSections.map(s => {
-    const sQs = ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === s.code && evalCond(q.showIf, answers));
-    const answered = sQs.filter(q => answers[q.id] !== undefined).length;
+    const sQs = ALL_QUESTIONS.filter(q => q.section === s.code && isQuestionApplicable(q));
+    const answered = sQs.filter(q => answers[q.id] !== undefined && answers[q.id] !== null).length;
     return { code: s.code, fr: s.fr, icon: s.icon, total: sQs.length, answered, pct: sQs.length > 0 ? Math.round((answered / sQs.length) * 100) : 0 };
   })];
 
