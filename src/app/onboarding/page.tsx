@@ -1,8 +1,8 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Step = 1 | 2 | 3 | 4;
 type AccountType = "INDIVIDUAL" | "BUSINESS";
@@ -23,7 +23,7 @@ const PROVINCES = [
   { value: "YT", label: "Yukon" },
 ];
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
 
@@ -43,6 +43,15 @@ export default function OnboardingPage() {
   const [legalName,  setLegalName]    = useState("");
   const [tradeName,  setTradeName]    = useState("");
   const [bizProvince, setBizProvince] = useState("QC");
+
+  const searchParams = useSearchParams();
+
+  // Pré-sélectionner le type depuis l'URL (?type=individual/business/preparer)
+  useEffect(() => {
+    const type = searchParams.get("type");
+    if (type === "business") setAccountType("BUSINESS");
+    else if (type === "individual" || type === "preparer") setAccountType("INDIVIDUAL");
+  }, [searchParams]);
 
   // Pré-remplir depuis Clerk
   useEffect(() => {
@@ -429,3 +438,15 @@ const nextBtnStyle: React.CSSProperties = {
   flex: 1, padding: "13px 0", borderRadius: 12, fontSize: 14,
   fontWeight: 700, border: "none", transition: "all 150ms",
 };
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 36, height: 36, border: "4px solid #fee2e2", borderTopColor: "#E5342A", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+      </div>
+    }>
+      <OnboardingContent />
+    </Suspense>
+  );
+}
