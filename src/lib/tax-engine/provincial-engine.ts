@@ -14,41 +14,62 @@ import type {
 
 // ─── CONSTANTES 2025 VÉRIFIÉES ───────────────────────────────
 export const CONSTANTS_2025 = {
-  // RPC — Régime de pensions du Canada
-  // ⚠️ Taux TOTAL = 5,95% (composante de base 4,95% + bonification 1,00%)
-  // Le T4032 affiche parfois 4,95% qui est la composante de base seulement
-  RPC_RATE:              0.0595,   // 5,95%
-  RPC_MAX_PENSIONABLE:   7_140_00, // 71 400,00$ en cents
-  RPC_EXEMPTION:           350_00, // 3 500,00$ en cents
-  RPC_MAX_CONTRIBUTION:  4_034_10, // 4 034,10$ en cents
-  RPC2_RATE:             0.0400,   // RPC2 : 4,00% sur tranche 73 200$–81 200$
-  RPC2_MAX:               320_00,  // 320,00$ en cents max
+  // ── RPC — Régime de pensions du Canada ───────────────────────
+  // Source: credits-federal-2025.json (cpp)
+  // ⚠️ 5,95% = taux TOTAL (4,95% base + 1,00% 1re bonification)
+  // Ne JAMAIS coder 4,95% seul — c'est seulement la composante de base
+  RPC_RATE:              0.0595,   // 5,95% employé
+  RPC_RATE_SELF:         0.1190,   // 11,90% travailleur autonome
+  RPC_YMPE:              7_130_000, // YMPE 71 300$ en cents
+  RPC_EXEMPTION:           350_000, // 3 500$ en cents
+  RPC_MAX_CONTRIBUTION:  4_034_10, // 4 034,10$ en cents (employé)
+  // RPC2 — 2e bonification (sur tranche 71 300$–81 200$)
+  RPC2_RATE:             0.0400,   // 4,00%
+  RPC2_YAMPE:            8_120_000, // YAMPE 81 200$ en cents
+  RPC2_MAX_EMPLOYEE:       396_00,  // 396,00$ en cents max
 
-  // AE — Assurance-emploi
-  AE_RATE:               0.01664,  // 1,664%
-  AE_MAX_INSURABLE:     65_700_00, // 65 700,00$ en cents
+  // ── AE — Assurance-emploi ─────────────────────────────────────
+  // Source: credits-federal-2025.json (ei)
+  AE_RATE:               0.0164,   // 1,64%
+  AE_RATE_QC:            0.0131,   // 1,31% QC (réduit car RQAP)
+  AE_MAX_INSURABLE:     65_700_00, // 65 700$ en cents
   AE_MAX_PREMIUM:        1_077_48, // 1 077,48$ en cents
+  AE_MAX_PREMIUM_QC:       860_67, // 860,67$ en cents (QC)
 
-  // RRQ — Québec seulement (taux supérieur au RPC)
-  RRQ_RATE:              0.0640,   // 6,40%
-  RRQ_MAX_PENSIONABLE:   68_500_00,// 68 500,00$ en cents
-  RRQ_EXEMPTION:           350_00,
-  RRQ_MAX_CONTRIBUTION:  4_160_00, // 4 160,00$ en cents
+  // ── RRQ — Québec seulement ────────────────────────────────────
+  // Source: provincial/QC.json (qppRRQ)
+  // RRQ = 6,40% = 5,40% base + 1,00% supplémentaire
+  // ⚠️ Contributions SUPPLÉMENTAIRES = déduction (pas crédit)
+  RRQ_RATE_EMPLOYEE:     0.0640,   // 6,40% total
+  RRQ_RATE_SELF:         0.1280,   // 12,80% travailleur autonome
+  RRQ_YMPE:              7_130_000, // 71 300$ en cents
+  RRQ_EXEMPTION:           350_000,
+  RRQ_MAX_T1:            4_339_20, // 4 339,20$ (tier 1 max)
+  // RRQ 2e palier (sur tranche 71 300$–81 200$)
+  RRQ2_RATE:             0.0400,
+  RRQ2_YAMPE:            8_120_000,
+  RRQ2_MAX:                396_00,
+  RRQ_TOTAL_MAX:         4_735_20, // 4 735,20$ total employé
 
-  // RQAP — Québec seulement
+  // ── RQAP — Québec seulement ───────────────────────────────────
+  // Source: provincial/QC.json (qpipRQAP)
   RQAP_RATE_EMPLOYEE:    0.00494,  // 0,494%
-  RQAP_MAX_INSURABLE:    97_000_00,// 97 000,00$ en cents
-  RQAP_MAX_PREMIUM:        479_68, // 479,68$ en cents
+  RQAP_RATE_SELF:        0.00878,  // 0,878%
+  RQAP_MAX_INSURABLE:    98_000_00,// 98 000$ en cents
+  RQAP_MAX_EMPLOYEE:       484_12, // 484,12$ en cents
 
-  // Abattement fédéral — Québec 16,5%
-  QC_FEDERAL_ABATEMENT_RATE: 0.165,
+  // ── Abattement fédéral QC ────────────────────────────────────
+  QC_FEDERAL_ABATEMENT_RATE: 0.165, // 16,5% — remboursable
 
-  // Ligne 34990 — crédit compensatoire fédéral 2025
-  // Taux effectif = 14,5% sur les crédits + (A − 8 319,38$) × 3,45%
-  // A = montant de l'impôt fédéral de base avant crédits
-  LINE_34990_BASE_RATE:  0.145,    // 14,5%
+  // ── Ligne 34990 — crédit compensatoire fédéral 2025 ──────────
+  // Source: credits-federal-2025.json (topUpCredit34990) + rules-2025.json
+  // Loi C-4 (sanction royale 2026-03-12)
+  // Formule: (A - B×C) × D  où B=14,5%, C=57 375$, D=3,45%
+  // A = total des bases de crédits non remboursables admissibles
+  // Seuil: 8 319,38$ = 57 375 × 14,5%
+  LINE_34990_BASE_RATE:  0.145,    // 14,5% — taux de base crédits NR
   LINE_34990_THRESHOLD:  8_319_38, // 8 319,38$ en cents
-  LINE_34990_SUPP_RATE:  0.0345,   // 3,45% supplémentaire
+  LINE_34990_SUPP_RATE:  0.0345,   // 3,45% sur l'excédent
 
   // BPA fédéral 2025
   BPA_FEDERAL_FULL:     16_129_00, // 16 129,00$ en cents
@@ -160,17 +181,17 @@ export function calculatePensionContribution(
   if (isQC) {
     const pensionable = Math.min(
       Math.max(0, employmentIncomeCents - CONSTANTS_2025.RRQ_EXEMPTION),
-      CONSTANTS_2025.RRQ_MAX_PENSIONABLE - CONSTANTS_2025.RRQ_EXEMPTION
+      CONSTANTS_2025.RRQ_YMPE - CONSTANTS_2025.RRQ_EXEMPTION
     );
     const employee = Math.min(
-      Math.round(pensionable * CONSTANTS_2025.RRQ_RATE),
-      CONSTANTS_2025.RRQ_MAX_CONTRIBUTION
+      Math.round(pensionable * CONSTANTS_2025.RRQ_RATE_EMPLOYEE),
+      CONSTANTS_2025.RRQ_MAX_T1
     );
     return { employeeCents: employee, selfEmployedCents: employee * 2 };
   } else {
     const pensionable = Math.min(
       Math.max(0, employmentIncomeCents - CONSTANTS_2025.RPC_EXEMPTION),
-      CONSTANTS_2025.RPC_MAX_PENSIONABLE - CONSTANTS_2025.RPC_EXEMPTION
+      CONSTANTS_2025.RPC_YMPE - CONSTANTS_2025.RPC_EXEMPTION
     );
     const employee = Math.min(
       Math.round(pensionable * CONSTANTS_2025.RPC_RATE),
