@@ -48,6 +48,14 @@ export default async function DashboardPage() {
     console.error("user sync:", e);
   }
 
+  // Vérifier si le profil fiscal est complet (pour bannière d'alerte)
+  let hasProfile = false;
+  try {
+    const profileRows = await db.select({ id: taxProfiles.id, firstName: taxProfiles.firstName, province: taxProfiles.province })
+      .from(taxProfiles).where(eq(taxProfiles.userId, clerkUserId ?? "")).limit(1);
+    hasProfile = !!(profileRows[0]?.firstName && profileRows[0]?.province);
+  } catch { /* silencieux */ }
+
   let docCount = 0, returnCount = 0;
   try {
     const [dc] = await db.select({ count: count() }).from(fiscalDocuments).where(eq(fiscalDocuments.userId, clerkUserId));
@@ -66,6 +74,36 @@ export default async function DashboardPage() {
   return (
     <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
       <NavWrapper />
+
+      {/* Bannière alerte profil incomplet */}
+      {!hasProfile && (
+        <div style={{
+          background: "rgba(229,52,42,0.08)",
+          borderBottom: "2px solid rgba(229,52,42,0.3)",
+          padding: "14px 20px",
+        }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 22 }}>⚠️</span>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--et-red)" }}>
+                  Votre profil fiscal est incomplet
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  Complétez votre profil pour uploader des documents et produire votre déclaration 2025.
+                </div>
+              </div>
+            </div>
+            <a href="/onboarding" style={{
+              padding: "10px 20px", borderRadius: 10, fontSize: 13, fontWeight: 700,
+              background: "var(--et-red)", color: "#fff", textDecoration: "none", flexShrink: 0,
+              whiteSpace: "nowrap",
+            }}>
+              Compléter mon profil →
+            </a>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8">
 

@@ -28,6 +28,7 @@ const INDIVIDUAL_NAV: NavItem[] = [
   { href: "/questionnaire", fr: "Questionnaire",     en: "Questionnaire",  iconName: "HelpCircle"      },
   { href: "/resume",        fr: "Résumé fiscal",     en: "Tax summary",    iconName: "BarChart3"       },
   { href: "/declarations",  fr: "Déclarations",      en: "Returns",        iconName: "ClipboardList"   },
+  { href: "/profil",        fr: "Mon profil",        en: "My profile",     iconName: "Settings"        },
 ];
 
 // ─── MENU BUSINESS ───────────────────────────────────────────────────────────

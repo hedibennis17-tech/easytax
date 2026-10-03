@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { UserButton } from "@clerk/nextjs";
 import { useApp } from "./ThemeProvider";
 import {
   LayoutDashboard, FolderOpen, FileText, HelpCircle, BarChart3,
@@ -151,10 +150,16 @@ export function AppNav({
                 : <Sun  size={15} strokeWidth={1.8} />}
             </button>
 
-            {/* Clerk avatar */}
-            <div style={{ marginLeft: 2 }}>
-              <UserButton />
-            </div>
+            {/* Avatar → page profil EasyTax */}
+            <a href="/profil" style={{
+              width: 34, height: 34, borderRadius: "50%",
+              background: accentColor, color: "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 13, fontWeight: 700, textDecoration: "none",
+              flexShrink: 0, marginLeft: 2,
+            }}>
+              {role === "ADMIN" || role === "SUPER_ADMIN" ? "A" : role === "BUSINESS" ? "B" : role === "PREPARER" ? "P" : "👤"}
+            </a>
 
             {/* Hamburger mobile */}
             <button
