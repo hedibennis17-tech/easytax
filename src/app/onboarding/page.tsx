@@ -796,6 +796,7 @@ function BusinessWizard({ onBack, onDone, prefill }: {
                 </F>
                 <F label="Numéro TPS/TVH" opt><input value={gstNumber} onChange={e => setGstNumber(e.target.value)} placeholder="123456789RT0001" /></F>
                 <div className="span2"><p className="sec-title">Provinces ou territoires d'exploitation pour les taxes de vente</p><div className="check-grid">{PROVINCES.map(p => <label key={p.value} className="check-opt"><input type="checkbox" checked={taxProvinces.includes(p.value)} onChange={() => toggleTaxProvince(p.value)} />{p.label}</label>)}</div><p className="hint">La TPS/TVH est fédérale; les règles provinciales varient selon le lieu d'exploitation.</p></div>
+                {taxProvinces.length > 0 && <div className="span2"><p className="sec-title">Comptes de taxes provinciales sélectionnés <span className="opt">(facultatif)</span></p><div className="grid2">{taxProvinces.map(code => <F key={code} label={`Compte de taxe — ${code}`} opt><input value={taxDetails[code] ?? ""} onChange={e => setTaxDetails(d => ({ ...d, [code]: e.target.value }))} placeholder="Numéro ou statut" /></F>)}</div></div>}
                 <F label="Inscription TVQ" opt>
                   <select value={qstStatus} onChange={e => setQstStatus(e.target.value)}>
                     <option value="">Sélectionner</option>
