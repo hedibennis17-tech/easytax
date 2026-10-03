@@ -20,22 +20,29 @@ export default async function DashboardPage() {
   try {
     const rows = await db.select().from(users).where(eq(users.clerkUserId, clerkUserId)).limit(1);
     if (!rows[0]) {
-      const [created] = await db.insert(users).values({
+      // Nouvel utilisateur — créer sans onboarding et rediriger vers le wizard
+      await db.insert(users).values({
         clerkUserId,
         email: clerkUser?.emailAddresses?.[0]?.emailAddress ?? "",
         firstName: clerkUser?.firstName ?? null,
         lastName: clerkUser?.lastName ?? null,
         role: "INDIVIDUAL",
         status: "active",
-        onboardingCompleted: true,
+        onboardingCompleted: false,
         lastSignInAt: new Date(),
-      }).returning();
-      easyTaxUser = created;
+      });
+      redirect("/onboarding");
     } else {
       easyTaxUser = rows[0];
+      // Onboarding pas encore complété → wizard
+      if (!easyTaxUser.onboardingCompleted) redirect("/onboarding");
       await db.update(users).set({ lastSignInAt: new Date(), updatedAt: new Date() }).where(eq(users.clerkUserId, clerkUserId));
     }
-  } catch (e) { console.error("user sync:", e); }
+  } catch (e: unknown) {
+    // redirect() lance une erreur intentionnelle en Next.js — la laisser passer
+    if (e instanceof Error && e.message === "NEXT_REDIRECT") throw e;
+    console.error("user sync:", e);
+  }
 
   let docCount = 0, returnCount = 0;
   try {
