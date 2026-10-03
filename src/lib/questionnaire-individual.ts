@@ -39,6 +39,8 @@ export interface Question {
   options?: QuestionOption[];
   placeholder?: string;
   documentRequired?: string;
+  provinceOnly?: string[];  // ["QC"] ou ["ON","BC"] — null = toutes provinces
+  autoCalculated?: boolean; // true = calculé par le moteur sans poser la question
 }
 
 // ─── TRIAGE (6 questions) ────────────────────────────────────────────────────
@@ -607,26 +609,26 @@ export const MODULE_CREDITS: Question[] = [
 // ─── MODULE QUÉBEC (37 questions — résumé, les principales) ──────────────────
 
 export const MODULE_QUEBEC: Question[] = [
-  { id: "q1",  section: "quebec", order: 1,  fr: "Province de résidence au 31 décembre 2025", en: "Province of residence on December 31, 2025", type: "SINGLE_CHOICE", required: true,
+  { id: "q1",  section: "ma_province", order: 1,  fr: "Province de résidence au 31 décembre 2025", en: "Province of residence on December 31, 2025", type: "SINGLE_CHOICE", required: true,
     options: [{ value: "QC", fr: "Québec", en: "Quebec" }, { value: "other", fr: "Autre province", en: "Other province" }] },
-  { id: "q2",  section: "quebec", order: 2,  fr: "Avez-vous versé des contributions politiques provinciales en 2025 ?", en: "Did you make provincial political contributions in 2025?", type: "BOOLEAN", required: false },
-  { id: "q3",  section: "quebec", order: 3,  fr: "Cotisation au RRQ : salarié (feuillets) ou travailleur autonome ?", en: "QPP contributions: employee (slips) or self-employed?", type: "SINGLE_CHOICE", required: false,
+  { id: "q2",  section: "ma_province", order: 2,  fr: "Avez-vous versé des contributions politiques provinciales en 2025 ?", en: "Did you make provincial political contributions in 2025?", type: "BOOLEAN", required: false },
+  { id: "q3",  section: "ma_province", order: 3,  fr: "Cotisation au RRQ : salarié (feuillets) ou travailleur autonome ?", en: "QPP contributions: employee (slips) or self-employed?", type: "SINGLE_CHOICE", required: false,
     options: [{ value: "employee", fr: "Salarié (RL-1)", en: "Employee (RL-1)" }, { value: "self", fr: "Travailleur autonome (annexe U)", en: "Self-employed (Schedule U)" }] },
-  { id: "q4",  section: "quebec", order: 4,  fr: "Avez-vous choisi de cesser de cotiser au RRQ (60 à 70 ans, CPT30) ?", en: "Did you elect to stop contributing to the QPP (ages 60-70, CPT30)?", type: "BOOLEAN", required: false },
-  { id: "q5",  section: "quebec", order: 5,  fr: "Cotisation au RQAP : salarié (RL-1) ou travailleur autonome/hors Québec ?", en: "QPIP premiums: employee (RL-1) or self-employed/outside Québec?", type: "SINGLE_CHOICE", required: false,
+  { id: "q4",  section: "ma_province", order: 4,  fr: "Avez-vous choisi de cesser de cotiser au RRQ (60 à 70 ans, CPT30) ?", en: "Did you elect to stop contributing to the QPP (ages 60-70, CPT30)?", type: "BOOLEAN", required: false },
+  { id: "q5",  section: "ma_province", order: 5,  fr: "Cotisation au RQAP : salarié (RL-1) ou travailleur autonome/hors Québec ?", en: "QPIP premiums: employee (RL-1) or self-employed/outside Québec?", type: "SINGLE_CHOICE", required: false,
     options: [{ value: "employee", fr: "Salarié (RL-1)", en: "Employee (RL-1)" }, { value: "self", fr: "Travailleur autonome", en: "Self-employed" }] },
-  { id: "q6",  section: "quebec", order: 6,  fr: "Assurance médicaments du Québec : couvert TOUTE l'année par une assurance privée ?", en: "Québec drug insurance: covered ALL year by private insurance?", type: "BOOLEAN", required: false },
-  { id: "q7",  section: "quebec", order: 7,  fr: "Avez-vous payé une prime à l'assurance médicaments du Québec en 2025 ?", en: "Did you pay a Québec drug insurance premium in 2025?", type: "MONEY", required: false, placeholder: "0,00 $" },
-  { id: "q8",  section: "quebec", order: 8,  fr: "Contribution santé 2025 (revenu net entre 18 130 $ et 150 000 $)", en: "Health contribution 2025 (net income between $18,130 and $150,000)", type: "MONEY", required: false, placeholder: "0,00 $" },
-  { id: "q9",  section: "quebec", order: 9,  fr: "Avez-vous payé un loyer au Québec en 2025 ?", en: "Did you pay rent in Québec in 2025?", type: "MONEY", required: false, placeholder: "0,00 $ (montant annuel)", hint: "Pour le crédit de solidarité" },
-  { id: "q10", section: "quebec", order: 10, fr: "Avez-vous payé des taxes foncières au Québec en 2025 ?", en: "Did you pay property taxes in Québec in 2025?", type: "MONEY", required: false, placeholder: "0,00 $", hint: "Pour le crédit de solidarité" },
-  { id: "q11", section: "quebec", order: 11, fr: "Avez-vous demandé le crédit pour maintien à domicile (personne de 70 ans ou plus) ?", en: "Are you claiming the home support credit (70 years or older)?", type: "BOOLEAN", required: false },
-  { id: "q12", section: "quebec", order: 12, fr: "Avez-vous des actions admissibles du Fonds de solidarité FTQ ou Fondaction ?", en: "Do you have eligible shares in the FTQ Solidarity Fund or Fondaction?", type: "MONEY", required: false, placeholder: "0,00 $" },
-  { id: "q13", section: "quebec", order: 13, fr: "Avez-vous fait des dons à des organismes culturels ou de bienfaisance (reçus TP-726.8.1) ?", en: "Did you make donations to cultural or charitable organizations (TP-726.8.1)?", type: "BOOLEAN", required: false },
-  { id: "q14", section: "quebec", order: 14, fr: "Avez-vous engagé des frais pour rénovation écoresponsable (RénoVert ou LogisVert) ?", en: "Did you incur eco-responsible renovation expenses (RénoVert or LogisVert)?", type: "MONEY", required: false, placeholder: "0,00 $" },
-  { id: "q15", section: "quebec", order: 15, fr: "Frais de scolarité québécois (relevé 8) non encore demandés", en: "Québec tuition fees (relevé 8) not yet claimed", type: "MONEY", required: false, placeholder: "0,00 $" },
-  { id: "q16", section: "quebec", order: 16, fr: "Crédit pour les travailleurs d'expérience (55 ans ou plus, revenu de travail)", en: "Credit for experienced workers (55 years or older, work income)", type: "BOOLEAN", required: false },
-  { id: "q17", section: "quebec", order: 17, fr: "Remboursement de l'impôt des particuliers du Québec retenu à la source", en: "Québec personal income tax withheld at source", type: "MONEY", required: false, placeholder: "0,00 $" },
+  { id: "q6",  section: "ma_province", order: 6,  fr: "Assurance médicaments du Québec : couvert TOUTE l'année par une assurance privée ?", en: "Québec drug insurance: covered ALL year by private insurance?", type: "BOOLEAN", required: false },
+  { id: "q7",  section: "ma_province", order: 7,  fr: "Avez-vous payé une prime à l'assurance médicaments du Québec en 2025 ?", en: "Did you pay a Québec drug insurance premium in 2025?", type: "MONEY", required: false, placeholder: "0,00 $" },
+  { id: "q8",  section: "ma_province", order: 8,  fr: "Contribution santé 2025 (revenu net entre 18 130 $ et 150 000 $)", en: "Health contribution 2025 (net income between $18,130 and $150,000)", type: "MONEY", required: false, placeholder: "0,00 $" },
+  { id: "q9",  section: "ma_province", order: 9,  fr: "Avez-vous payé un loyer au Québec en 2025 ?", en: "Did you pay rent in Québec in 2025?", type: "MONEY", required: false, placeholder: "0,00 $ (montant annuel)", hint: "Pour le crédit de solidarité" },
+  { id: "q10", section: "ma_province", order: 10, fr: "Avez-vous payé des taxes foncières au Québec en 2025 ?", en: "Did you pay property taxes in Québec in 2025?", type: "MONEY", required: false, placeholder: "0,00 $", hint: "Pour le crédit de solidarité" },
+  { id: "q11", section: "ma_province", order: 11, fr: "Avez-vous demandé le crédit pour maintien à domicile (personne de 70 ans ou plus) ?", en: "Are you claiming the home support credit (70 years or older)?", type: "BOOLEAN", required: false },
+  { id: "q12", section: "ma_province", order: 12, fr: "Avez-vous des actions admissibles du Fonds de solidarité FTQ ou Fondaction ?", en: "Do you have eligible shares in the FTQ Solidarity Fund or Fondaction?", type: "MONEY", required: false, placeholder: "0,00 $" },
+  { id: "q13", section: "ma_province", order: 13, fr: "Avez-vous fait des dons à des organismes culturels ou de bienfaisance (reçus TP-726.8.1) ?", en: "Did you make donations to cultural or charitable organizations (TP-726.8.1)?", type: "BOOLEAN", required: false },
+  { id: "q14", section: "ma_province", order: 14, fr: "Avez-vous engagé des frais pour rénovation écoresponsable (RénoVert ou LogisVert) ?", en: "Did you incur eco-responsible renovation expenses (RénoVert or LogisVert)?", type: "MONEY", required: false, placeholder: "0,00 $" },
+  { id: "q15", section: "ma_province", order: 15, fr: "Frais de scolarité québécois (relevé 8) non encore demandés", en: "Québec tuition fees (relevé 8) not yet claimed", type: "MONEY", required: false, placeholder: "0,00 $" },
+  { id: "q16", section: "ma_province", order: 16, fr: "Crédit pour les travailleurs d'expérience (55 ans ou plus, revenu de travail)", en: "Credit for experienced workers (55 years or older, work income)", type: "BOOLEAN", required: false },
+  { id: "q17", section: "ma_province", order: 17, fr: "Remboursement de l'impôt des particuliers du Québec retenu à la source", en: "Québec personal income tax withheld at source", type: "MONEY", required: false, placeholder: "0,00 $" },
 ];
 
 // ─── MODULE DOCUMENTS (7 questions) ─────────────────────────────────────────
@@ -689,7 +691,474 @@ export const INDIVIDUAL_SECTIONS = [
   { code: "autres_revenus",  fr: "Autres revenus",     en: "Other income",  icon: "💰", showIf: "t5=true" },
   { code: "deductions",      fr: "Déductions",         en: "Deductions",    icon: "📉", alwaysShow: true  },
   { code: "credits",         fr: "Crédits",            en: "Credits",       icon: "🎁", alwaysShow: true  },
-  { code: "quebec",          fr: "Québec",             en: "Quebec",        icon: "⚜️", alwaysShow: true  },
+  { code: "ma_province",     fr: "Ma province",        en: "My province",   icon: "🏛️", alwaysShow: true  },
   { code: "documents",       fr: "Documents",          en: "Documents",     icon: "📎", alwaysShow: true  },
   { code: "revision",        fr: "Révision",           en: "Review",        icon: "📋", alwaysShow: true  },
 ];
+
+
+// ─── ALL QUESTIONS (avec module provincial) ──────────────────────────────────
+// Utiliser cette fonction quand MODULE_MA_PROVINCE doit être inclus
+export function getAllQuestionsWithProvince(): Question[] {
+  return [...ALL_INDIVIDUAL_QUESTIONS, ...MODULE_MA_PROVINCE];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODULE MA PROVINCE — 52 questions conditionnelles par province
+// Source: Banque_de_questions_conditionnelles_par_province_2025.html
+// Chaque question porte provinceOnly: ["XX"] pour filtrage dynamique
+// La section "Québec" (37 questions) est conservée avec provinceOnly: ["QC"]
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const MODULE_MA_PROVINCE: Question[] = [
+
+  // ── ONTARIO (8 questions) ────────────────────────────────────────────────
+  {
+    id: "ON-01", section: "ma_province", order: 301,
+    fr: "Avez-vous payé un loyer pour votre résidence principale en Ontario en 2025 ? Si oui, quel montant total ?",
+    en: "Did you pay rent for your principal residence in Ontario in 2025? If so, what total amount?",
+    type: "MONEY", required: false,
+    hint: "Requis pour la Prestation Trillium (OEPTC) — composante logement.",
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-02", section: "ma_province", order: 302,
+    fr: "Avez-vous payé des impôts fonciers pour votre résidence principale en Ontario en 2025 ? Si oui, quel montant ?",
+    en: "Did you pay property tax for your principal residence in Ontario in 2025? If so, what amount?",
+    type: "MONEY", required: false,
+    hint: "Requis pour l'OEPTC (formulaire ON-BEN).",
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-03", section: "ma_province", order: 303,
+    fr: "Votre résidence principale était-elle située dans le Nord de l'Ontario (p. ex. Sudbury, Thunder Bay, Timmins, North Bay, Sault Ste. Marie) ?",
+    en: "Was your principal residence located in Northern Ontario?",
+    type: "BOOLEAN", required: false,
+    hint: "NOEC — Northern Ontario Energy Credit (max 285 $ / 25 $ si Nord).",
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-04", section: "ma_province", order: 304,
+    fr: "Avez-vous payé des frais d'énergie sur une réserve, des frais d'hébergement en foyer de soins de longue durée public, ou vécu en résidence étudiante désignée ?",
+    en: "Did you pay energy costs on a reserve, public long-term care home fees, or live in a designated student residence?",
+    type: "BOOLEAN", required: false,
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-05", section: "ma_province", order: 305,
+    fr: "Avez-vous payé des frais de garde d'enfants en 2025 (garderie, camp de jour) ? Quel montant ?",
+    en: "Did you pay child care expenses in 2025 (daycare, day camp)? What amount?",
+    type: "MONEY", required: false,
+    hint: "CARE — Child Care Access and Relief from Expenses (jusqu'à 6 000 $ / enfant de moins de 7 ans).",
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-06", section: "ma_province", order: 306,
+    fr: "Aviez-vous 70 ans ou plus et avez-vous engagé des frais médicaux pour des soins à domicile en 2025 ? Quel montant ?",
+    en: "Were you 70 or older and did you incur medical expenses for home care in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit soins à domicile ON : 25 %, max 1 500 $ / ménage.",
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-07", section: "ma_province", order: 307,
+    fr: "Avez-vous versé des contributions à un parti politique provincial ou à un candidat ontarien en 2025 ? Quel montant ?",
+    en: "Did you make contributions to an Ontario provincial political party or candidate in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit contributions politiques ON — max 650 $.",
+    provinceOnly: ["ON"],
+  },
+  {
+    id: "ON-08", section: "ma_province", order: 308,
+    fr: "Aviez-vous 64 ans ou plus et étiez-vous propriétaire occupant de votre résidence en 2025 ?",
+    en: "Were you 64 or older and an occupying homeowner in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Subvention aînés propriétaires ON — 500 $.",
+    provinceOnly: ["ON"],
+  },
+
+  // ── COLOMBIE-BRITANNIQUE (5 questions) ──────────────────────────────────
+  {
+    id: "BC-01", section: "ma_province", order: 311,
+    fr: "Étiez-vous locataire de votre résidence principale en Colombie-Britannique en 2025 ?",
+    en: "Were you a renter of your principal residence in British Columbia in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Crédit locataires remboursable C.-B. — max 400 $. Le montant ne dépend pas du loyer.",
+    provinceOnly: ["BC"],
+  },
+  {
+    id: "BC-02", section: "ma_province", order: 312,
+    fr: "Avez-vous suivi une formation professionnelle admissible en C.-B. en 2025 ?",
+    en: "Did you take eligible vocational training in B.C. in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Crédit formation des particuliers BC — dernier appel 31 déc. 2025.",
+    provinceOnly: ["BC"],
+  },
+  {
+    id: "BC-03", section: "ma_province", order: 313,
+    fr: "Étiez-vous pompier volontaire ou volontaire en recherche et sauvetage en C.-B. en 2025 (200 heures ou plus) ?",
+    en: "Were you a volunteer firefighter or search and rescue volunteer in B.C. in 2025 (200+ hours)?",
+    type: "BOOLEAN", required: false,
+    hint: "Montant 3 000 $.",
+    provinceOnly: ["BC"],
+  },
+  {
+    id: "BC-04", section: "ma_province", order: 314,
+    fr: "Avez-vous versé des contributions à un parti politique provincial ou à un candidat en C.-B. en 2025 ? Quel montant ?",
+    en: "Did you make contributions to a B.C. provincial political party or candidate in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit contributions politiques BC — max 500 $.",
+    provinceOnly: ["BC"],
+  },
+  {
+    id: "BC-05", section: "ma_province", order: 315,
+    fr: "Étiez-vous parent seul (monoparental) en 2025 ?",
+    en: "Were you a single parent in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Supplément monoparental BC Family Benefit — jusqu'à 500 $ / an.",
+    provinceOnly: ["BC"],
+  },
+
+  // ── ALBERTA (2 questions) ────────────────────────────────────────────────
+  {
+    id: "AB-01", section: "ma_province", order: 321,
+    fr: "Avez-vous versé des contributions à un parti politique provincial, à un candidat ou à une association de candidat potentiel en Alberta en 2025 ? Quel montant ?",
+    en: "Did you make contributions to an Alberta provincial political party, candidate, or prospective candidate association in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit contributions politiques AB — max 1 000 $ (dons à une association de candidat potentiel admissibles depuis le 4 juillet 2025).",
+    provinceOnly: ["AB"],
+  },
+  {
+    id: "AB-02", section: "ma_province", order: 322,
+    fr: "Avez-vous fait des dons de bienfaisance en 2025 ? Quel montant ?",
+    en: "Did you make charitable donations in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Taux albertain unique : 60 % sur les premiers 200 $, 21 % au-delà — le plus généreux au Canada sous 200 $.",
+    provinceOnly: ["AB"],
+  },
+
+  // ── SASKATCHEWAN (5 questions) ───────────────────────────────────────────
+  {
+    id: "SK-01", section: "ma_province", order: 331,
+    fr: "Êtes-vous diplômé d'un établissement postsecondaire de la Saskatchewan ? Si oui, année d'obtention et type de diplôme ?",
+    en: "Did you graduate from a Saskatchewan post-secondary institution? If so, year and type of degree/diploma?",
+    type: "TEXT", required: false,
+    hint: "Graduate Retention Program — jusqu'à 24 000 $ pour un baccalauréat de 4 ans obtenu après le 1er oct. 2024, versé sur 7 ans.",
+    provinceOnly: ["SK"],
+  },
+  {
+    id: "SK-02", section: "ma_province", order: 332,
+    fr: "Avez-vous acheté une première habitation en Saskatchewan depuis le 1er octobre 2024 ?",
+    en: "Did you purchase a first home in Saskatchewan since October 1, 2024?",
+    type: "BOOLEAN", required: false,
+    hint: "Crédit premier acheteur bonifié SK — 15 000 $, max 1 575 $ de crédit.",
+    provinceOnly: ["SK"],
+  },
+  {
+    id: "SK-03", section: "ma_province", order: 333,
+    fr: "Avez-vous engagé des dépenses de rénovation domiciliaire en 2025 ? Quel montant ?",
+    en: "Did you incur home renovation expenses in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit rénovation SK — max 420 $ (525 $ pour aînés).",
+    provinceOnly: ["SK"],
+  },
+  {
+    id: "SK-04", section: "ma_province", order: 334,
+    fr: "Vos enfants étaient-ils inscrits à des activités sportives, culturelles ou récréatives en 2025 ? Quel montant par enfant ?",
+    en: "Were your children enrolled in sports, cultural or recreational activities in 2025? What amount per child?",
+    type: "MONEY", required: false,
+    hint: "Active Families Benefit remboursable — 300 $ / enfant (400 $ si CIPH), seuil familial 120 000 $.",
+    provinceOnly: ["SK"],
+  },
+  {
+    id: "SK-05", section: "ma_province", order: 335,
+    fr: "Avez-vous engagé des dépenses de traitement de fertilité en 2025 ? Quel montant ? (Une seule demande à vie.)",
+    en: "Did you incur fertility treatment expenses in 2025? What amount? (One lifetime claim.)",
+    type: "MONEY", required: false,
+    hint: "Nouveau crédit fertilité remboursable SK 2025 — 50 % des frais, max 10 000 $ de frais.",
+    provinceOnly: ["SK"],
+  },
+
+  // ── MANITOBA (5 questions) ────────────────────────────────────────────────
+  {
+    id: "MB-01", section: "ma_province", order: 341,
+    fr: "Étiez-vous locataire au Manitoba en 2025 ?",
+    en: "Were you a renter in Manitoba in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Renters Tax Credit remboursable MB — max 575 $ (+328 $ pour aîné).",
+    provinceOnly: ["MB"],
+  },
+  {
+    id: "MB-02", section: "ma_province", order: 342,
+    fr: "Étiez-vous propriétaire occupant de votre résidence principale au Manitoba en 2025 ?",
+    en: "Were you an occupying homeowner of your principal residence in Manitoba in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Homeowners Affordability Tax Credit MB — jusqu'à 1 500 $.",
+    provinceOnly: ["MB"],
+  },
+  {
+    id: "MB-03", section: "ma_province", order: 343,
+    fr: "Étiez-vous pompier volontaire ou volontaire en recherche et sauvetage au Manitoba en 2025 ?",
+    en: "Were you a volunteer firefighter or search and rescue volunteer in Manitoba in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Montant doublé à 6 000 $ en 2025 — crédit max 648 $.",
+    provinceOnly: ["MB"],
+  },
+  {
+    id: "MB-04", section: "ma_province", order: 344,
+    fr: "Avez-vous engagé des dépenses de traitement de fertilité en 2025 ? Quel montant ?",
+    en: "Did you incur fertility treatment expenses in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit fertilité MB — dépenses max 40 000 $, crédit max 16 000 $ / an.",
+    provinceOnly: ["MB"],
+  },
+  {
+    id: "MB-05", section: "ma_province", order: 345,
+    fr: "Précisez vos personnes à charge : conjoint, 65 ans+, invalidité, enfants de 18 ans ou moins (nombre) ?",
+    en: "Please detail your dependants: spouse, 65+, disability, children 18 or under (how many)?",
+    type: "MULTI_CHOICE", required: false,
+    hint: "Manitoba Family Tax Benefit — somme de montants × 10,8 %.",
+    options: [
+      { value: "conjoint",     fr: "Conjoint(e)",             en: "Spouse"                   },
+      { value: "aines",        fr: "Personne de 65 ans et +", en: "Person 65 or older"        },
+      { value: "invalidite",   fr: "Personne handicapée",      en: "Person with disability"   },
+      { value: "enfants",      fr: "Enfant(s) de 18 ans et -", en: "Children 18 or under"    },
+    ],
+    provinceOnly: ["MB"],
+  },
+
+  // ── NOUVEAU-BRUNSWICK (3 questions) ─────────────────────────────────────
+  {
+    id: "NB-01", section: "ma_province", order: 351,
+    fr: "Avez-vous versé des contributions à un parti politique provincial ou à un candidat au Nouveau-Brunswick en 2025 ? Quel montant ?",
+    en: "Did you make contributions to a New Brunswick provincial political party or candidate in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit contributions politiques NB — max 500 $.",
+    provinceOnly: ["NB"],
+  },
+  {
+    id: "NB-02", section: "ma_province", order: 352,
+    fr: "Étiez-vous pompier volontaire ou volontaire en recherche et sauvetage au Nouveau-Brunswick en 2025 ?",
+    en: "Were you a volunteer firefighter or search and rescue volunteer in New Brunswick in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Crédit pompier volontaire / R&S NB — depuis le 1er janv. 2024.",
+    provinceOnly: ["NB"],
+  },
+  {
+    id: "NB-03", section: "ma_province", order: 353,
+    fr: "Avez-vous investi dans une petite entreprise du Nouveau-Brunswick en 2025 ? Quel montant ?",
+    en: "Did you invest in a New Brunswick small business in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit d'impôt pour les investisseurs dans les petites entreprises du N.-B.",
+    provinceOnly: ["NB"],
+  },
+
+  // ── NOUVELLE-ÉCOSSE (2 questions) ────────────────────────────────────────
+  {
+    id: "NS-01", section: "ma_province", order: 361,
+    fr: "Étiez-vous pompier volontaire ou volontaire en recherche et sauvetage en Nouvelle-Écosse en 2025 ?",
+    en: "Were you a volunteer firefighter or search and rescue volunteer in Nova Scotia in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Montant pompier volontaire / R&S NS — 3 000 $ au taux de 8,79 %.",
+    provinceOnly: ["NS"],
+  },
+  {
+    id: "NS-02", section: "ma_province", order: 362,
+    fr: "Avez-vous versé des contributions à un parti politique provincial ou à un candidat en Nouvelle-Écosse en 2025 ? Quel montant ?",
+    en: "Did you make contributions to a Nova Scotia provincial political party or candidate in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit contributions politiques NS.",
+    provinceOnly: ["NS"],
+  },
+
+  // ── ÎLE-DU-PRINCE-ÉDOUARD (4 questions) ─────────────────────────────────
+  {
+    id: "PE-01", section: "ma_province", order: 371,
+    fr: "Avez-vous payé des dépenses pour le bien-être de vos enfants en 2025 (activités, équipements) ? Quel montant ?",
+    en: "Did you pay child wellness expenses in 2025 (activities, equipment)? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit bien-être des enfants PE — max 1 000 $ (doublé en 2025).",
+    provinceOnly: ["PE"],
+  },
+  {
+    id: "PE-02", section: "ma_province", order: 372,
+    fr: "Étiez-vous pompier volontaire ou volontaire en recherche et sauvetage à l'Î.-P.-É. en 2025 ?",
+    en: "Were you a volunteer firefighter or search and rescue volunteer in P.E.I. in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Crédit pompier volontaire / R&S PE remboursable — 500 $ (1 000 $ en 2026).",
+    provinceOnly: ["PE"],
+  },
+  {
+    id: "PE-03", section: "ma_province", order: 373,
+    fr: "Aviez-vous des enfants de moins de 6 ans à charge en 2025 ? Combien ?",
+    en: "Did you have dependant children under 6 in 2025? How many?",
+    type: "NUMBER", required: false,
+    hint: "Montant jeunes enfants PE — 100 $ / mois / enfant de moins de 6 ans.",
+    provinceOnly: ["PE"],
+  },
+  {
+    id: "PE-04", section: "ma_province", order: 374,
+    fr: "Avez-vous versé des contributions à un parti politique provincial ou à un candidat à l'Î.-P.-É. en 2025 ? Quel montant ?",
+    en: "Did you make contributions to a P.E.I. provincial political party or candidate in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit contributions politiques PE.",
+    provinceOnly: ["PE"],
+  },
+
+  // ── TERRE-NEUVE-ET-LABRADOR (4 questions) ───────────────────────────────
+  {
+    id: "NL-01", section: "ma_province", order: 381,
+    fr: "Avez-vous payé des frais de chauffage au mazout pour votre résidence en 2025 ? Quel montant ?",
+    en: "Did you pay home heating oil costs for your residence in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Supplément chauffage au mazout NL — jusqu'à 500 $ (budget 2025).",
+    provinceOnly: ["NL"],
+  },
+  {
+    id: "NL-02", section: "ma_province", order: 382,
+    fr: "Étiez-vous pompier volontaire ou volontaire en recherche et sauvetage à T.-N.-L. en 2025 ?",
+    en: "Were you a volunteer firefighter or search and rescue volunteer in N.L. in 2025?",
+    type: "BOOLEAN", required: false,
+    provinceOnly: ["NL"],
+  },
+  {
+    id: "NL-03", section: "ma_province", order: 383,
+    fr: "Avez-vous payé des frais de garde d'enfants ou des frais d'adoption en 2025 ? Quel montant ?",
+    en: "Did you pay child care expenses or adoption expenses in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédits du formulaire NL428.",
+    provinceOnly: ["NL"],
+  },
+  {
+    id: "NL-04", section: "ma_province", order: 384,
+    fr: "Avez-vous versé des contributions à un parti politique provincial ou à un candidat à T.-N.-L. en 2025 ? Quel montant ?",
+    en: "Did you make contributions to a N.L. provincial political party or candidate in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit contributions politiques NL.",
+    provinceOnly: ["NL"],
+  },
+
+  // ── TERRITOIRES DU NORD-OUEST (2 questions) ──────────────────────────────
+  {
+    id: "NT-01", section: "ma_province", order: 391,
+    fr: "Combien de jours avez-vous résidé dans une zone prescrite du Nord en 2025 ?",
+    en: "How many days did you live in a prescribed northern zone in 2025?",
+    type: "NUMBER", required: false,
+    hint: "Déduction fédérale pour résidents du Nord T2222 — Zone A : 11,00 $ / jour de base + 11,00 $ / jour additionnel. Partagée avec NU et YT.",
+    provinceOnly: ["NT", "NU", "YT"],
+  },
+  {
+    id: "NT-02", section: "ma_province", order: 392,
+    fr: "Avez-vous versé des contributions politiques territoriales aux T.N.-O. en 2025 ? Quel montant ?",
+    en: "Did you make territorial political contributions in the N.W.T. in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit contributions politiques NT — max 500 $ (100 % des premiers 100 $, 50 % jusqu'à 900 $).",
+    provinceOnly: ["NT"],
+  },
+
+  // ── NUNAVUT (5 questions) ────────────────────────────────────────────────
+  // NT-01 déjà partagé avec provinceOnly: ["NT","NU","YT"]
+  {
+    id: "NU-02", section: "ma_province", order: 402,
+    fr: "Aviez-vous des enfants de moins de 6 ans à charge en 2025 ? Combien ?",
+    en: "Did you have dependant children under 6 in 2025? How many?",
+    type: "NUMBER", required: false,
+    hint: "Montant pour jeunes enfants NU — 1 200 $ / enfant (unique au Nunavut).",
+    provinceOnly: ["NU"],
+  },
+  {
+    id: "NU-03", section: "ma_province", order: 403,
+    fr: "Étiez-vous parent seul à un moment en 2025 ?",
+    en: "Were you a single parent at any time in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Supplément parent seul du crédit coût de la vie NU — max 255,12 $ si revenu > 60 000 $.",
+    provinceOnly: ["NU"],
+  },
+  {
+    id: "NU-04", section: "ma_province", order: 404,
+    fr: "Avez-vous été bénévole comme pompier ou en recherche et sauvetage au Nunavut en 2025 (50 heures ou plus) ?",
+    en: "Did you volunteer as a firefighter or in search and rescue in Nunavut in 2025 (50+ hours)?",
+    type: "BOOLEAN", required: false,
+    hint: "Nouveau crédit 2025 : 722 $ (minimum 50 heures).",
+    provinceOnly: ["NU"],
+  },
+  {
+    id: "NU-05", section: "ma_province", order: 405,
+    fr: "Avez-vous versé des contributions politiques territoriales au Nunavut en 2025 ? Quel montant ?",
+    en: "Did you make territorial political contributions in Nunavut in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit contributions politiques NU — max 500 $.",
+    provinceOnly: ["NU"],
+  },
+
+  // ── YUKON (7 questions) ──────────────────────────────────────────────────
+  // YT-01 = NT-01 déjà partagé avec provinceOnly: ["NT","NU","YT"]
+  {
+    id: "YT-02", section: "ma_province", order: 412,
+    fr: "Avez-vous engagé des dépenses de fertilité ou de maternité de substitution en 2025 (traitements après le 2 janvier 2024) ? Quel montant ?",
+    en: "Did you incur fertility or surrogacy expenses in 2025 (treatments after January 2, 2024)? What amount?",
+    type: "MONEY", required: false,
+    hint: "Nouveau crédit YT 2025 — 40 % des frais admissibles, max 10 000 $ de frais (max 4 000 $ de crédit).",
+    provinceOnly: ["YT"],
+  },
+  {
+    id: "YT-03", section: "ma_province", order: 413,
+    fr: "Avez-vous investi dans une entreprise admissible du Yukon en 2025 (certificat YBITC-1) ? Quel montant ?",
+    en: "Did you invest in an eligible Yukon business in 2025 (YBITC-1 certificate)? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit d'investissement d'entreprise YT — 25 %, max 25 000 $ / an (report 3 ans arrière / 7 ans avant).",
+    provinceOnly: ["YT"],
+  },
+  {
+    id: "YT-04", section: "ma_province", order: 414,
+    fr: "Résidiez-vous sur des terres visées par une entente d'une Première Nation du Yukon en 2025 ?",
+    en: "Did you live on Yukon First Nation settlement land in 2025?",
+    type: "BOOLEAN", required: false,
+    hint: "Crédit d'impôt des Premières Nations YT — 95 % de l'impôt territorial (formulaire YT432).",
+    provinceOnly: ["YT"],
+  },
+  {
+    id: "YT-05", section: "ma_province", order: 415,
+    fr: "Avez-vous payé des frais d'activités physiques pour vos enfants en 2025 ? Quel montant par enfant ?",
+    en: "Did you pay children's physical activity fees in 2025? What amount per child?",
+    type: "MONEY", required: false,
+    hint: "Crédit condition physique des enfants YT — 6,4 %, max 1 000 $ / enfant (+500 $ si CIPH).",
+    provinceOnly: ["YT"],
+  },
+  {
+    id: "YT-06", section: "ma_province", order: 416,
+    fr: "Avez-vous payé des frais d'adoption en 2025 ? Quel montant ?",
+    en: "Did you pay adoption expenses in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Frais d'adoption YT — max 19 580 $.",
+    provinceOnly: ["YT"],
+  },
+  {
+    id: "YT-07", section: "ma_province", order: 417,
+    fr: "Avez-vous versé des contributions politiques territoriales au Yukon en 2025 ? Quel montant ?",
+    en: "Did you make territorial political contributions in Yukon in 2025? What amount?",
+    type: "MONEY", required: false,
+    hint: "Crédit contributions politiques YT — max 650 $.",
+    provinceOnly: ["YT"],
+  },
+];
+
+// ─── Helper: filtrer les questions par province ───────────────────────────────
+export function getQuestionsForProvince(
+  province: string,
+  module: Question[] = MODULE_MA_PROVINCE
+): Question[] {
+  return module.filter(q =>
+    !q.provinceOnly || q.provinceOnly.includes(province)
+  );
+}
+
+// ─── Helper: résumé des questions par province ───────────────────────────────
+export function getProvinceQuestionCount(): Record<string, number> {
+  const codes = ["QC","ON","BC","AB","SK","MB","NB","NS","PE","NL","NT","NU","YT"];
+  const result: Record<string, number> = {};
+  for (const code of codes) {
+    result[code] = getQuestionsForProvince(code).length;
+  }
+  return result;
+}

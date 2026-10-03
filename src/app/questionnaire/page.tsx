@@ -6,7 +6,9 @@ import { NavClient } from "@/components/NavClient";
 import { saveDraftLocal, loadDraftLocal, formatLastSaved } from "@/lib/draft";
 import {
   ALL_INDIVIDUAL_QUESTIONS,
+  getAllQuestionsWithProvince,
   INDIVIDUAL_SECTIONS,
+  getQuestionsForProvince,
   type Question,
 } from "@/lib/questionnaire-individual";
 
@@ -328,6 +330,16 @@ export default function QuestionnairePage() {
     }).catch(() => {});
   }, [router]);
 
+  // Province détectée (depuis le profil ou les réponses du triage)
+  const userProvince = (answers["province"] as string) ??
+                       (answers["profil_province"] as string) ?? null;
+
+  // ── Filtre provinceOnly — exclure les questions d'autres provinces ────────
+  const filterByProvince = (questions: Question[]) =>
+    questions.filter(q =>
+      !q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)
+    );
+
   // Sections visibles (triage caché)
   const visibleSections = INDIVIDUAL_SECTIONS.filter(s =>
     s.code !== "triage" && ((s as { alwaysShow?: boolean }).alwaysShow || evalCond((s as { showIf?: string }).showIf, answers))
@@ -336,14 +348,15 @@ export default function QuestionnairePage() {
   const currentSection = visibleSections[secIdx];
 
   // Questions visibles dans la section courante (incluant triage en arrière-plan)
-  const allApplicable = ALL_INDIVIDUAL_QUESTIONS.filter(q => evalCond(q.showIf, answers));
-  const sectionQs = ALL_INDIVIDUAL_QUESTIONS
+  const ALL_QUESTIONS = getAllQuestionsWithProvince();
+  const allApplicable = ALL_QUESTIONS.filter(q => evalCond(q.showIf, answers) && (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)));
+  const sectionQs = ALL_QUESTIONS
     .filter(q => (q.section === currentSection?.code || q.section === "triage") && evalCond(q.showIf, answers))
     .sort((a, b) => a.order - b.order);
 
   // Questions de la section courante seulement (pas triage)
-  const curSectionQs = ALL_INDIVIDUAL_QUESTIONS
-    .filter(q => q.section === currentSection?.code && evalCond(q.showIf, answers))
+  const curSectionQs = ALL_QUESTIONS
+    .filter(q => q.section === currentSection?.code && evalCond(q.showIf, answers) && (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)))
     .sort((a, b) => a.order - b.order);
 
   // Si on est au début, montrer triage d'abord
