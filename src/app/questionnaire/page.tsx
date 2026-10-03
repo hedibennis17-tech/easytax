@@ -441,7 +441,7 @@ export default function QuestionnairePage() {
         {/* Barre de progression */}
         <div style={{ marginBottom: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>
-            <span>{currentSection?.icon} {currentSection?.fr} — Déclaration 2025</span>
+            <span>{currentSection?.code === "triage" ? "🧭 Commençons — Déclaration 2025" : `${currentSection?.icon} ${currentSection?.fr} — Déclaration 2025`}</span>
             <span style={{ fontWeight: 700, color: "var(--et-red)" }}>{globalPct}%</span>
           </div>
           <div style={{ height: 5, background: "var(--border)", borderRadius: 100, overflow: "hidden" }}>
@@ -452,9 +452,9 @@ export default function QuestionnairePage() {
           </div>
         </div>
 
-        {/* Onglets sections */}
+        {/* Onglets sections — Triage caché (interne) */}
         <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 18 }}>
-          {visibleSections.map((s, i) => {
+          {visibleSections.filter(s => s.code !== "triage").map((s, i) => {
             const sQs = ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === s.code && evalCond(q.showIf, answers));
             const answered = sQs.filter(q => answers[q.id] !== undefined).length;
             const pct = sQs.length > 0 ? Math.round((answered / sQs.length) * 100) : 0;
@@ -594,12 +594,12 @@ export default function QuestionnairePage() {
           </button>
         </div>
 
-        {/* Progression par section */}
+        {/* Progression par section — Triage caché */}
         <div style={{ marginTop: 18, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "14px 18px" }}>
           <p style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
             Progression par section
           </p>
-          {visibleSections.map((s) => {
+          {visibleSections.filter(s => s.code !== "triage").map((s) => {
             const sQs = ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === s.code && evalCond(q.showIf, answers));
             if (sQs.length === 0) return null;
             const answered = sQs.filter(q => answers[q.id] !== undefined).length;

@@ -68,8 +68,8 @@ export default async function DashboardPage() {
               Saison fiscale 2025 — Dossier en cours
             </p>
           </div>
-          <Link href="/questionnaire" className="et-btn et-btn-primary self-start sm:self-auto">
-            Continuer ma déclaration
+          <Link href="/dossier" className="et-btn et-btn-primary self-start sm:self-auto">
+            Mon dossier fiscal
             <ChevronRight size={15} />
           </Link>
         </div>
@@ -78,7 +78,7 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "Documents", value: docCount, icon: FileText, href: "/documents", color: "#2563EB" },
-            { label: "Déclarations", value: returnCount, icon: FolderOpen, href: "/dossier", color: "#7C3AED" },
+            { label: "Mon dossier", value: returnCount, icon: FolderOpen, href: "/dossier", color: "#7C3AED" },
             { label: "Résumé fiscal", value: "—", icon: BarChart3, href: "/resume", color: "#16A34A" },
             { label: "Business", value: "—", icon: Building2, href: "/business", color: "#D97706" },
           ].map(({ label, value, icon: Icon, href, color }) => (
@@ -101,17 +101,17 @@ export default async function DashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
               {
-                href: "/documents",
+                href: "/dossier",
                 icon: Upload,
-                title: "Téléverser un document",
-                desc: "T4, RL-1, T5, reçus...",
+                title: "Téléverser mes documents",
+                desc: "T4, RL-1, T5 — l'IA extrait les données automatiquement",
                 color: "#2563EB",
               },
               {
                 href: "/questionnaire",
                 icon: HelpCircle,
-                title: "Questionnaire fiscal",
-                desc: "Répondez aux questions de votre situation",
+                title: "Compléter le questionnaire",
+                desc: "Questions non couvertes par les feuillets",
                 color: "#7C3AED",
               },
               {
