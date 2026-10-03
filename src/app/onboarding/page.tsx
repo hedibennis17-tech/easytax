@@ -229,6 +229,7 @@ function IndividualWizard({ onBack, onDone, prefill }: {
   const [firstName, setFirstName]         = useState(prefill.firstName ?? "");
   const [lastName,  setLastName]          = useState(prefill.lastName ?? "");
   const [otherNames, setOtherNames]       = useState("");
+  const [preferredName, setPreferredName] = useState("");
   const [birthDate, setBirthDate]         = useState("");
   const [nas,       setNas]              = useState("");
   const [canadaStatus, setCanadaStatus]  = useState("");
@@ -251,6 +252,9 @@ function IndividualWizard({ onBack, onDone, prefill }: {
   const [taxYear,      setTaxYear]      = useState("2025");
   const [arrivalDate,  setArrivalDate]  = useState("");
   const [departDate,   setDepartDate]   = useState("");
+  const [movedProvince, setMovedProvince] = useState("");
+  const [prevProvince, setPrevProvince] = useState("");
+  const [northernResident, setNorthernResident] = useState("");
   const [situations,   setSituations]   = useState<string[]>([]);
 
   // Étape 4 — Famille
@@ -294,9 +298,9 @@ function IndividualWizard({ onBack, onDone, prefill }: {
   const back = () => { setErr(""); if (step === 0) onBack(); else setStep(s => s - 1); };
 
   const allData = {
-    type: "INDIVIDUAL", firstName, lastName, otherNames, birthDate, nas, canadaStatus, gender,
+    type: "INDIVIDUAL", firstName, lastName, otherNames, preferredName, birthDate, nas, canadaStatus, gender,
     email, phone, address, city, province, postal, language, contactPref,
-    marital, maritalDate, taxProvince, taxYear, arrivalDate, departDate, situations,
+    marital, maritalDate, taxProvince, taxYear, arrivalDate, departDate, movedProvince, prevProvince, northernResident, situations,
     members, preparer,
   };
 
@@ -345,6 +349,7 @@ function IndividualWizard({ onBack, onDone, prefill }: {
                 <F label="Prénom légal *"><input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Marie" autoFocus /></F>
                 <F label="Nom de famille légal *"><input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Tremblay" /></F>
                 <F label="Autres prénoms" opt><input value={otherNames} onChange={e => setOtherNames(e.target.value)} placeholder="Anne" /></F>
+                <F label="Prénom préféré" opt><input value={preferredName} onChange={e => setPreferredName(e.target.value)} placeholder="Marie" /></F>
                 <F label="Date de naissance *"><input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} /></F>
                 <F label="Numéro d'assurance sociale *" hint="9 chiffres. Sera chiffré lors de l'intégration sécurisée.">
                   <input value={nas} onChange={e => setNas(e.target.value)} placeholder="••• ••• •••" maxLength={11} />
@@ -437,6 +442,9 @@ function IndividualWizard({ onBack, onDone, prefill }: {
                 <F label="Date de départ du Canada" opt hint="S'il y a lieu">
                   <input type="date" value={departDate} onChange={e => setDepartDate(e.target.value)} />
                 </F>
+                <F label="Province précédente" opt><select value={prevProvince} onChange={e => setPrevProvince(e.target.value)}><option value="">Non applicable</option>{PROVINCES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select></F>
+                <F label="Province d'arrivée ou de déménagement" opt><select value={movedProvince} onChange={e => setMovedProvince(e.target.value)}><option value="">Non applicable</option>{PROVINCES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select></F>
+                <F label="Résident d'une région nordique" opt><select value={northernResident} onChange={e => setNorthernResident(e.target.value)}><option value="">Non indiqué</option><option value="yes">Oui</option><option value="no">Non</option></select></F>
               </div>
               <p className="sec-title" style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 8, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>
                 Situations applicables <span className="opt">(facultatif)</span>
@@ -582,6 +590,8 @@ function BusinessWizard({ onBack, onDone, prefill }: {
   const [tradeName,    setTradeName]   = useState("");
   const [legalForm,    setLegalForm]   = useState("");
   const [jurisdiction, setJurisdiction]= useState("");
+  const [regJurisdiction, setRegJurisdiction] = useState("");
+  const [regNumber, setRegNumber] = useState("");
   const [startDate,    setStartDate]   = useState("");
   const [language,     setLanguage]    = useState("fr");
 
@@ -590,6 +600,7 @@ function BusinessWizard({ onBack, onDone, prefill }: {
   const [federalBN,setFederalBN]= useState("");
   const [rpAccount,setRpAccount]= useState("");
   const [otherReg, setOtherReg] = useState("");
+  const [xprov, setXprov] = useState<string[]>([]);
 
   // Étape 3
   const [mainActivity,      setMainActivity]      = useState("");
@@ -608,6 +619,8 @@ function BusinessWizard({ onBack, onDone, prefill }: {
   const [gstNumber,   setGstNumber]   = useState("");
   const [qstStatus,   setQstStatus]   = useState("");
   const [qstNumber,   setQstNumber]   = useState("");
+  const [taxProvinces, setTaxProvinces] = useState<string[]>([]);
+  const [taxDetails, setTaxDetails] = useState<Record<string, string>>({});
   const [taxFreq,     setTaxFreq]     = useState("");
   const [taxYear,     setTaxYear]     = useState("2025");
 
@@ -624,6 +637,8 @@ function BusinessWizard({ onBack, onDone, prefill }: {
   const [consentAuth,  setConsentAuth]  = useState(false);
 
   const toggleChannel = (v: string) => setChannels(c => c.includes(v) ? c.filter(x => x !== v) : [...c, v]);
+  const toggleXprov = (v: string) => setXprov(c => c.includes(v) ? c.filter(x => x !== v) : [...c, v]);
+  const toggleTaxProvince = (v: string) => setTaxProvinces(c => c.includes(v) ? c.filter(x => x !== v) : [...c, v]);
 
   const validate = (): boolean => {
     setErr("");
@@ -639,9 +654,9 @@ function BusinessWizard({ onBack, onDone, prefill }: {
 
   const allData = {
     type: "BUSINESS", legalName, tradeName, legalForm, jurisdiction, startDate, language,
-    neq, federalBN, rpAccount, otherReg,
+    neq, federalBN, rpAccount, otherReg, regJurisdiction, regNumber, xprov,
     mainActivity, scian, employees, shareholders, estimatedRevenue, channels,
-    fiscalStart, fiscalEnd, accounting, currency, gstStatus, gstNumber, qstStatus, qstNumber, taxFreq, taxYear,
+    fiscalStart, fiscalEnd, accounting, currency, gstStatus, gstNumber, qstStatus, qstNumber, taxProvinces, taxDetails, taxFreq, taxYear,
     address, city, province, postal, bizPhone, contactFirst, contactLast, contactRole, contactEmail,
   };
 
@@ -690,8 +705,7 @@ function BusinessWizard({ onBack, onDone, prefill }: {
                 <F label="Territoire de constitution *">
                   <select value={jurisdiction} onChange={e => setJurisdiction(e.target.value)}>
                     <option value="">Sélectionner</option>
-                    <option>Fédéral</option><option>Québec</option><option>Ontario</option>
-                    <option>Autre province ou territoire</option><option>Non constituée en société</option>
+                    <option>Fédéral (Corporations Canada)</option>{PROVINCES.map(p => <option key={p.value}>{p.label}</option>)}<option>Non constituée en société</option>
                   </select>
                 </F>
                 <F label="Date de constitution ou de début d'activité" opt><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></F>
@@ -713,6 +727,9 @@ function BusinessWizard({ onBack, onDone, prefill }: {
                 <F label="Numéro d'entreprise fédéral (NE)" opt hint="9 chiffres"><input value={federalBN} onChange={e => setFederalBN(e.target.value)} placeholder="123456789" /></F>
                 <F label="Compte de retenues sur la paie (RP)" opt><input value={rpAccount} onChange={e => setRpAccount(e.target.value)} placeholder="123456789RP0001" /></F>
                 <F label="Autres inscriptions ou permis" opt><input value={otherReg} onChange={e => setOtherReg(e.target.value)} placeholder="Permis d'alcool, CNESST..." /></F>
+                <F label="Juridiction d'immatriculation" opt><select value={regJurisdiction} onChange={e => setRegJurisdiction(e.target.value)}><option value="">Sélectionner</option><option>Fédéral</option>{PROVINCES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select></F>
+                <F label="Numéro d'immatriculation" opt><input value={regNumber} onChange={e => setRegNumber(e.target.value)} placeholder="Numéro provincial ou territorial" /></F>
+                <div className="span2"><p className="sec-title">Exploitation dans d'autres provinces ou territoires <span className="opt">(facultatif)</span></p><div className="check-grid">{PROVINCES.map(p => <label key={p.value} className="check-opt"><input type="checkbox" checked={xprov.includes(p.value)} onChange={() => toggleXprov(p.value)} />{p.label}</label>)}</div></div>
               </div>
               <Actions onBack={back} onNext={next} />
             </StepCard>
@@ -778,6 +795,7 @@ function BusinessWizard({ onBack, onDone, prefill }: {
                   </select>
                 </F>
                 <F label="Numéro TPS/TVH" opt><input value={gstNumber} onChange={e => setGstNumber(e.target.value)} placeholder="123456789RT0001" /></F>
+                <div className="span2"><p className="sec-title">Provinces ou territoires d'exploitation pour les taxes de vente</p><div className="check-grid">{PROVINCES.map(p => <label key={p.value} className="check-opt"><input type="checkbox" checked={taxProvinces.includes(p.value)} onChange={() => toggleTaxProvince(p.value)} />{p.label}</label>)}</div><p className="hint">La TPS/TVH est fédérale; les règles provinciales varient selon le lieu d'exploitation.</p></div>
                 <F label="Inscription TVQ" opt>
                   <select value={qstStatus} onChange={e => setQstStatus(e.target.value)}>
                     <option value="">Sélectionner</option>

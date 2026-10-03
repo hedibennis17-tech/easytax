@@ -122,6 +122,8 @@ export const taxProfiles = pgTable("tax_profiles", {
   fiscalResidence: provinceEnum("fiscal_residence"),
   isCanadianCitizen: boolean("is_canadian_citizen"),
   isQuebecResident: boolean("is_quebec_resident").default(false),
+  // Données complètes du wizard pancanadien (JSON sérialisé, côté serveur)
+  pancanadianData: text("pancanadian_data"),
   // Méta
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -1523,6 +1525,8 @@ export const organizations = pgTable("organizations", {
   email: varchar("email", { length: 255 }),
   website: varchar("website", { length: 255 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  // Données complètes du wizard pancanadien (JSON sérialisé, côté serveur)
+  pancanadianData: text("pancanadian_data"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
