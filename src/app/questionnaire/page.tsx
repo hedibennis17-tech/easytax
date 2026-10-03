@@ -1,361 +1,473 @@
 "use client";
 import { NavClient } from "@/components/NavClient";
-
-import { useState, useCallback } from "react";
-import Link from "next/link";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import {
+  QUESTION_DEFINITIONS,
+  getApplicableQuestions,
+  getModulesToActivate,
+  calculateProgress,
+  getRequiredDocuments,
+  MODULE_LABELS,
+  type ModuleCode,
+  type QuestionDef,
+} from "@/lib/questionnaire-engine";
 
-// ─── QUESTIONS ────────────────────────────────────────────────────────────────
-
-const QUESTIONS = [
-  // EMPLOI
-  {
-    code: "has_employment_income",
-    section: "employment",
-    textFr: "Avez-vous eu un revenu d'emploi en 2025 ?",
-    hintFr: "Salaires, traitements, pourboires, commissions",
-    type: "BOOLEAN",
-    required: true,
-  },
-  {
-    code: "has_additional_employers",
-    section: "employment",
-    textFr: "Avez-vous eu plus d'un employeur en 2025 ?",
-    hintFr: "Incluez les emplois à temps partiel ou saisonniers",
-    type: "BOOLEAN",
-    required: false,
-    showIf: "has_employment_income",
-  },
-  {
-    code: "worked_from_home",
-    section: "employment",
-    textFr: "Avez-vous travaillé de la maison en 2025 ?",
-    hintFr: "Vous pourriez avoir droit à des déductions pour bureau à domicile",
-    type: "BOOLEAN",
-    required: false,
-    showIf: "has_employment_income",
-  },
-
-  // TRAVAIL AUTONOME
-  {
-    code: "has_self_employment",
-    section: "self_employment",
-    textFr: "Avez-vous eu des revenus de travail autonome ou d'entreprise en 2025 ?",
-    hintFr: "Freelance, contrats, vente de biens ou services",
-    type: "BOOLEAN",
-    required: true,
-  },
-  {
-    code: "self_employment_vehicle",
-    section: "self_employment",
-    textFr: "Avez-vous utilisé un véhicule pour votre travail autonome ?",
-    hintFr: "Les frais d'automobile peuvent être déductibles au prorata",
-    type: "BOOLEAN",
-    required: false,
-    showIf: "has_self_employment",
-  },
-  {
-    code: "self_employment_home_office",
-    section: "self_employment",
-    textFr: "Avez-vous un bureau à domicile pour votre entreprise ?",
-    hintFr: "Une partie de vos frais de logement peut être déductible",
-    type: "BOOLEAN",
-    required: false,
-    showIf: "has_self_employment",
-  },
-
-  // INVESTISSEMENTS
-  {
-    code: "has_investment_income",
-    section: "investment",
-    textFr: "Avez-vous eu des revenus de placement en 2025 ?",
-    hintFr: "Intérêts, dividendes, gains en capital",
-    type: "BOOLEAN",
-    required: true,
-  },
-
-  // LOCATION
-  {
-    code: "has_rental_income",
-    section: "investment",
-    textFr: "Avez-vous eu des revenus de location en 2025 ?",
-    hintFr: "Location d'un appartement, d'une chambre ou d'un local",
-    type: "BOOLEAN",
-    required: true,
-  },
-
-  // REER
-  {
-    code: "has_rrsp_contribution",
-    section: "deductions",
-    textFr: "Avez-vous cotisé à un REER en 2025 ou avant le 3 mars 2026 ?",
-    hintFr: "Les cotisations REER réduisent votre revenu imposable",
-    type: "BOOLEAN",
-    required: true,
-  },
-
-  // FAMILLE
-  {
-    code: "has_dependents",
-    section: "family",
-    textFr: "Avez-vous des personnes à charge (enfants, parents, etc.) ?",
-    hintFr: "Cela peut ouvrir droit à plusieurs crédits",
-    type: "BOOLEAN",
-    required: true,
-  },
-  {
-    code: "childcare_expenses",
-    section: "family",
-    textFr: "Avez-vous payé des frais de garde d'enfants en 2025 ?",
-    hintFr: "Garderie, camp de jour, garde à domicile",
-    type: "BOOLEAN",
-    required: false,
-    showIf: "has_dependents",
-  },
-
-  // DÉMÉNAGEMENT
-  {
-    code: "changed_province",
-    section: "other",
-    textFr: "Avez-vous changé de province de résidence en 2025 ?",
-    type: "BOOLEAN",
-    required: false,
-  },
-
-  // REVENU ÉTRANGER
-  {
-    code: "has_foreign_income",
-    section: "other",
-    textFr: "Avez-vous eu des revenus provenant de l'extérieur du Canada en 2025 ?",
-    type: "BOOLEAN",
-    required: false,
-  },
+// ── SECTIONS avec ordre et labels ─────────────────────────────────────────────
+const SECTIONS = [
+  { code: "identity",        fr: "Identité",          en: "Identity",        icon: "👤" },
+  { code: "employment",      fr: "Emploi",            en: "Employment",      icon: "💼" },
+  { code: "self_employment", fr: "Travail autonome",  en: "Self-employment", icon: "🧑‍💼" },
+  { code: "investment",      fr: "Revenus & location",en: "Income & rental", icon: "📈" },
+  { code: "deductions",      fr: "Déductions",        en: "Deductions",      icon: "📉" },
+  { code: "family",          fr: "Famille",           en: "Family",          icon: "👨‍👩‍👧" },
+  { code: "credits",         fr: "Crédits",           en: "Credits",         icon: "✅" },
+  { code: "provincial",      fr: "Québec",            en: "Quebec",          icon: "⚜️" },
 ] as const;
 
-type QuestionCode = typeof QUESTIONS[number]["code"];
-
-// ─── COMPOSANT ────────────────────────────────────────────────────────────────
+type Lang = "fr" | "en";
 
 export default function QuestionnairePage() {
   const router = useRouter();
-  const [answers, setAnswers] = useState<Record<string, boolean | null>>({});
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [done, setDone] = useState(false);
+  const [lang] = useState<Lang>("fr");
+  const t = (fr: string, en: string) => lang === "fr" ? fr : en;
 
-  // Filtrer les questions visibles selon les réponses actuelles
-  const visibleQuestions = QUESTIONS.filter((q) => {
-    if ("showIf" in q && q.showIf) {
-      return answers[q.showIf] === true;
-    }
-    return true;
-  });
+  // État principal
+  const [answers, setAnswers]           = useState<Record<string, string | boolean | null>>({});
+  const [activeModules, setModules]     = useState<ModuleCode[]>([]);
+  const [currentSection, setSection]    = useState(0);
+  const [currentQIdx, setQIdx]          = useState(0);
+  const [saving, setSaving]             = useState(false);
+  const [done, setDone]                 = useState(false);
+  const [textInput, setTextInput]       = useState("");
+  const [numInput, setNumInput]         = useState("");
 
-  const current = visibleQuestions[currentIdx];
-  const progress = Math.round(((currentIdx) / visibleQuestions.length) * 100);
-  const isLast = currentIdx === visibleQuestions.length - 1;
+  // Questions applicables (recalculé à chaque réponse)
+  const applicable = getApplicableQuestions("INDIVIDUAL", activeModules, answers);
+  const sectionCode = SECTIONS[currentSection]?.code ?? "identity";
+  const sectionQs   = applicable.filter((q) => q.section === sectionCode);
+  const current: QuestionDef | undefined = sectionQs[currentQIdx];
 
-  const handleAnswer = useCallback(async (value: boolean) => {
-    if (!current) return;
-    const newAnswers = { ...answers, [current.code]: value };
-    setAnswers(newAnswers);
+  // Progression dynamique
+  const requiredDocs = getRequiredDocuments(activeModules, answers);
+  const progress = calculateProgress(applicable, answers, 0, requiredDocs.filter(d => d.required).length, 0);
+  const sectionPct = sectionQs.length > 0
+    ? Math.round((sectionQs.filter(q => answers[q.code] !== undefined && answers[q.code] !== null).length / sectionQs.length) * 100)
+    : 100;
+
+  // Modules actifs badges
+  const modulesBadges = activeModules.filter(m => MODULE_LABELS[m]);
+
+  const saveAnswer = useCallback(async (code: string, value: string | boolean) => {
     setSaving(true);
+    const newAnswers = { ...answers, [code]: value };
+    setAnswers(newAnswers);
 
-    // Sauvegarde progressive — l'utilisateur peut quitter et revenir
+    // Mettre à jour les modules actifs
+    const newModules = getModulesToActivate(newAnswers);
+    setModules(newModules);
+
+    // Sauvegarde API
     try {
       await fetch("/api/answers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          questionCode: current.code,
-          answerValue: value,
-          taxReturnId: "demo-return-id", // TODO: récupérer depuis la session
-          taxYearId: "demo-year-id",
+          questionCode: code,
+          answerValue: String(value),
+          taxReturnId: "current",
+          taxYearId: "2025",
         }),
       });
-    } catch {
-      // Silencieux — on continue même si la sauvegarde échoue
-    }
-
+    } catch { /* silencieux */ }
     setSaving(false);
+  }, [answers]);
 
-    if (isLast) {
-      setDone(true);
+  const goNext = useCallback(() => {
+    const nextIdx = currentQIdx + 1;
+    if (nextIdx < sectionQs.length) {
+      setQIdx(nextIdx);
+      setTextInput(""); setNumInput("");
     } else {
-      // Trouver le prochain index visible
-      const updatedVisible = QUESTIONS.filter((q) => {
-        if ("showIf" in q && q.showIf) return newAnswers[q.showIf] === true;
-        return true;
-      });
-      const nextIdx = currentIdx + 1;
-      if (nextIdx < updatedVisible.length) {
-        setCurrentIdx(nextIdx);
-      } else {
-        setDone(true);
+      // Chercher la prochaine section avec des questions
+      let foundSection = false;
+      for (let s = currentSection + 1; s < SECTIONS.length; s++) {
+        const nextSectionQs = applicable.filter(q => q.section === SECTIONS[s].code);
+        if (nextSectionQs.length > 0) {
+          setSection(s); setQIdx(0); setTextInput(""); setNumInput("");
+          foundSection = true;
+          break;
+        }
       }
+      if (!foundSection) setDone(true);
     }
-  }, [current, answers, currentIdx, isLast]);
+  }, [currentQIdx, currentSection, sectionQs, applicable]);
 
-  const handleBack = () => {
-    if (currentIdx > 0) setCurrentIdx((i) => i - 1);
-  };
+  const handleBoolean = useCallback(async (value: boolean) => {
+    if (!current) return;
+    await saveAnswer(current.code, value);
+    goNext();
+  }, [current, saveAnswer, goNext]);
 
-  const getSectionLabel = (section: string) => {
-    const labels: Record<string, string> = {
-      employment: "💼 Emploi",
-      self_employment: "🧑‍💼 Travail autonome",
-      investment: "📈 Placements & Location",
-      deductions: "📉 Déductions",
-      family: "🏠 Famille",
-      other: "🌍 Autre",
-    };
-    return labels[section] ?? section;
-  };
+  const handleText = useCallback(async () => {
+    if (!current || !textInput.trim()) return;
+    await saveAnswer(current.code, textInput.trim());
+    goNext();
+  }, [current, textInput, saveAnswer, goNext]);
 
-  // Résumé des réponses
-  const getSummary = () => {
-    const yesAnswers = Object.entries(answers).filter(([, v]) => v === true);
-    const q = QUESTIONS as readonly typeof QUESTIONS[number][];
-    return yesAnswers.map(([code]) => {
-      const question = q.find((q) => q.code === code);
-      return question?.textFr ?? code;
-    });
-  };
+  const handleNumber = useCallback(async () => {
+    if (!current || !numInput) return;
+    await saveAnswer(current.code, numInput);
+    goNext();
+  }, [current, numInput, saveAnswer, goNext]);
 
+  // ── VUE TERMINÉE ────────────────────────────────────────────────────────────
   if (done) {
+    const docs = getRequiredDocuments(activeModules, answers);
     return (
-      <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
+      <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
         <NavClient />
-
-        <div className="max-w-2xl mx-auto px-6 py-12">
-          <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm text-center">
-            <div className="text-5xl mb-4">✅</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Questionnaire terminé</h1>
-            <p className="text-gray-500 mb-6">
-              Vos réponses ont été sauvegardées. Votre dossier fiscal sera mis à jour.
+        <div style={{ maxWidth: 680, margin: "0 auto", padding: "32px 16px" }}>
+          {/* Header */}
+          <div style={{ textAlign: "center", marginBottom: 32 }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" }}>
+              {t("Questionnaire terminé !", "Questionnaire complete!")}
+            </h1>
+            <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
+              {t(`${progress.questionsAnswered} questions répondues · Progression globale : ${progress.globalPct} %`,
+                 `${progress.questionsAnswered} questions answered · Overall progress: ${progress.globalPct}%`)}
             </p>
+          </div>
 
-            {/* Résumé */}
-            {getSummary().length > 0 && (
-              <div className="bg-gray-50 rounded-xl p-4 text-left mb-6">
-                <h2 className="text-sm font-semibold text-gray-500 uppercase mb-3">
-                  Éléments déclarés
-                </h2>
-                <ul className="space-y-2">
-                  {getSummary().map((item, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                      <span className="text-green-500 mt-0.5">✓</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left mb-6">
-              <p className="text-xs text-amber-700">
-                ⚠️ <strong>Ces informations sont préliminaires.</strong> Aucune déclaration n&apos;a encore été transmise à l&apos;ARC ou à Revenu Québec. Votre dossier sera calculé dans l&apos;étape suivante.
+          {/* Modules activés */}
+          {modulesBadges.length > 0 && (
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: "16px 20px", marginBottom: 16 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>
+                {t("Modules activés pour votre dossier", "Modules activated for your file")}
               </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {modulesBadges.map(m => {
+                  const ml = MODULE_LABELS[m];
+                  return (
+                    <span key={m} style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      padding: "4px 10px", borderRadius: 100, fontSize: 12, fontWeight: 600,
+                      background: "rgba(37,99,235,0.1)", color: "#2563EB",
+                    }}>
+                      {ml.icon} {lang === "fr" ? ml.fr : ml.en}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
+          )}
 
-            <div className="flex gap-3">
-              <Link
-                href="/dossier"
-                className="flex-1 bg-red-600 text-white rounded-xl py-3 font-semibold hover:bg-red-700 transition-colors text-sm text-center"
-              >
-                Voir mon dossier →
-              </Link>
-              <button
-                onClick={() => { setCurrentIdx(0); setDone(false); }}
-                className="px-4 py-3 text-sm text-gray-500 hover:text-gray-900 border border-gray-200 rounded-xl"
-              >
-                Réviser
-              </button>
+          {/* Documents requis */}
+          {docs.length > 0 && (
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: "16px 20px", marginBottom: 16 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>
+                {t("Documents requis pour votre dossier", "Documents required for your file")}
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {docs.map((doc, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 10, background: "var(--bg-base)" }}>
+                    <span style={{ fontSize: 16 }}>📄</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                        {lang === "fr" ? doc.labelFr : doc.labelEn}
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 100,
+                      background: doc.required ? "rgba(220,38,38,0.1)" : "rgba(107,114,128,0.1)",
+                      color: doc.required ? "#DC2626" : "#6B7280",
+                    }}>
+                      {doc.required ? t("Requis", "Required") : t("Optionnel", "Optional")}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
+
+          {/* Avertissement */}
+          <div style={{ background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.25)", borderRadius: 12, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#D97706" }}>
+            ⚠️ {t("Ces résultats sont préliminaires. Téléversez vos documents et faites valider vos données avant le calcul fiscal.",
+                   "These results are preliminary. Upload your documents and have your data validated before the tax calculation.")}
+          </div>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              onClick={() => router.push("/documents")}
+              style={{ flex: 1, padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer" }}
+            >
+              {t("Téléverser mes documents →", "Upload my documents →")}
+            </button>
+            <button
+              onClick={() => { setDone(false); setSection(0); setQIdx(0); }}
+              style={{ padding: "12px 18px", borderRadius: 12, fontSize: 14, fontWeight: 600, background: "var(--bg-card)", color: "var(--text-secondary)", border: "1px solid var(--border)", cursor: "pointer" }}
+            >
+              {t("Réviser", "Review")}
+            </button>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
-  if (!current) return null;
-
+  // ── VUE PRINCIPALE ───────────────────────────────────────────────────────────
   return (
-    <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
+    <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
       <NavClient />
 
-      <div className="max-w-2xl mx-auto px-6 py-10">
-        {/* Barre de progression */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
-            <span>{getSectionLabel(current.section)}</span>
-            <span>{currentIdx + 1} / {visibleQuestions.length}</span>
+      <div style={{ maxWidth: 680, margin: "0 auto", padding: "24px 16px" }}>
+
+        {/* ── Barre de progression globale ─────────────────────────────── */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+              {t("Déclaration 2025", "2025 Return")} — {SECTIONS[currentSection]?.icon} {t(SECTIONS[currentSection]?.fr ?? "", SECTIONS[currentSection]?.en ?? "")}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--et-red)" }}>
+              {progress.globalPct}%
+            </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-1.5">
-            <div
-              className="bg-red-500 h-1.5 rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
+          <div style={{ height: 6, background: "var(--border)", borderRadius: 100, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${progress.globalPct}%`, background: "var(--et-red)", borderRadius: 100, transition: "width 400ms ease" }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "var(--text-muted)" }}>
+            <span>{t(`${progress.questionsAnswered} / ${progress.questionsApplicable} questions`, `${progress.questionsAnswered} / ${progress.questionsApplicable} questions`)}</span>
+            <span>{sectionQs.length > 0 ? `${currentQIdx + 1} / ${sectionQs.length} ${t("dans cette section", "in this section")}` : ""}</span>
           </div>
         </div>
 
-        {/* Carte question */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
-          <h2 className="text-xl font-bold text-gray-900 mb-2 leading-snug">
-            {current.textFr}
-          </h2>
-          {"hintFr" in current && current.hintFr && (
-            <p className="text-sm text-gray-400 mb-8">{current.hintFr}</p>
-          )}
-
-          <div className="flex gap-4">
-            <button
-              onClick={() => handleAnswer(true)}
-              disabled={saving}
-              className="flex-1 bg-red-600 text-white rounded-xl py-4 font-semibold text-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-            >
-              Oui
-            </button>
-            <button
-              onClick={() => handleAnswer(false)}
-              disabled={saving}
-              className="flex-1 bg-gray-100 text-gray-700 rounded-xl py-4 font-semibold text-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
-            >
-              Non
-            </button>
-          </div>
-
-          {saving && (
-            <p className="text-xs text-gray-400 text-center mt-4">Sauvegarde...</p>
-          )}
+        {/* ── Étapes sections ──────────────────────────────────────────── */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 24, overflowX: "auto", paddingBottom: 4 }}>
+          {SECTIONS.map((s, i) => {
+            const sQs = applicable.filter(q => q.section === s.code);
+            if (sQs.length === 0) return null;
+            const answered = sQs.filter(q => answers[q.code] !== undefined && answers[q.code] !== null).length;
+            const pct = Math.round((answered / sQs.length) * 100);
+            const active = i === currentSection;
+            const done = pct === 100;
+            return (
+              <button key={s.code}
+                onClick={() => { setSection(i); setQIdx(0); }}
+                style={{
+                  flexShrink: 0, padding: "6px 12px", borderRadius: 10, fontSize: 12,
+                  fontWeight: active ? 700 : 500, cursor: "pointer",
+                  background: active ? "var(--et-red)" : done ? "rgba(22,163,74,0.1)" : "var(--bg-card)",
+                  color: active ? "#fff" : done ? "#16A34A" : "var(--text-secondary)",
+                  border: `1px solid ${active ? "var(--et-red)" : done ? "rgba(22,163,74,0.3)" : "var(--border)"}`,
+                  transition: "all 120ms",
+                }}>
+                {s.icon} {lang === "fr" ? s.fr : s.en}
+                {done && !active && " ✓"}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Retour */}
-        {currentIdx > 0 && (
+        {/* ── Modules actifs ───────────────────────────────────────────── */}
+        {modulesBadges.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
+            {modulesBadges.slice(0, 5).map(m => {
+              const ml = MODULE_LABELS[m];
+              if (!ml) return null;
+              return (
+                <span key={m} style={{
+                  fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 100,
+                  background: "rgba(37,99,235,0.09)", color: "#2563EB",
+                }}>
+                  {ml.icon} {lang === "fr" ? ml.fr : ml.en}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Carte question ───────────────────────────────────────────── */}
+        {current ? (
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: "28px 24px", boxShadow: "var(--shadow-md)" }}>
+
+            {/* Indicateur section */}
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 16 }}>
+              {SECTIONS.find(s => s.code === current.section)?.icon}{" "}
+              {lang === "fr"
+                ? SECTIONS.find(s => s.code === current.section)?.fr
+                : SECTIONS.find(s => s.code === current.section)?.en}
+              {current.required && (
+                <span style={{ marginLeft: 8, color: "var(--et-red)" }}>*</span>
+              )}
+            </div>
+
+            {/* Question */}
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px", lineHeight: 1.4 }}>
+              {lang === "fr" ? current.textFr : current.textEn}
+            </h2>
+
+            {/* Hint */}
+            {(current.hintFr || current.hintEn) && (
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 24px", lineHeight: 1.5 }}>
+                {lang === "fr" ? current.hintFr : current.hintEn}
+              </p>
+            )}
+
+            {/* Document requis */}
+            {current.documentRequired && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                background: "rgba(37,99,235,0.07)", border: "1px solid rgba(37,99,235,0.2)",
+                borderRadius: 10, padding: "8px 12px", marginBottom: 20, fontSize: 12, color: "#2563EB",
+              }}>
+                📎 {t(`Document requis : ${current.documentRequired}`, `Required document: ${current.documentRequired}`)}
+              </div>
+            )}
+
+            {/* Réponse selon le type */}
+            {current.type === "BOOLEAN" && (
+              <div style={{ display: "flex", gap: 12 }}>
+                <button onClick={() => handleBoolean(true)} disabled={saving} style={{
+                  flex: 1, padding: "14px 0", borderRadius: 12, fontSize: 15, fontWeight: 700,
+                  background: answers[current.code] === true ? "var(--et-red)" : "var(--et-red)",
+                  color: "#fff", border: "none", cursor: "pointer", opacity: saving ? 0.6 : 1, transition: "all 120ms",
+                }}>
+                  {t("Oui", "Yes")}
+                </button>
+                <button onClick={() => handleBoolean(false)} disabled={saving} style={{
+                  flex: 1, padding: "14px 0", borderRadius: 12, fontSize: 15, fontWeight: 600,
+                  background: "var(--bg-base)", color: "var(--text-secondary)",
+                  border: "1.5px solid var(--border)", cursor: "pointer", opacity: saving ? 0.6 : 1, transition: "all 120ms",
+                }}>
+                  {t("Non", "No")}
+                </button>
+              </div>
+            )}
+
+            {(current.type === "TEXT" || current.type === "ADDRESS") && (
+              <div>
+                <input
+                  type="text"
+                  value={textInput}
+                  onChange={e => setTextInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") handleText(); }}
+                  placeholder={t("Saisir votre réponse...", "Enter your answer...")}
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 14, outline: "none", marginBottom: 12 }}
+                  autoFocus
+                />
+                <button onClick={handleText} disabled={!textInput.trim() || saving} style={{
+                  width: "100%", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
+                  background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer",
+                  opacity: (!textInput.trim() || saving) ? 0.5 : 1,
+                }}>
+                  {t("Continuer →", "Continue →")}
+                </button>
+              </div>
+            )}
+
+            {(current.type === "NUMBER" || current.type === "MONEY" || current.type === "DECIMAL") && (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  {current.type === "MONEY" && (
+                    <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text-secondary)" }}>$</span>
+                  )}
+                  <input
+                    type="number"
+                    value={numInput}
+                    onChange={e => setNumInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleNumber(); }}
+                    placeholder={current.type === "MONEY" ? "0.00" : "0"}
+                    min={0}
+                    style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--bg-input)", color: "var(--text-primary)", fontSize: 14, outline: "none" }}
+                    autoFocus
+                  />
+                </div>
+                <button onClick={handleNumber} disabled={!numInput || saving} style={{
+                  width: "100%", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
+                  background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer",
+                  opacity: (!numInput || saving) ? 0.5 : 1,
+                }}>
+                  {t("Continuer →", "Continue →")}
+                </button>
+              </div>
+            )}
+
+            {/* Sauvegarde */}
+            {saving && (
+              <p style={{ textAlign: "center", fontSize: 11, color: "var(--text-muted)", marginTop: 12 }}>
+                {t("Sauvegarde...", "Saving...")}
+              </p>
+            )}
+          </div>
+        ) : (
+          /* Section sans questions — passer à la suivante */
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: "32px 24px", textAlign: "center" }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>✓</div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+              {t("Section non applicable", "Section not applicable")}
+            </h2>
+            <p style={{ color: "var(--text-secondary)", fontSize: 13, marginBottom: 20 }}>
+              {t("Aucune question ne vous concerne dans cette section.", "No questions apply to you in this section.")}
+            </p>
+            <button onClick={goNext} style={{
+              padding: "10px 24px", borderRadius: 12, fontSize: 14, fontWeight: 700,
+              background: "var(--et-red)", color: "#fff", border: "none", cursor: "pointer",
+            }}>
+              {t("Section suivante →", "Next section →")}
+            </button>
+          </div>
+        )}
+
+        {/* ── Navigation ─────────────────────────────────────────────── */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20 }}>
           <button
-            onClick={handleBack}
-            className="mt-4 text-sm text-gray-400 hover:text-gray-700 flex items-center gap-1"
-          >
-            ← Question précédente
+            onClick={() => {
+              if (currentQIdx > 0) setQIdx(i => i - 1);
+              else if (currentSection > 0) { setSection(s => s - 1); setQIdx(0); }
+            }}
+            disabled={currentSection === 0 && currentQIdx === 0}
+            style={{
+              padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 500,
+              background: "var(--bg-card)", color: "var(--text-secondary)",
+              border: "1px solid var(--border)", cursor: "pointer",
+              opacity: (currentSection === 0 && currentQIdx === 0) ? 0.4 : 1,
+            }}>
+            ← {t("Précédent", "Previous")}
           </button>
-        )}
 
-        {/* Contexte inféré (debug/aide) */}
-        {Object.keys(answers).length > 0 && (
-          <div className="mt-6 bg-white rounded-xl border border-gray-100 p-4 text-xs text-gray-400">
-            <p className="font-semibold mb-1">Déjà connu :</p>
-            <ul className="space-y-0.5">
-              {Object.entries(answers)
-                .filter(([, v]) => v !== null)
-                .map(([code, val]) => (
-                  <li key={code}>
-                    {val ? "✓" : "✗"} {code.replace(/_/g, " ")}
-                  </li>
-                ))}
-            </ul>
-          </div>
-        )}
+          <button
+            onClick={() => router.push("/dossier")}
+            style={{ padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 500, background: "transparent", color: "var(--text-muted)", border: "none", cursor: "pointer" }}>
+            {t("Sauvegarder et quitter", "Save and exit")}
+          </button>
+        </div>
+
+        {/* ── Progression par section ──────────────────────────────────── */}
+        <div style={{ marginTop: 28, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: "16px 20px" }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>
+            {t("Progression par section", "Progress by section")}
+          </p>
+          {SECTIONS.map((s) => {
+            const sQs = applicable.filter(q => q.section === s.code);
+            if (sQs.length === 0) return null;
+            const answered = sQs.filter(q => answers[q.code] !== undefined && answers[q.code] !== null).length;
+            const pct = Math.round((answered / sQs.length) * 100);
+            return (
+              <div key={s.code} style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>
+                  <span>{s.icon} {lang === "fr" ? s.fr : s.en}</span>
+                  <span style={{ fontWeight: 600, color: pct === 100 ? "#16A34A" : "var(--text-secondary)" }}>{pct}%</span>
+                </div>
+                <div style={{ height: 4, background: "var(--border)", borderRadius: 100, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#16A34A" : "var(--et-red)", borderRadius: 100, transition: "width 300ms" }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
       </div>
-    </main>
+    </div>
   );
 }

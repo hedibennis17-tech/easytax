@@ -1679,3 +1679,118 @@ export const invitationsRelations = relations(invitations, ({ one }) => ({
     references: [preparerProfiles.id],
   }),
 }));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ÉTAPE 4.6 — QUESTIONNAIRE INTELLIGENT + MODULES + DOCUMENTS + PRÉPARATEUR
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─── MODULES DE DOSSIER ──────────────────────────────────────────────────────
+
+export const taxDossierModules = pgTable("tax_dossier_modules", {
+  id:            uuid("id").primaryKey().defaultRandom(),
+  userId:        varchar("user_id", { length: 255 }).notNull(),
+  taxReturnId:   uuid("tax_return_id").notNull().references(() => taxReturns.id),
+  moduleCode:    varchar("module_code", { length: 50 }).notNull(),
+  // Codes: EMPLOYMENT | SELF_EMPLOYED | SELF_EMPLOYED_UBER | SELF_EMPLOYED_LYFT
+  //        RENTAL | INVESTMENT | CRYPTO | FOREIGN | FAMILY | PENSION
+  isActive:      boolean("is_active").notNull().default(true),
+  instanceCount: integer("instance_count").notNull().default(1),
+  activatedAt:   timestamp("activated_at").notNull().defaultNow(),
+  deactivatedAt: timestamp("deactivated_at"),
+  metadata:      text("metadata"), // JSON: détails des instances
+  createdAt:     timestamp("created_at").notNull().defaultNow(),
+  updatedAt:     timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── DEMANDES DE DOCUMENTS ───────────────────────────────────────────────────
+
+export const documentRequests = pgTable("document_requests", {
+  id:                  uuid("id").primaryKey().defaultRandom(),
+  taxReturnId:         uuid("tax_return_id").notNull().references(() => taxReturns.id),
+  requestedByUserId:   varchar("requested_by_user_id", { length: 255 }).notNull(),
+  requestedToUserId:   varchar("requested_to_user_id", { length: 255 }).notNull(),
+  documentTypeCode:    varchar("document_type_code", { length: 50 }).notNull(),
+  descriptionFr:       text("description_fr"),
+  descriptionEn:       text("description_en"),
+  instanceLabel:       varchar("instance_label", { length: 255 }),
+  status:              varchar("status", { length: 30 }).notNull().default("pending"),
+  // pending | uploaded | fulfilled | cancelled
+  fulfilledDocumentId: uuid("fulfilled_document_id").references(() => fiscalDocuments.id),
+  dueDate:             timestamp("due_date"),
+  fulfilledAt:         timestamp("fulfilled_at"),
+  cancelledAt:         timestamp("cancelled_at"),
+  createdAt:           timestamp("created_at").notNull().defaultNow(),
+  updatedAt:           timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── MESSAGES PRÉPARATEUR ────────────────────────────────────────────────────
+
+export const preparerMessages = pgTable("preparer_messages", {
+  id:                   uuid("id").primaryKey().defaultRandom(),
+  taxReturnId:          uuid("tax_return_id").notNull().references(() => taxReturns.id),
+  fromUserId:           varchar("from_user_id", { length: 255 }).notNull(),
+  toUserId:             varchar("to_user_id", { length: 255 }).notNull(),
+  messageFr:            text("message_fr").notNull(),
+  messageEn:            text("message_en"),
+  messageType:          varchar("message_type", { length: 30 }).notNull().default("note"),
+  // note | document_request | correction_request | approval | question
+  relatedDocumentId:    uuid("related_document_id").references(() => fiscalDocuments.id),
+  relatedQuestionCode:  varchar("related_question_code", { length: 100 }),
+  isRead:               boolean("is_read").notNull().default(false),
+  readAt:               timestamp("read_at"),
+  createdAt:            timestamp("created_at").notNull().defaultNow(),
+});
+
+// ─── PROGRESSION DU DOSSIER ──────────────────────────────────────────────────
+
+export const dossierProgress = pgTable("dossier_progress", {
+  id:                 uuid("id").primaryKey().defaultRandom(),
+  userId:             varchar("user_id", { length: 255 }).notNull(),
+  taxReturnId:        uuid("tax_return_id").notNull().references(() => taxReturns.id).unique(),
+  // Pourcentages par section
+  identityPct:        integer("identity_pct").notNull().default(0),
+  employmentPct:      integer("employment_pct").notNull().default(0),
+  selfEmploymentPct:  integer("self_employment_pct").notNull().default(0),
+  investmentPct:      integer("investment_pct").notNull().default(0),
+  deductionsPct:      integer("deductions_pct").notNull().default(0),
+  familyPct:          integer("family_pct").notNull().default(0),
+  documentsPct:       integer("documents_pct").notNull().default(0),
+  validationPct:      integer("validation_pct").notNull().default(0),
+  globalPct:          integer("global_pct").notNull().default(0),
+  // Compteurs
+  questionsApplicable: integer("questions_applicable").notNull().default(0),
+  questionsAnswered:   integer("questions_answered").notNull().default(0),
+  documentsRequired:   integer("documents_required").notNull().default(0),
+  documentsReceived:   integer("documents_received").notNull().default(0),
+  documentsValidated:  integer("documents_validated").notNull().default(0),
+  itemsNeedsReview:    integer("items_needs_review").notNull().default(0),
+  // État
+  isReadyForCalc:     boolean("is_ready_for_calc").notNull().default(false),
+  blockingItems:      text("blocking_items"), // JSON
+  lastCalculatedAt:   timestamp("last_calculated_at").notNull().defaultNow(),
+  createdAt:          timestamp("created_at").notNull().defaultNow(),
+  updatedAt:          timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ─── RELATIONS 4.6 ───────────────────────────────────────────────────────────
+
+export const taxDossierModulesRelations = relations(taxDossierModules, ({ one }) => ({
+  taxReturn: one(taxReturns, {
+    fields: [taxDossierModules.taxReturnId],
+    references: [taxReturns.id],
+  }),
+}));
+
+export const documentRequestsRelations = relations(documentRequests, ({ one }) => ({
+  taxReturn:        one(taxReturns,       { fields: [documentRequests.taxReturnId],         references: [taxReturns.id] }),
+  fulfilledDocument: one(fiscalDocuments, { fields: [documentRequests.fulfilledDocumentId], references: [fiscalDocuments.id] }),
+}));
+
+export const preparerMessagesRelations = relations(preparerMessages, ({ one }) => ({
+  taxReturn:       one(taxReturns,      { fields: [preparerMessages.taxReturnId],       references: [taxReturns.id] }),
+  relatedDocument: one(fiscalDocuments, { fields: [preparerMessages.relatedDocumentId], references: [fiscalDocuments.id] }),
+}));
+
+export const dossierProgressRelations = relations(dossierProgress, ({ one }) => ({
+  taxReturn: one(taxReturns, { fields: [dossierProgress.taxReturnId], references: [taxReturns.id] }),
+}));
