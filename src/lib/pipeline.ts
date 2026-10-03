@@ -8,6 +8,7 @@ import { getOcrProvider } from "@/lib/ocr/provider";
 import { classifyDocument } from "@/lib/extractors/base";
 import { getExtractor } from "@/lib/extractors/t4";
 import { s3 } from "@/lib/storage";
+import { syncOcrToEntries } from "@/lib/ocr-to-entries";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 
 export type PipelineStatus = "started" | "ocr_completed" | "classified" | "extracted" | "needs_review" | "completed" | "failed";
@@ -19,6 +20,7 @@ export interface PipelineResult {
   needsHumanReview?: boolean;
   detectedType?: string;
   detectedYear?: number | null;
+  entriesCreated?: number;
   error?: string;
 }
 
@@ -119,6 +121,20 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
     await db.update(fiscalDocuments).set({ status: finalStatus, updatedAt: new Date() }).where(eq(fiscalDocuments.id, documentId));
     await db.insert(documentAuditLogs).values({ documentId, userId, action: "document_extraction_completed", metadata: JSON.stringify({ extractionId: extraction.id, fieldsCount: extractionResult?.fields.length ?? 0, confidence: extractionResult?.overallConfidence ?? 0 }) });
 
+    // ── LIAISON OCR → incomeEntries / deductionEntries / creditEntries ──
+    // Chercher le taxReturnId depuis la relation fiscalDocument.taxReturnId
+    let syncResult = { created: 0, skipped: 0, errors: [] as string[] };
+    if (doc.taxReturnId && classification.documentTypeCode) {
+      syncResult = await syncOcrToEntries({
+        extractionId: extraction.id,
+        documentId,
+        userId,
+        taxReturnId: doc.taxReturnId,
+        documentTypeCode: classification.documentTypeCode,
+        ocrText: ocrResult.fullText,
+      });
+    }
+
     return {
       status: extractionResult?.needsHumanReview ? "needs_review" : "completed",
       extractionId: extraction.id,
@@ -126,6 +142,7 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       needsHumanReview: extractionResult?.needsHumanReview ?? true,
       detectedType: classification.documentTypeCode ?? undefined,
       detectedYear: classification.detectedTaxYear,
+      entriesCreated: syncResult.created,
     };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : "Erreur inconnue";

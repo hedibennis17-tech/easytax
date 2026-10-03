@@ -299,6 +299,11 @@ export default function DossierPage() {
     setTotalSlots(total);
   }, [groups]);
 
+  // Sync automatique au chargement: lier les données OCR existantes aux entries
+  useEffect(() => {
+    fetch("/api/resume/sync-from-docs", { method: "POST" }).catch(() => {});
+  }, []);
+
   const addGroup = useCallback((type: typeof DOC_TYPES[0]) => {
     setShowPicker(false);
     const slotId = `${type.code}-${Date.now()}`;
@@ -370,6 +375,8 @@ export default function DossierPage() {
           : s
         ),
       })));
+      // Re-lier les données OCR aux entries après analyse
+      fetch("/api/resume/sync-from-docs", { method: "POST" }).catch(() => {});
     }, 1500);
   };
 
