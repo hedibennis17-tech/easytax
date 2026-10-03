@@ -610,25 +610,65 @@ export const MODULE_CREDITS: Question[] = [
 
 export const MODULE_QUEBEC: Question[] = [
   { id: "q1",  section: "ma_province", order: 1,  fr: "Province de résidence au 31 décembre 2025", en: "Province of residence on December 31, 2025", type: "SINGLE_CHOICE", required: true,
-    options: [{ value: "QC", fr: "Québec", en: "Quebec" }, { value: "other", fr: "Autre province", en: "Other province" }] },
-  { id: "q2",  section: "ma_province", order: 2,  fr: "Avez-vous versé des contributions politiques provinciales en 2025 ?", en: "Did you make provincial political contributions in 2025?", type: "BOOLEAN", required: false },
+    options: [
+      { value: "AB", fr: "Alberta", en: "Alberta" }, { value: "BC", fr: "Colombie-Britannique", en: "British Columbia" },
+      { value: "MB", fr: "Manitoba", en: "Manitoba" }, { value: "NB", fr: "Nouveau-Brunswick", en: "New Brunswick" },
+      { value: "NL", fr: "Terre-Neuve-et-Labrador", en: "Newfoundland and Labrador" }, { value: "NS", fr: "Nouvelle-Écosse", en: "Nova Scotia" },
+      { value: "NT", fr: "Territoires du Nord-Ouest", en: "Northwest Territories" }, { value: "NU", fr: "Nunavut", en: "Nunavut" },
+      { value: "ON", fr: "Ontario", en: "Ontario" }, { value: "PE", fr: "Île-du-Prince-Édouard", en: "Prince Edward Island" },
+      { value: "QC", fr: "Québec", en: "Quebec" }, { value: "SK", fr: "Saskatchewan", en: "Saskatchewan" },
+      { value: "YT", fr: "Yukon", en: "Yukon" },
+    ] },
+  { id: "q2",  section: "ma_province", order: 2,  fr: "Avez-vous versé des contributions politiques provinciales en 2025 ?", en: "Did you make provincial political contributions in 2025?", type: "BOOLEAN", required: false,
+    provinceOnly: ["QC"]
+  },
   { id: "q3",  section: "ma_province", order: 3,  fr: "Cotisation au RRQ : salarié (feuillets) ou travailleur autonome ?", en: "QPP contributions: employee (slips) or self-employed?", type: "SINGLE_CHOICE", required: false,
-    options: [{ value: "employee", fr: "Salarié (RL-1)", en: "Employee (RL-1)" }, { value: "self", fr: "Travailleur autonome (annexe U)", en: "Self-employed (Schedule U)" }] },
-  { id: "q4",  section: "ma_province", order: 4,  fr: "Avez-vous choisi de cesser de cotiser au RRQ (60 à 70 ans, CPT30) ?", en: "Did you elect to stop contributing to the QPP (ages 60-70, CPT30)?", type: "BOOLEAN", required: false },
+    options: [{ value: "employee", fr: "Salarié (RL-1)", en: "Employee (RL-1)" }, { value: "self", fr: "Travailleur autonome (annexe U)", en: "Self-employed (Schedule U)" }],
+    provinceOnly: ["QC"]
+  },
+  { id: "q4",  section: "ma_province", order: 4,  fr: "Avez-vous choisi de cesser de cotiser au RRQ (60 à 70 ans, CPT30) ?", en: "Did you elect to stop contributing to the QPP (ages 60-70, CPT30)?", type: "BOOLEAN", required: false,
+    provinceOnly: ["QC"]
+  },
   { id: "q5",  section: "ma_province", order: 5,  fr: "Cotisation au RQAP : salarié (RL-1) ou travailleur autonome/hors Québec ?", en: "QPIP premiums: employee (RL-1) or self-employed/outside Québec?", type: "SINGLE_CHOICE", required: false,
-    options: [{ value: "employee", fr: "Salarié (RL-1)", en: "Employee (RL-1)" }, { value: "self", fr: "Travailleur autonome", en: "Self-employed" }] },
-  { id: "q6",  section: "ma_province", order: 6,  fr: "Assurance médicaments du Québec : couvert TOUTE l'année par une assurance privée ?", en: "Québec drug insurance: covered ALL year by private insurance?", type: "BOOLEAN", required: false },
-  { id: "q7",  section: "ma_province", order: 7,  fr: "Avez-vous payé une prime à l'assurance médicaments du Québec en 2025 ?", en: "Did you pay a Québec drug insurance premium in 2025?", type: "MONEY", required: false, placeholder: "0,00 $" },
-  { id: "q8",  section: "ma_province", order: 8,  fr: "Contribution santé 2025 (revenu net entre 18 130 $ et 150 000 $)", en: "Health contribution 2025 (net income between $18,130 and $150,000)", type: "MONEY", required: false, placeholder: "0,00 $" },
-  { id: "q9",  section: "ma_province", order: 9,  fr: "Avez-vous payé un loyer au Québec en 2025 ?", en: "Did you pay rent in Québec in 2025?", type: "MONEY", required: false, placeholder: "0,00 $ (montant annuel)", hint: "Pour le crédit de solidarité" },
-  { id: "q10", section: "ma_province", order: 10, fr: "Avez-vous payé des taxes foncières au Québec en 2025 ?", en: "Did you pay property taxes in Québec in 2025?", type: "MONEY", required: false, placeholder: "0,00 $", hint: "Pour le crédit de solidarité" },
-  { id: "q11", section: "ma_province", order: 11, fr: "Avez-vous demandé le crédit pour maintien à domicile (personne de 70 ans ou plus) ?", en: "Are you claiming the home support credit (70 years or older)?", type: "BOOLEAN", required: false },
-  { id: "q12", section: "ma_province", order: 12, fr: "Avez-vous des actions admissibles du Fonds de solidarité FTQ ou Fondaction ?", en: "Do you have eligible shares in the FTQ Solidarity Fund or Fondaction?", type: "MONEY", required: false, placeholder: "0,00 $" },
-  { id: "q13", section: "ma_province", order: 13, fr: "Avez-vous fait des dons à des organismes culturels ou de bienfaisance (reçus TP-726.8.1) ?", en: "Did you make donations to cultural or charitable organizations (TP-726.8.1)?", type: "BOOLEAN", required: false },
-  { id: "q14", section: "ma_province", order: 14, fr: "Avez-vous engagé des frais pour rénovation écoresponsable (RénoVert ou LogisVert) ?", en: "Did you incur eco-responsible renovation expenses (RénoVert or LogisVert)?", type: "MONEY", required: false, placeholder: "0,00 $" },
-  { id: "q15", section: "ma_province", order: 15, fr: "Frais de scolarité québécois (relevé 8) non encore demandés", en: "Québec tuition fees (relevé 8) not yet claimed", type: "MONEY", required: false, placeholder: "0,00 $" },
-  { id: "q16", section: "ma_province", order: 16, fr: "Crédit pour les travailleurs d'expérience (55 ans ou plus, revenu de travail)", en: "Credit for experienced workers (55 years or older, work income)", type: "BOOLEAN", required: false },
-  { id: "q17", section: "ma_province", order: 17, fr: "Remboursement de l'impôt des particuliers du Québec retenu à la source", en: "Québec personal income tax withheld at source", type: "MONEY", required: false, placeholder: "0,00 $" },
+    options: [{ value: "employee", fr: "Salarié (RL-1)", en: "Employee (RL-1)" }, { value: "self", fr: "Travailleur autonome", en: "Self-employed" }],
+    provinceOnly: ["QC"]
+  },
+  { id: "q6",  section: "ma_province", order: 6,  fr: "Assurance médicaments du Québec : couvert TOUTE l'année par une assurance privée ?", en: "Québec drug insurance: covered ALL year by private insurance?", type: "BOOLEAN", required: false,
+    provinceOnly: ["QC"]
+  },
+  { id: "q7",  section: "ma_province", order: 7,  fr: "Avez-vous payé une prime à l'assurance médicaments du Québec en 2025 ?", en: "Did you pay a Québec drug insurance premium in 2025?", type: "MONEY", required: false, placeholder: "0,00 $",
+    provinceOnly: ["QC"]
+  },
+  { id: "q8",  section: "ma_province", order: 8,  fr: "Contribution santé 2025 (revenu net entre 18 130 $ et 150 000 $)", en: "Health contribution 2025 (net income between $18,130 and $150,000)", type: "MONEY", required: false, placeholder: "0,00 $",
+    provinceOnly: ["QC"]
+  },
+  { id: "q9",  section: "ma_province", order: 9,  fr: "Avez-vous payé un loyer au Québec en 2025 ?", en: "Did you pay rent in Québec in 2025?", type: "MONEY", required: false, placeholder: "0,00 $ (montant annuel)", hint: "Pour le crédit de solidarité",
+    provinceOnly: ["QC"]
+  },
+  { id: "q10", section: "ma_province", order: 10, fr: "Avez-vous payé des taxes foncières au Québec en 2025 ?", en: "Did you pay property taxes in Québec in 2025?", type: "MONEY", required: false, placeholder: "0,00 $", hint: "Pour le crédit de solidarité",
+    provinceOnly: ["QC"]
+  },
+  { id: "q11", section: "ma_province", order: 11, fr: "Avez-vous demandé le crédit pour maintien à domicile (personne de 70 ans ou plus) ?", en: "Are you claiming the home support credit (70 years or older)?", type: "BOOLEAN", required: false,
+    provinceOnly: ["QC"]
+  },
+  { id: "q12", section: "ma_province", order: 12, fr: "Avez-vous des actions admissibles du Fonds de solidarité FTQ ou Fondaction ?", en: "Do you have eligible shares in the FTQ Solidarity Fund or Fondaction?", type: "MONEY", required: false, placeholder: "0,00 $",
+    provinceOnly: ["QC"]
+  },
+  { id: "q13", section: "ma_province", order: 13, fr: "Avez-vous fait des dons à des organismes culturels ou de bienfaisance (reçus TP-726.8.1) ?", en: "Did you make donations to cultural or charitable organizations (TP-726.8.1)?", type: "BOOLEAN", required: false,
+    provinceOnly: ["QC"]
+  },
+  { id: "q14", section: "ma_province", order: 14, fr: "Avez-vous engagé des frais pour rénovation écoresponsable (RénoVert ou LogisVert) ?", en: "Did you incur eco-responsible renovation expenses (RénoVert or LogisVert)?", type: "MONEY", required: false, placeholder: "0,00 $",
+    provinceOnly: ["QC"]
+  },
+  { id: "q15", section: "ma_province", order: 15, fr: "Frais de scolarité québécois (relevé 8) non encore demandés", en: "Québec tuition fees (relevé 8) not yet claimed", type: "MONEY", required: false, placeholder: "0,00 $",
+    provinceOnly: ["QC"]
+  },
+  { id: "q16", section: "ma_province", order: 16, fr: "Crédit pour les travailleurs d'expérience (55 ans ou plus, revenu de travail)", en: "Credit for experienced workers (55 years or older, work income)", type: "BOOLEAN", required: false,
+    provinceOnly: ["QC"]
+  },
+  { id: "q17", section: "ma_province", order: 17, fr: "Remboursement de l'impôt des particuliers du Québec retenu à la source", en: "Québec personal income tax withheld at source", type: "MONEY", required: false, placeholder: "0,00 $",
+    provinceOnly: ["QC"]
+  },
 ];
 
 // ─── MODULE DOCUMENTS (7 questions) ─────────────────────────────────────────
