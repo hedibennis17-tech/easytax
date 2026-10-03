@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useApp } from "@/components/ThemeProvider";
 import { useRouter } from "next/navigation";
 import { NavClient } from "@/components/NavClient";
 import { saveDraftLocal, loadDraftLocal, formatLastSaved } from "@/lib/draft";
@@ -46,7 +47,7 @@ function FieldBoolean({ value, onChange }: { value: boolean | null; onChange: (v
 }
 
 // ── Champ SINGLE_CHOICE ───────────────────────────────────────────────────
-function FieldSingle({ q, value, onChange }: { q: Question; value: string; onChange: (v: string) => void }) {
+function FieldSingle({ q, value, onChange, lang = "fr" }: { q: Question; value: string; onChange: (v: string) => void; lang?: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
       {(q.options ?? []).map(opt => (
@@ -62,7 +63,7 @@ function FieldSingle({ q, value, onChange }: { q: Question; value: string; onCha
             cursor: "pointer", transition: "all 120ms",
           }}
         >
-          {opt.fr}
+          {lang === "en" ? opt.en : opt.fr}
         </button>
       ))}
     </div>
@@ -70,7 +71,7 @@ function FieldSingle({ q, value, onChange }: { q: Question; value: string; onCha
 }
 
 // ── Champ MULTI_CHOICE ────────────────────────────────────────────────────
-function FieldMulti({ q, value, onChange }: { q: Question; value: string[]; onChange: (v: string[]) => void }) {
+function FieldMulti({ q, value, onChange, lang = "fr" }: { q: Question; value: string[]; onChange: (v: string[]) => void; lang?: string }) {
   const toggle = (v: string) => onChange(value.includes(v) ? value.filter(x => x !== v) : [...value, v]);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
@@ -97,7 +98,7 @@ function FieldMulti({ q, value, onChange }: { q: Question; value: string[]; onCh
             }}>
               {checked && <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}
             </span>
-            {opt.fr}
+            {lang === "en" ? opt.en : opt.fr}
           </button>
         );
       })}
@@ -287,6 +288,7 @@ function FieldPerson({ q, onConfirm }: { q: Question; onConfirm: () => void }) {
 // ── PAGE PRINCIPALE ────────────────────────────────────────────────────────
 export default function QuestionnairePage() {
   const router = useRouter();
+  const { lang } = useApp();
   const [answers, setAnswers]     = useState<Record<string, unknown>>({});
   const [textVal,  setTextVal]    = useState("");
   const [numVal,   setNumVal]     = useState("");
@@ -330,9 +332,8 @@ export default function QuestionnairePage() {
     }).catch(() => {});
   }, [router]);
 
-  // Province détectée depuis la question pancanadienne de résidence.
-  const userProvince = (answers["q1"] as string) ??
-                       (answers["province"] as string) ??
+  // Province détectée (depuis le profil ou les réponses du triage)
+  const userProvince = (answers["province"] as string) ??
                        (answers["profil_province"] as string) ?? null;
 
   // ── Filtre provinceOnly — exclure les questions d'autres provinces ────────
@@ -350,23 +351,14 @@ export default function QuestionnairePage() {
 
   // Questions visibles dans la section courante (incluant triage en arrière-plan)
   const ALL_QUESTIONS = getAllQuestionsWithProvince();
-  const isSectionVisible = (sectionCode: string) => {
-    const section = INDIVIDUAL_SECTIONS.find(s => s.code === sectionCode);
-    return Boolean(section && (section.alwaysShow || evalCond((section as { showIf?: string }).showIf, answers)));
-  };
-  const isQuestionApplicable = (q: Question) =>
-    (q.section === "triage" || isSectionVisible(q.section)) &&
-    evalCond(q.showIf, answers) &&
-    (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince));
-  // Une seule source de vérité pour le total du haut et les compteurs de sections.
-  const allApplicable = ALL_QUESTIONS.filter(isQuestionApplicable);
+  const allApplicable = ALL_QUESTIONS.filter(q => evalCond(q.showIf, answers) && (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)));
   const sectionQs = ALL_QUESTIONS
-    .filter(q => (q.section === currentSection?.code || q.section === "triage") && isQuestionApplicable(q))
+    .filter(q => (q.section === currentSection?.code || q.section === "triage") && evalCond(q.showIf, answers))
     .sort((a, b) => a.order - b.order);
 
   // Questions de la section courante seulement (pas triage)
   const curSectionQs = ALL_QUESTIONS
-    .filter(q => q.section === currentSection?.code && isQuestionApplicable(q))
+    .filter(q => q.section === currentSection?.code && evalCond(q.showIf, answers) && (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)))
     .sort((a, b) => a.order - b.order);
 
   // Si on est au début, montrer triage d'abord
@@ -381,22 +373,22 @@ export default function QuestionnairePage() {
   const triageApplicable = triageQs.length; // toujours 6
   const sectionApplicable = allApplicable.filter(q => q.section !== "triage").length;
   const totalApplicable = triageApplicable + sectionApplicable;
-  const totalAnswered = allApplicable.filter(q => answers[q.id] !== undefined && answers[q.id] !== null).length;
+  const totalAnswered = Object.keys(answers).length;
   const globalPct = totalApplicable > 0 ? Math.min(99, Math.round((totalAnswered / totalApplicable) * 100)) : 0;
 
   // Progression par section (sans triage)
   // Progression triage en premier
   const triageProgress = {
-    code: "triage", fr: "Triage", icon: "🧭",
+    code: "triage", fr: "Triage", en: "Triage", icon: "🧭",
     total: triageQs.length,
     answered: triageQs.filter(q => answers[q.id] !== undefined).length,
     pct: triageQs.length > 0 ? Math.round((triageQs.filter(q => answers[q.id] !== undefined).length / triageQs.length) * 100) : 0,
   };
 
   const sectionProgress = [triageProgress, ...visibleSections.map(s => {
-    const sQs = ALL_QUESTIONS.filter(q => q.section === s.code && isQuestionApplicable(q));
-    const answered = sQs.filter(q => answers[q.id] !== undefined && answers[q.id] !== null).length;
-    return { code: s.code, fr: s.fr, icon: s.icon, total: sQs.length, answered, pct: sQs.length > 0 ? Math.round((answered / sQs.length) * 100) : 0 };
+    const sQs = ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === s.code && evalCond(q.showIf, answers));
+    const answered = sQs.filter(q => answers[q.id] !== undefined).length;
+    return { code: s.code, fr: s.fr, en: s.en, icon: s.icon, total: sQs.length, answered, pct: sQs.length > 0 ? Math.round((answered / sQs.length) * 100) : 0 };
   })];
 
   const resetInput = () => { setTextVal(""); setNumVal(""); setDateVal(""); setMultiVal([]); };
@@ -504,7 +496,7 @@ export default function QuestionnairePage() {
             <span>
               {!triageDone
                 ? "Quelques questions rapides pour commencer"
-                : `${currentSection?.icon ?? ""} ${currentSection?.fr ?? ""} — Déclaration 2025`}
+                : `${currentSection?.icon ?? ""} ${lang === "en" ? (currentSection?.en ?? "") : (currentSection?.fr ?? "")} — ${lang === "en" ? "Tax Return 2025" : "Déclaration 2025"}`}
             </span>
             <span style={{ fontWeight: 700, color: "#0b6b67" }}>{globalPct}%</span>
           </div>
@@ -580,12 +572,12 @@ export default function QuestionnairePage() {
 
             {/* Question */}
             <h2 style={{ fontSize: 16, fontWeight: 700, color: "#0f1f1e", margin: "0 0 8px", lineHeight: 1.4 }}>
-              {currentQ.fr}
+              {lang === "en" ? currentQ.en : currentQ.fr}
             </h2>
 
             {/* Hint */}
-            {currentQ.hint && (
-              <p style={{ fontSize: 12, color: "#7a9c97", margin: "0 0 16px", lineHeight: 1.5 }}>{currentQ.hint}</p>
+            {(lang === "en" ? (currentQ.hintEn ?? currentQ.hint) : currentQ.hint) && (
+              <p style={{ fontSize: 12, color: "#7a9c97", margin: "0 0 16px", lineHeight: 1.5 }}>{lang === "en" ? (currentQ.hintEn ?? currentQ.hint) : currentQ.hint}</p>
             )}
 
             {/* Badge document requis */}
@@ -712,7 +704,7 @@ export default function QuestionnairePage() {
             {sectionProgress.filter(s => s.total > 0).map(s => (
               <div key={s.code} style={{ marginBottom: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#526865", marginBottom: 3 }}>
-                  <span>{s.icon} {s.fr}</span>
+                  <span>{s.icon} {lang === "en" ? s.en : s.fr}</span>
                   <span style={{ fontWeight: 600, color: s.pct === 100 ? "#059669" : "#526865" }}>
                     {s.answered}/{s.total}
                   </span>

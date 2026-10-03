@@ -5,7 +5,8 @@
  * Bibliothèque SÉPARÉE — jamais mélangée avec le questionnaire individuel
  */
 
-import type { Question } from "./questionnaire-individual";
+import type { Question, QuestionOption } from "./questionnaire-individual";
+export type { Question };
 
 // ─── TRIAGE ENTREPRISE (3 questions) ─────────────────────────────────────────
 
