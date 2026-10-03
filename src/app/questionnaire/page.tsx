@@ -30,6 +30,22 @@ type Lang = "fr" | "en";
 export default function QuestionnairePage() {
   const router = useRouter();
   const [lang] = useState<Lang>("fr");
+
+  // Redirect admin vers /admin — le questionnaire est pour les INDIVIDUAL uniquement
+  useEffect(() => {
+    fetch("/api/user/me")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.role && ["ADMIN", "SUPER_ADMIN", "BUSINESS", "PREPARER"].includes(data.role)) {
+          const redirectMap: Record<string, string> = {
+            ADMIN: "/admin", SUPER_ADMIN: "/admin",
+            BUSINESS: "/business", PREPARER: "/preparer",
+          };
+          router.replace(redirectMap[data.role] ?? "/dashboard");
+        }
+      })
+      .catch(() => {});
+  }, [router]);
   const t = (fr: string, en: string) => lang === "fr" ? fr : en;
 
   // État principal
