@@ -36,6 +36,10 @@ export default async function DashboardPage() {
       easyTaxUser = rows[0];
       // Onboarding pas encore complété → wizard
       if (!easyTaxUser.onboardingCompleted) redirect("/onboarding");
+      // Onboarding complété MAIS tax_profile manquant (compte créé avant le wizard)
+      const profileCheck = await db.select({ id: taxProfiles.id })
+        .from(taxProfiles).where(eq(taxProfiles.userId, clerkUserId)).limit(1);
+      if (!profileCheck[0]) redirect("/onboarding");
       await db.update(users).set({ lastSignInAt: new Date(), updatedAt: new Date() }).where(eq(users.clerkUserId, clerkUserId));
     }
   } catch (e: unknown) {

@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { requireProfile } from "@/lib/require-profile";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { NavWrapper } from "@/components/NavWrapper";
@@ -88,6 +89,7 @@ export const DOCUMENT_TYPES = [
 ];
 
 export default async function DossierPage() {
+  await requireProfile();
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
