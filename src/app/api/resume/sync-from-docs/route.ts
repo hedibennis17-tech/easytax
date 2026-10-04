@@ -29,19 +29,31 @@ export async function POST() {
 
   if (!taxReturn) return NextResponse.json({ error: "Aucun dossier fiscal", created: 0 });
 
-  // Tous les documents avec une extraction complète
+  // Tous les documents avec une extraction complète (même sans taxReturnId sur le doc)
+  const { taxYears: taxYearsTable } = await import("@/db/schema");
+  const [year2025] = await db.select({ id: taxYearsTable.id })
+    .from(taxYearsTable).where(eq(taxYearsTable.year, 2025)).limit(1);
+
   const docs = await db.select({
     docId: fiscalDocuments.id,
     typeCode: documentTypes.code,
     extractionId: documentExtractions.id,
+    docTaxReturnId: fiscalDocuments.taxReturnId,
   }).from(fiscalDocuments)
     .innerJoin(documentExtractions, eq(documentExtractions.fiscalDocumentId, fiscalDocuments.id))
     .leftJoin(documentTypes, eq(fiscalDocuments.documentTypeId, documentTypes.id))
     .where(and(
       eq(fiscalDocuments.userId, clerkUserId),
-      eq(fiscalDocuments.taxReturnId, taxReturn.id),
       isNotNull(documentExtractions.extractedAt),
     ));
+
+  // Lier le taxReturnId manquant aux documents orphelins
+  for (const doc of docs.filter(d => !d.docTaxReturnId)) {
+    await db.update(fiscalDocuments)
+      .set({ taxReturnId: taxReturn.id, updatedAt: new Date() })
+      .where(eq(fiscalDocuments.id, doc.docId));
+    doc.docTaxReturnId = taxReturn.id;
+  }
 
   let totalCreated = 0;
   const results = [];

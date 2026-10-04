@@ -14,6 +14,8 @@ interface DocSlot {
   status: DocStatus;
   fileName?: string;
   progress?: number; // 0-100
+  documentId?: string;  // ID DB après upload réel
+  entriesCreated?: number; // Données OCR extraites
 }
 
 // ─── Types de documents ────────────────────────────────────────────────────
@@ -91,7 +93,14 @@ function DocBlock({
             <div style={{ fontSize: 11, color: "#0b6b67" }}>Analyse OCR en cours...</div>
           )}
           {slot.status === "done" && (
-            <div style={{ fontSize: 11, color: "#059669", fontWeight: 500 }}>{slot.fileName} · Analysé</div>
+            <div style={{ fontSize: 11, color: "#059669", fontWeight: 500 }}>
+              {slot.fileName} · Analysé
+              {slot.entriesCreated !== undefined && slot.entriesCreated > 0 && (
+                <span style={{ marginLeft: 6, background: "rgba(5,150,105,0.12)", color: "#059669", padding: "1px 6px", borderRadius: 100 }}>
+                  ✓ {slot.entriesCreated} donnée{slot.entriesCreated > 1 ? "s" : ""} extraite{slot.entriesCreated > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
           )}
           {slot.status === "error" && (
             <div style={{ fontSize: 11, color: "#dc2626" }}>Erreur — réessayer</div>
@@ -341,44 +350,111 @@ export default function DossierPage() {
     );
   }, []);
 
-  const handleUpload = useCallback((id: string, file: File) => {
-    // Phase 1: uploading
-    setGroups(g => g.map(x => ({
-      ...x,
-      slots: x.slots.map(s => s.id === id ? { ...s, status: "uploading" as DocStatus, progress: 0 } : s),
-    })));
+  const handleUpload = useCallback(async (id: string, file: File) => {
+    // Trouver le typeCode du slot
+    let typeCode = "OTHER";
+    setGroups(g => {
+      for (const grp of g) {
+        const slot = grp.slots.find(s => s.id === id);
+        if (slot) { typeCode = slot.typeCode; break; }
+      }
+      return g.map(x => ({
+        ...x,
+        slots: x.slots.map(s => s.id === id
+          ? { ...s, status: "uploading" as DocStatus, progress: 10 }
+          : s
+        ),
+      }));
+    });
 
-    // Simuler upload avec progression
-    let prog = 0;
-    const interval = setInterval(() => {
-      prog += 25;
+    try {
+      // ── ÉTAPE 1: Upload réel vers S3 via /api/documents/upload ────────
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("documentTypeCode", typeCode);
+
       setGroups(g => g.map(x => ({
         ...x,
-        slots: x.slots.map(s => s.id === id ? { ...s, progress: Math.min(prog, 90) } : s),
+        slots: x.slots.map(s => s.id === id ? { ...s, progress: 40 } : s),
       })));
-      if (prog >= 90) { clearInterval(interval); startAnalyzing(id, file); }
-    }, 300);
-  }, []);
 
-  const startAnalyzing = (id: string, file: File) => {
-    setGroups(g => g.map(x => ({
-      ...x,
-      slots: x.slots.map(s => s.id === id ? { ...s, status: "analyzing" as DocStatus, progress: 95 } : s),
-    })));
+      const uploadRes = await fetch("/api/documents/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-    // Simuler l'analyse OCR
-    setTimeout(() => {
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({ error: "Erreur upload" })) as { error?: string };
+        if ((err as { error?: string }).error === "duplicate_detected") {
+          // Doublon — on le marque quand même comme done
+          setGroups(g => g.map(x => ({
+            ...x,
+            slots: x.slots.map(s => s.id === id
+              ? { ...s, status: "done" as DocStatus, progress: 100, fileName: file.name }
+              : s
+            ),
+          })));
+          return;
+        }
+        throw new Error((err as { error?: string }).error ?? "Erreur upload");
+      }
+
+      const uploaded = await uploadRes.json() as { id: string };
+      const documentId = uploaded.id;
+
+      // ── ÉTAPE 2: OCR + Extraction via /api/documents/[id]/process ─────
       setGroups(g => g.map(x => ({
         ...x,
         slots: x.slots.map(s => s.id === id
-          ? { ...s, status: "done" as DocStatus, progress: 100, fileName: file.name }
+          ? { ...s, status: "analyzing" as DocStatus, progress: 65 }
           : s
         ),
       })));
-      // Re-lier les données OCR aux entries après analyse
-      fetch("/api/resume/sync-from-docs", { method: "POST" }).catch(() => {});
-    }, 1500);
-  };
+
+      const processRes = await fetch(`/api/documents/${documentId}/process`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taxYear: 2025 }),
+      });
+
+      // ── ÉTAPE 3: Sync OCR → incomeEntries ──────────────────────────────
+      setGroups(g => g.map(x => ({
+        ...x,
+        slots: x.slots.map(s => s.id === id ? { ...s, progress: 90 } : s),
+      })));
+
+      await fetch("/api/resume/sync-from-docs", { method: "POST" }).catch(() => {});
+
+      // ── SUCCÈS ─────────────────────────────────────────────────────────
+      const processResult = processRes.ok ? await processRes.json().catch(() => ({})) as Record<string, unknown> : {};
+      const entriesCreated = (processResult.entriesCreated as number) ?? 0;
+
+      setGroups(g => g.map(x => ({
+        ...x,
+        slots: x.slots.map(s => s.id === id
+          ? {
+              ...s,
+              status: "done" as DocStatus,
+              progress: 100,
+              fileName: file.name,
+              documentId,
+              entriesCreated,
+            }
+          : s
+        ),
+      })));
+
+    } catch (err) {
+      console.error("[upload] Erreur:", err);
+      setGroups(g => g.map(x => ({
+        ...x,
+        slots: x.slots.map(s => s.id === id
+          ? { ...s, status: "error" as DocStatus, progress: 0 }
+          : s
+        ),
+      })));
+    }
+  }, []);
 
   const docsPct = totalSlots > 0 ? Math.round((totalDone / totalSlots) * 100) : 0;
 

@@ -13,7 +13,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
  * Auto-provisionne le profil fiscal + l'année 2025 si absents.
  * Appelé au premier upload — zéro friction pour le client.
  */
-async function ensureTaxProfile(clerkUserId: string): Promise<{ profileId: string; yearId: string }> {
+async function ensureTaxProfile(clerkUserId: string): Promise<{ profileId: string; yearId: string; taxReturnId: string }> {
   // 1. Assurer que l'user EasyTax existe
   let easyTaxUser = await db.select({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName })
     .from(users).where(eq(users.clerkUserId, clerkUserId)).limit(1).then(r => r[0] ?? null);
@@ -62,7 +62,25 @@ async function ensureTaxProfile(clerkUserId: string): Promise<{ profileId: strin
     year = created;
   }
 
-  return { profileId: profile.id, yearId: year.id };
+  // 4. Assurer qu'un taxReturn existe pour 2025
+  const { taxReturns } = await import("@/db/schema");
+  let taxReturn = await db.select({ id: taxReturns.id })
+    .from(taxReturns)
+    .where(and(eq(taxReturns.profileId, profile.id), eq(taxReturns.taxYearId, year.id)))
+    .limit(1).then(r => r[0] ?? null);
+
+  if (!taxReturn) {
+    const [created] = await db.insert(taxReturns).values({
+      profileId: profile.id,
+      taxYearId: year.id,
+      status: "in_progress",
+      federalStatus: "draft",
+      quebecStatus: "draft",
+    }).returning({ id: taxReturns.id });
+    taxReturn = created;
+  }
+
+  return { profileId: profile.id, yearId: year.id, taxReturnId: taxReturn.id };
 }
 
 export async function POST(req: NextRequest) {
@@ -87,8 +105,9 @@ export async function POST(req: NextRequest) {
   if (!validation.valid) return NextResponse.json({ error: validation.error }, { status: 400 });
 
   // ── Auto-provisioning profil + année ──────────────────────────────────────
-  const { profileId, yearId } = await ensureTaxProfile(clerkUserId);
+  const { profileId, yearId, taxReturnId: autoTaxReturnId } = await ensureTaxProfile(clerkUserId);
   const taxYearId = taxYearIdParam ?? yearId;
+  const effectiveTaxReturnId = taxReturnId ?? autoTaxReturnId;
 
   // ── Type de document ──────────────────────────────────────────────────────
   const docType = await db.select({ id: documentTypes.id })
@@ -144,7 +163,7 @@ export async function POST(req: NextRequest) {
     userId:         clerkUserId,
     taxProfileId:   profileId,
     taxYearId,
-    taxReturnId:    taxReturnId ?? undefined,
+    taxReturnId:    effectiveTaxReturnId ?? undefined,
     documentTypeId: docType[0].id,
     originalFilename: file.name,
     mimeType:       file.type,
@@ -166,7 +185,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     id: created.id,
     status: created.status,
+    taxReturnId: effectiveTaxReturnId,
     message: "Document ajouté.",
-    profileCreated: !profileId, // flag pour le front
   }, { status: 201 });
 }
