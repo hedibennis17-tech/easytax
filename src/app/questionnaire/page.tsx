@@ -323,11 +323,11 @@ function DocumentUploadSection({
       form.append("file", file);
       form.append("documentTypeCode", typeCode);
       const upRes = await fetch("/api/documents/upload", { method: "POST", body: form });
+      const upData = await upRes.json().catch(() => ({})) as { id?: string; taxReturnId?: string; error?: string };
       if (!upRes.ok) {
-        const err = await upRes.json().catch(() => ({})) as { error?: string };
-        if (err.error !== "duplicate_detected") throw new Error(err.error ?? "Erreur upload");
+        if (upData.error !== "duplicate_detected") throw new Error(upData.error ?? "Erreur upload");
       }
-      const upData = await upRes.json() as { id: string; taxReturnId?: string };
+      if (!upData.id) throw new Error("ID document manquant");
 
       // OCR
       setStep("ocr");
@@ -373,12 +373,15 @@ function DocumentUploadSection({
   return (
     <div>
       {/* Feuillets déjà extraits */}
-      {ocrSlips.length > 0 && (
+      {ocrSlips.filter(s => s.typeCode !== "OTHER" && s.fields.some(f => f.value && f.value.trim() !== "" && f.value !== "—")).length > 0 && (
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#9fd4cc", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
             ✓ {T("Feuillets déjà traités","Slips already processed")}
           </div>
-          {ocrSlips.map((slip, i) => (
+          {ocrSlips.filter(slip =>
+            slip.typeCode !== "OTHER" &&
+            slip.fields.some(f => f.value && f.value !== "—" && f.value.trim() !== "")
+          ).map((slip, i) => (
             <div key={i} style={{ background: "rgba(11,107,103,0.04)", border: "1px solid rgba(11,107,103,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 6 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: slip.fields.length > 0 ? 8 : 0 }}>
                 <div>
@@ -798,9 +801,11 @@ export default function QuestionnairePage() {
                 if (next < visibleSections.length) { setSecIdx(next); setQIdx(0); }
               }}
               style={{ width: "100%", marginTop: 14, padding: "12px 0", borderRadius: 9, fontSize: 14, fontWeight: 700, background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer" }}>
-              {lang === "en"
-                ? (ocrSlips.length > 0 ? "Continue to profile →" : "Skip — continue to profile →")
-                : (ocrSlips.length > 0 ? "Continuer vers le profil →" : "Passer — continuer vers le profil →")}
+              {(() => {
+                const hasRealSlips = ocrSlips.filter(s => s.typeCode !== "OTHER" && s.fields.some(f => f.value && f.value.trim() !== "" && f.value !== "—")).length > 0;
+                if (lang === "en") return hasRealSlips ? "Continue to profile →" : "Skip — continue to profile →";
+                return hasRealSlips ? "Continuer vers le profil →" : "Passer — continuer vers le profil →";
+              })()}
             </button>
           </div>
         )}
