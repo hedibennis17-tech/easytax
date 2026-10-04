@@ -775,8 +775,38 @@ export default function QuestionnairePage() {
           })}
         </div>
 
+        {/* ── SECTION DOCUMENTS: upload inline ─────────────────── */}
+        {triageDone && currentSection?.code === "documents" && (
+          <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "20px 16px", marginBottom: 12, boxShadow: "0 1px 8px rgba(0,0,0,0.04)" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#9fd4cc", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>
+              📎 {lang === "en" ? "Tax slips & documents" : "Feuillets et documents fiscaux"}
+            </div>
+            <DocumentUploadSection
+              lang={lang}
+              ocrSlips={ocrSlips}
+              onPipelineDone={(newAnswers) => {
+                setAnswers(prev => ({ ...newAnswers, ...prev }));
+                setOcrAnswers(prev => ({ ...prev, ...newAnswers }));
+                // Avancer à la section profil automatiquement
+                const profilIdx = visibleSections.findIndex(s => s.code === "profil");
+                if (profilIdx >= 0) { setSecIdx(profilIdx); setQIdx(0); }
+              }}
+            />
+            <button
+              onClick={() => {
+                const next = secIdx + 1;
+                if (next < visibleSections.length) { setSecIdx(next); setQIdx(0); }
+              }}
+              style={{ width: "100%", marginTop: 14, padding: "12px 0", borderRadius: 9, fontSize: 14, fontWeight: 700, background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer" }}>
+              {lang === "en"
+                ? (ocrSlips.length > 0 ? "Continue to profile →" : "Skip — continue to profile →")
+                : (ocrSlips.length > 0 ? "Continuer vers le profil →" : "Passer — continuer vers le profil →")}
+            </button>
+          </div>
+        )}
+
         {/* ── Carte question ───────────────────────────────────── */}
-        {currentQ ? (
+        {(triageDone ? currentSection?.code !== "documents" : true) && currentQ ? (
           <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "22px 20px", boxShadow: "0 1px 8px rgba(0,0,0,0.04)", marginBottom: 12 }}>
 
             {/* Indicateur */}
@@ -884,20 +914,22 @@ export default function QuestionnairePage() {
             )}
           </div>
         ) : (
-          <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "28px 20px", textAlign: "center", marginBottom: 12 }}>
-            <div style={{ fontSize: 20, color: "#9fd4cc", marginBottom: 8 }}>✓</div>
-            <p style={{ color: "#526865", fontSize: 14 }}>Section complète ou non applicable.</p>
-            <button
-              onClick={() => {
-                const next = secIdx + 1;
-                if (next < visibleSections.length) { setSecIdx(next); setQIdx(0); }
-                else setDone(true);
-              }}
-              style={{ padding: "10px 22px", borderRadius: 9, fontSize: 13, fontWeight: 600, marginTop: 12, background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer" }}
-            >
-              Section suivante →
-            </button>
-          </div>
+          currentSection?.code !== "documents" ? (
+            <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "28px 20px", textAlign: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 20, color: "#9fd4cc", marginBottom: 8 }}>✓</div>
+              <p style={{ color: "#526865", fontSize: 14 }}>{lang === "en" ? "Section complete or not applicable." : "Section complète ou non applicable."}</p>
+              <button
+                onClick={() => {
+                  const next = secIdx + 1;
+                  if (next < visibleSections.length) { setSecIdx(next); setQIdx(0); }
+                  else setDone(true);
+                }}
+                style={{ padding: "10px 22px", borderRadius: 9, fontSize: 13, fontWeight: 600, marginTop: 12, background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer" }}
+              >
+                {lang === "en" ? "Next section →" : "Section suivante →"}
+              </button>
+            </div>
+          ) : null
         )}
 
         {/* ── Navigation ───────────────────────────────────────── */}
