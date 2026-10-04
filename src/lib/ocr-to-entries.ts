@@ -194,6 +194,9 @@ export async function syncOcrToEntries(params: {
 
         if (existing.length > 0) { skipped++; continue; }
 
+        // Auto-validation: les données T4/RL-1 sont des documents officiels émis par l'employeur.
+        // Case 14 (revenus d'emploi) = validée automatiquement.
+        const autoValidate = ["employment", "pension", "ei_benefits"].includes(mapping.category as string);
         await db.insert(incomeEntries).values({
           userId, taxProfileId, taxYearId,
           taxReturnId,
@@ -203,7 +206,7 @@ export async function syncOcrToEntries(params: {
           amountCents,
           description: mapping.labelFr,
           employerName: employerName ?? undefined,
-          isValidated: false, // L'utilisateur doit confirmer
+          isValidated: autoValidate,
         });
         created++;
 
@@ -227,7 +230,7 @@ export async function syncOcrToEntries(params: {
           sourceType: "validated_ocr",
           amountCents,
           description: mapping.labelFr,
-          isValidated: false,
+          isValidated: true, // Cotisations RPC/RRQ/AE = faits légaux auto-validés
         });
         created++;
 

@@ -58,5 +58,21 @@ export async function PATCH(req: NextRequest) {
     }).where(eq(extractionFields.id, id));
     return NextResponse.json({ ok: true });
   }
+  if (type === "validate_all_from_doc") {
+    const { documentId: docId } = body as unknown as { documentId: string };
+    if (docId) {
+      const now = new Date();
+      await Promise.all([
+        db.update(incomeEntries).set({ isValidated: true, updatedAt: now })
+          .where(and(eq(incomeEntries.userId, clerkUserId), eq(incomeEntries.sourceDocumentId, docId))),
+        db.update(deductionEntries).set({ isValidated: true, updatedAt: now })
+          .where(and(eq(deductionEntries.userId, clerkUserId), eq(deductionEntries.sourceDocumentId, docId))),
+        db.update(creditEntries).set({ isValidated: true, updatedAt: now })
+          .where(and(eq(creditEntries.userId, clerkUserId), eq(creditEntries.sourceDocumentId, docId))),
+      ]);
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   return NextResponse.json({ error: "Type inconnu" }, { status: 400 });
 }
