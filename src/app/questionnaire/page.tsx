@@ -5,11 +5,11 @@ import { useApp } from "@/components/ThemeProvider";
 import { useRouter } from "next/navigation";
 import { NavClient } from "@/components/NavClient";
 import { saveDraftLocal, loadDraftLocal, formatLastSaved } from "@/lib/draft";
+import { normalizeProvinceCode, type ProvinceCode } from "@/lib/provinces";
 import {
   ALL_INDIVIDUAL_QUESTIONS,
   getAllQuestionsWithProvince,
   INDIVIDUAL_SECTIONS,
-  getQuestionsForProvince,
   type Question,
 } from "@/lib/questionnaire-individual";
 
@@ -491,7 +491,7 @@ export default function QuestionnairePage() {
   const [done,       setDone]       = useState(false);
   const [lastSaved,  setLastSaved]  = useState<string>("");
   const [userId,     setUserId]     = useState<string>("guest");
-  const [profileProvince, setProfileProvince] = useState<string | null>(null);
+  const [profileProvince, setProfileProvince] = useState<ProvinceCode | null>(null);
   const TAX_YEAR = "2025";
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -501,8 +501,8 @@ export default function QuestionnairePage() {
       if (d?.id) setUserId(d.id);
     }).catch(() => {});
     fetch("/api/profile").then(r => r.ok ? r.json() : null).then(d => {
-      const province = d?.fiscalResidence ?? d?.province;
-      if (province) setProfileProvince(String(province));
+      const province = normalizeProvinceCode(d?.fiscalResidence) ?? normalizeProvinceCode(d?.province);
+      if (province) setProfileProvince(province);
       if (!d) return;
       setAnswers(prev => ({
         ...prev,
@@ -510,7 +510,7 @@ export default function QuestionnairePage() {
         ...(d.firstName ? { p2: d.firstName } : {}),
         ...(d.dateOfBirth ? { p4: String(d.dateOfBirth).slice(0, 10) } : {}),
         ...(d.address || d.city || d.province || d.postalCode ? {
-          p5: JSON.stringify([d.address ?? "", "", d.city ?? "", d.province ?? d.fiscalResidence ?? "", d.postalCode ?? ""]),
+          p5: JSON.stringify([d.address ?? "", "", d.city ?? "", province ?? "", d.postalCode ?? ""]),
         } : {}),
         ...(d.phone ? { p7: d.phone } : {}),
         ...(d.email ? { p8: d.email } : {}),
@@ -559,17 +559,17 @@ export default function QuestionnairePage() {
     }).catch(() => {});
   }, [router]);
 
-  // Province détectée (depuis le profil ou les réponses du triage)
+  // Priorité fiscale : résidence au 31 décembre, puis adresse du profil, puis réponse du client.
   const userProvince = profileProvince ??
-                       (answers["taxProvince"] as string) ??
-                       (answers["province"] as string) ??
-                       (answers["profil_province"] as string) ?? null;
+                       normalizeProvinceCode(answers["p14"]) ??
+                       normalizeProvinceCode(answers["q1"]) ??
+                       normalizeProvinceCode(answers["taxProvince"]) ??
+                       normalizeProvinceCode(answers["province"]) ??
+                       normalizeProvinceCode(answers["profil_province"]);
 
-  // ── Filtre provinceOnly — exclure les questions d'autres provinces ────────
-  const filterByProvince = (questions: Question[]) =>
-    questions.filter(q =>
-      !q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)
-    );
+  // Une province inconnue n'autorise jamais l'affichage des questions de toutes les provinces.
+  const isQuestionApplicable = (question: Question) =>
+    !question.provinceOnly || (userProvince !== null && question.provinceOnly.includes(userProvince));
 
   // Sections visibles (triage caché)
   const visibleSections = INDIVIDUAL_SECTIONS.filter(s =>
@@ -580,14 +580,14 @@ export default function QuestionnairePage() {
 
   // Questions visibles dans la section courante (incluant triage en arrière-plan)
   const ALL_QUESTIONS = getAllQuestionsWithProvince();
-  const allApplicable = ALL_QUESTIONS.filter(q => evalCond(q.showIf, answers) && (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)));
+  const allApplicable = ALL_QUESTIONS.filter(q => evalCond(q.showIf, answers) && isQuestionApplicable(q));
   const sectionQs = ALL_QUESTIONS
-    .filter(q => (q.section === currentSection?.code || q.section === "triage") && evalCond(q.showIf, answers) && (!q.provinceOnly || (userProvince && q.provinceOnly.includes(userProvince))))
+    .filter(q => (q.section === currentSection?.code || q.section === "triage") && evalCond(q.showIf, answers) && isQuestionApplicable(q))
     .sort((a, b) => a.order - b.order);
 
   // Questions de la section courante seulement (pas triage)
   const curSectionQs = ALL_QUESTIONS
-    .filter(q => q.section === currentSection?.code && answers[q.id] === undefined && evalCond(q.showIf, answers) && (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)))
+    .filter(q => q.section === currentSection?.code && answers[q.id] === undefined && evalCond(q.showIf, answers) && isQuestionApplicable(q))
     .sort((a, b) => a.order - b.order);
 
   // Si on est au début, montrer triage d'abord
@@ -607,7 +607,7 @@ export default function QuestionnairePage() {
     q.section !== "triage" &&
     visibleSectionCodes.has(q.section) &&
     evalCond(q.showIf, answers) &&
-    (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince))
+    isQuestionApplicable(q)
   ).length;
   const totalApplicable = triageApplicable + sectionApplicable;
   // totalAnswered: compter seulement les réponses aux questions applicables
@@ -617,7 +617,7 @@ export default function QuestionnairePage() {
       q.section !== "triage" &&
       visibleSectionCodes.has(q.section) &&
       evalCond(q.showIf, answers) &&
-      (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince))
+      isQuestionApplicable(q)
     ).map(q => q.id),
   ]);
   const totalAnswered = Object.keys(answers).filter(id => applicableIds.has(id)).length;
@@ -637,7 +637,7 @@ export default function QuestionnairePage() {
     const sQs = ALL_QUESTIONS.filter(q =>
       q.section === s.code &&
       evalCond(q.showIf, answers) &&
-      (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince))
+      isQuestionApplicable(q)
     );
     const answered = sQs.filter(q => answers[q.id] !== undefined).length;
     return { code: s.code, fr: s.fr, en: s.en, icon: s.icon, total: sQs.length, answered, pct: sQs.length > 0 ? Math.round((answered / sQs.length) * 100) : 0 };
@@ -675,7 +675,7 @@ export default function QuestionnairePage() {
     // Recalculer les questions après la réponse
     const newTriageDone = triageQs.every(q => newAnswers[q.id] !== undefined);
     const newDisplayQs = !newTriageDone ? triageQs
-      : ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === currentSection?.code && newAnswers[q.id] === undefined && evalCond(q.showIf, newAnswers) && (!q.provinceOnly || (userProvince && q.provinceOnly.includes(userProvince)))).sort((a, b) => a.order - b.order);
+      : ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === currentSection?.code && newAnswers[q.id] === undefined && evalCond(q.showIf, newAnswers) && isQuestionApplicable(q)).sort((a, b) => a.order - b.order);
 
     const currentQPos = newDisplayQs.findIndex(q => q.id === qId);
     const nextIdx = currentQPos + 1;

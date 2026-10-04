@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { taxProfiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getAuthContext, unauthorized } from "@/lib/auth-helpers";
+import { normalizeProvinceCode } from "@/lib/provinces";
 
 export async function GET() {
   const ctx = await getAuthContext();
@@ -46,6 +47,11 @@ export async function POST(req: NextRequest) {
   if (!ctx) return unauthorized();
 
   const body = await req.json();
+  const province = normalizeProvinceCode(body.province);
+  const fiscalResidence = normalizeProvinceCode(body.fiscalResidence) ?? province;
+  if (!province || !fiscalResidence) {
+    return NextResponse.json({ error: "Province ou territoire invalide." }, { status: 422 });
+  }
 
   const existing = await db
     .select({ id: taxProfiles.id })
@@ -69,12 +75,12 @@ export async function POST(req: NextRequest) {
       email: body.email,
       address: body.address,
       city: body.city,
-      province: body.province,
+      province,
       postalCode: body.postalCode,
       maritalStatus: body.maritalStatus,
-      fiscalResidence: body.fiscalResidence,
+      fiscalResidence,
       isCanadianCitizen: body.isCanadianCitizen,
-      isQuebecResident: body.isQuebecResident ?? false,
+      isQuebecResident: fiscalResidence === "QC",
     })
     .returning({ id: taxProfiles.id, firstName: taxProfiles.firstName });
 

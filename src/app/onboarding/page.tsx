@@ -266,7 +266,7 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
   const validate = () => {
     setErr("");
     if (step===0 && (!firstName||!lastName||!birthDate||!canStatus)) { setErr("Veuillez remplir les champs obligatoires avant de continuer."); return false; }
-    if (step===1 && (!email||!province)) { setErr("Veuillez remplir les champs obligatoires avant de continuer."); return false; }
+    if (step===1 && (!email||!address||!city||!province||!postal)) { setErr("Veuillez remplir l’adresse complète avant de continuer."); return false; }
     if (step===2 && (!marital||!taxProvince||!taxYear)) { setErr("Veuillez remplir les champs obligatoires avant de continuer."); return false; }
     if (step===4 && (!consent1||!consent2||!preparer)) { setErr("Veuillez confirmer les deux déclarations et votre choix de préparation."); return false; }
     return true;
@@ -332,12 +332,12 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
               <div className="grid2" style={{ gap:16, marginBottom:16 }}>
                 <F label={lang === "en" ? "Email address *" : "Adresse courriel *"}><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="vous@exemple.ca" autoFocus /></F>
                 <F label="Téléphone principal" opt><input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="(514) 555-0000" /></F>
-                <div className="span2"><F label="Adresse" opt><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="123, rue Principale" /></F></div>
-                <F label="Ville" opt><input value={city} onChange={e=>setCity(e.target.value)} placeholder="Montréal" /></F>
+                <div className="span2"><F label="Adresse"><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="123, rue Principale" /></F></div>
+                <F label="Ville"><input value={city} onChange={e=>setCity(e.target.value)} placeholder="Montréal" /></F>
                 <F label={lang === "en" ? "Province or territory *" : "Province ou territoire *"}>
-                  <ProvinceSelect value={province} onChange={setProvince} name="addr_province" />
+                  <ProvinceSelect value={province} onChange={value=>{ setProvince(value); if (!taxProvince) setTaxProvince(value); }} name="addr_province" />
                 </F>
-                <F label="Code postal" opt><input value={postal} onChange={e=>setPostal(e.target.value)} placeholder="H1A 1A1" /></F>
+                <F label="Code postal"><input value={postal} onChange={e=>setPostal(e.target.value)} placeholder="H1A 1A1" /></F>
                 <F label="Pays de résidence" opt>
                   <input value={country} onChange={e=>setCountry(e.target.value)} placeholder="Canada" />
                 </F>
@@ -639,7 +639,7 @@ function BusinessWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=>v
     if (step===0 && (!legalName||!legalForm||!jurisdiction)) { setErr("Veuillez remplir les champs obligatoires avant de continuer."); return false; }
     if (step===2 && !mainActivity) { setErr("Veuillez remplir les champs obligatoires avant de continuer."); return false; }
     if (step===3 && (!gstStatus||!taxYear)) { setErr("Veuillez remplir les champs obligatoires avant de continuer."); return false; }
-    if (step===4 && (!contactFirst||!contactLast||!contactEmail||!consentAuth)) { setErr("Veuillez remplir les champs obligatoires et confirmer votre autorisation."); return false; }
+    if (step===4 && (!address||!city||!bizProvince||!postal||!contactFirst||!contactLast||!contactEmail||!consentAuth)) { setErr("Veuillez remplir l’adresse complète et confirmer votre autorisation."); return false; }
     return true;
   };
 
@@ -871,12 +871,12 @@ function BusinessWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=>v
           {step===4 && (
             <StepCard num={5} title="Adresse et contact principal" desc="Le siège de l'entreprise et la personne responsable du compte.">
               <div className="grid2" style={{ gap:16, marginBottom:16 }}>
-                <div className="span2"><F label="Adresse d'affaires" opt><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="123, rue Commerciale" autoFocus /></F></div>
-                <F label="Ville" opt><input value={city} onChange={e=>setCity(e.target.value)} placeholder="Montréal" /></F>
-                <F label="Province ou territoire" opt>
+                <div className="span2"><F label="Adresse d'affaires"><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="123, rue Commerciale" autoFocus /></F></div>
+                <F label="Ville"><input value={city} onChange={e=>setCity(e.target.value)} placeholder="Montréal" /></F>
+                <F label="Province ou territoire">
                   <ProvinceSelect value={bizProvince} onChange={setBizProvince} name="biz_province" />
                 </F>
-                <F label="Code postal" opt><input value={postal} onChange={e=>setPostal(e.target.value)} placeholder="H1A 1A1" /></F>
+                <F label="Code postal"><input value={postal} onChange={e=>setPostal(e.target.value)} placeholder="H1A 1A1" /></F>
                 <F label="Téléphone de l'entreprise" opt><input type="tel" value={bizPhone} onChange={e=>setBizPhone(e.target.value)} placeholder="(514) 555-0000" /></F>
                 <F label="Prénom du contact *"><input value={contactFirst} onChange={e=>setContactFirst(e.target.value)} placeholder="Jean" /></F>
                 <F label="Nom du contact *"><input value={contactLast} onChange={e=>setContactLast(e.target.value)} placeholder="Dupont" /></F>

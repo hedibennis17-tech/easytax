@@ -12,6 +12,7 @@ import {
 } from "@/lib/questionnaire-business";
 import type { QuestionOption } from "@/lib/questionnaire-individual";
 import { saveDraftLocal, loadDraftLocal, formatLastSaved } from "@/lib/draft";
+import { normalizeProvinceCode, type ProvinceCode } from "@/lib/provinces";
 
 // ── Évaluation conditions ──────────────────────────────────
 function evalCond(cond: string | undefined, ans: Record<string, unknown>): boolean {
@@ -127,7 +128,7 @@ export default function BusinessQuestionnairePage() {
   const [done,     setDone]     = useState(false);
   const [lastSaved,setLastSaved]= useState("");
   const [userId,   setUserId]   = useState("guest");
-  const [organizationProvince, setOrganizationProvince] = useState("");
+  const [organizationProvince, setOrganizationProvince] = useState<ProvinceCode | null>(null);
   const TAX_YEAR = "2025";
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -152,8 +153,8 @@ export default function BusinessQuestionnairePage() {
   const ALL_QUESTIONS = getAllBusinessQuestionsWithProvince();
   useEffect(() => {
     fetch("/api/organizations").then(r => r.ok ? r.json() : null).then(d => {
-      const province = d?.organizations?.[0]?.province;
-      if (province) setOrganizationProvince(String(province));
+      const province = normalizeProvinceCode(d?.organizations?.[0]?.province);
+      if (province) setOrganizationProvince(province);
     }).catch(() => {});
   }, []);
   const triageQs = ALL_BUSINESS_QUESTIONS.filter(q => q.section === "triage_biz").sort((a, b) => a.order - b.order);
@@ -171,21 +172,25 @@ export default function BusinessQuestionnairePage() {
     pct: triageQs.length > 0 ? Math.round((triageQs.filter(q => answers[q.id] !== undefined).length / triageQs.length) * 100) : 0,
   };
 
-  // Province d'exploitation: extraite des réponses triage (bi_province ou exploitation principale)
-  const bizProvince = organizationProvince || String(answers["biz_province"] ?? answers["bi_province"] ?? "");
+  // Province d'exploitation : adresse de l'organisation, puis réponse du questionnaire.
+  const bizProvince = organizationProvince ??
+    normalizeProvinceCode(answers["biz_province"]) ??
+    normalizeProvinceCode(answers["bi_province"]);
+  const isQuestionApplicable = (question: Question) =>
+    !question.provinceOnly || (bizProvince !== null && question.provinceOnly.includes(bizProvince));
 
   const sectionProgress = [triageProgress, ...visibleSections.map(s => {
     const sQs = ALL_QUESTIONS.filter(q =>
       q.section === s.code &&
       evalCond(q.showIf, answers) &&
-      (!q.provinceOnly || !bizProvince || q.provinceOnly.includes(bizProvince))
+      isQuestionApplicable(q)
     );
     const answered = sQs.filter(q => answers[q.id] !== undefined).length;
     return { code: s.code, fr: s.fr, en: s.en, icon: s.icon, total: sQs.length, answered, pct: sQs.length > 0 ? Math.round((answered / sQs.length) * 100) : 0 };
   })];
 
   const curSectionQs = triageDone
-    ? ALL_QUESTIONS.filter(q => q.section === currentSection?.code && evalCond(q.showIf, answers) && (!q.provinceOnly || (bizProvince && q.provinceOnly.includes(bizProvince)))).sort((a, b) => a.order - b.order)
+    ? ALL_QUESTIONS.filter(q => q.section === currentSection?.code && evalCond(q.showIf, answers) && isQuestionApplicable(q)).sort((a, b) => a.order - b.order)
     : triageQs;
 
   const currentQ: Question | undefined = curSectionQs[qIdx];
@@ -196,7 +201,7 @@ export default function BusinessQuestionnairePage() {
     q.section !== "triage_biz" &&
     visibleSectionCodes.has(q.section) &&
     evalCond(q.showIf, answers) &&
-    (!q.provinceOnly || !bizProvince || q.provinceOnly.includes(bizProvince))
+    isQuestionApplicable(q)
   ).length;
   const totalApplicable = triageQs.length + sectionApplicable;
   // Compter seulement les réponses aux questions applicables
@@ -206,7 +211,7 @@ export default function BusinessQuestionnairePage() {
       q.section !== "triage_biz" &&
       visibleSectionCodes.has(q.section) &&
       evalCond(q.showIf, answers) &&
-      (!q.provinceOnly || !bizProvince || q.provinceOnly.includes(bizProvince))
+      isQuestionApplicable(q)
     ).map(q => q.id),
   ]);
   const totalAnswered = Object.keys(answers).filter(id => applicableIds.has(id)).length;
@@ -234,7 +239,7 @@ export default function BusinessQuestionnairePage() {
 
     const newTriageDone = triageQs.every(q => newAnswers[q.id] !== undefined);
     const newDisplayQs = !newTriageDone ? triageQs
-      : ALL_QUESTIONS.filter(q => q.section === currentSection?.code && evalCond(q.showIf, newAnswers) && (!q.provinceOnly || (bizProvince && q.provinceOnly.includes(bizProvince)))).sort((a, b) => a.order - b.order);
+      : ALL_QUESTIONS.filter(q => q.section === currentSection?.code && evalCond(q.showIf, newAnswers) && isQuestionApplicable(q)).sort((a, b) => a.order - b.order);
 
     const currentQPos = newDisplayQs.findIndex(q => q.id === qId);
     const nextIdx = currentQPos + 1;
