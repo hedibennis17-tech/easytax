@@ -30,6 +30,7 @@ const isProtectedRoute = createRouteMatcher([
   "/api/invitations(.*)",
   "/api/preparer(.*)",
   "/api/notifications(.*)",
+  "/api/debug/ocr(.*)",
 ]);
 
 // Route de migration — pas de vérification Clerk

@@ -32,6 +32,7 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_14",
         label: "Case 14 — Revenus d'emploi",
         patterns: [
+          /(?:box|case)\s*14\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*14[:\s-]+([0-9,.\s]+)/i,
           /case\s*14[:\s-]+([0-9,.\s]+)/i,
           /employment\s+income[:\s]+([0-9,.\s]+)/i,
@@ -43,6 +44,7 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_16",
         label: "Case 16 — Cotisations de l'employé au RPC/RRQ",
         patterns: [
+          /(?:box|case)\s*16\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*16[:\s-]+([0-9,.\s]+)/i,
           /case\s*16[:\s-]+([0-9,.\s]+)/i,
           /cpp\s+contributions[:\s]+([0-9,.\s]+)/i,
@@ -54,6 +56,7 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_18",
         label: "Case 18 — Cotisations de l'employé à l'AE",
         patterns: [
+          /(?:box|case)\s*18\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*18[:\s-]+([0-9,.\s]+)/i,
           /case\s*18[:\s-]+([0-9,.\s]+)/i,
           /ei\s+premiums[:\s]+([0-9,.\s]+)/i,
@@ -65,6 +68,7 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_22",
         label: "Case 22 — Impôt sur le revenu retenu",
         patterns: [
+          /(?:box|case)\s*22\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*22[:\s-]+([0-9,.\s]+)/i,
           /case\s*22[:\s-]+([0-9,.\s]+)/i,
           /income\s+tax\s+deducted[:\s]+([0-9,.\s]+)/i,
@@ -76,6 +80,7 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_24",
         label: "Case 24 — Gains assurables aux fins de l'AE",
         patterns: [
+          /(?:box|case)\s*24\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*24[:\s-]+([0-9,.\s]+)/i,
           /case\s*24[:\s-]+([0-9,.\s]+)/i,
           /ei\s+insurable\s+earnings[:\s]+([0-9,.\s]+)/i,
@@ -86,6 +91,7 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_26",
         label: "Case 26 — Gains ouvrant droit à pension au RPC/RRQ",
         patterns: [
+          /(?:box|case)\s*26\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*26[:\s-]+([0-9,.\s]+)/i,
           /case\s*26[:\s-]+([0-9,.\s]+)/i,
           /cpp.*pensionable\s+earnings[:\s]+([0-9,.\s]+)/i,
@@ -96,6 +102,7 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_44",
         label: "Case 44 — Cotisations syndicales",
         patterns: [
+          /(?:box|case)\s*44\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*44[:\s-]+([0-9,.\s]+)/i,
           /case\s*44[:\s-]+([0-9,.\s]+)/i,
           /union\s+dues[:\s]+([0-9,.\s]+)/i,
@@ -107,6 +114,7 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_46",
         label: "Case 46 — Dons de bienfaisance",
         patterns: [
+          /(?:box|case)\s*46\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*46[:\s-]+([0-9,.\s]+)/i,
           /case\s*46[:\s-]+([0-9,.\s]+)/i,
           /charitable\s+donations?[:\s]+([0-9,.\s]+)/i,
@@ -118,6 +126,7 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_52",
         label: "Case 52 — Facteur d'équivalence",
         patterns: [
+          /(?:box|case)\s*52\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*52[:\s-]+([0-9,.\s]+)/i,
           /case\s*52[:\s-]+([0-9,.\s]+)/i,
           /pension\s+adjustment[:\s]+([0-9,.\s]+)/i,

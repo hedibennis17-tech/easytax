@@ -40,9 +40,16 @@ async function writeAudit(documentId: string, userId: string, action: string, me
 export async function runOcrPipeline(params: { documentId: string; userId: string; taxYear?: number }): Promise<PipelineResult> {
   const { documentId, userId, taxYear } = params;
 
-  const docRows = await db.select().from(fiscalDocuments).where(eq(fiscalDocuments.id, documentId)).limit(1);
+  const docRows = await db.select({
+    document: fiscalDocuments,
+    uploadedTypeCode: documentTypes.code,
+  })
+    .from(fiscalDocuments)
+    .leftJoin(documentTypes, eq(fiscalDocuments.documentTypeId, documentTypes.id))
+    .where(eq(fiscalDocuments.id, documentId))
+    .limit(1);
   if (!docRows[0]) return { status: "failed", error: "Document introuvable" };
-  const doc = docRows[0];
+  const { document: doc, uploadedTypeCode } = docRows[0];
   if (doc.userId !== userId) return { status: "failed", error: "Accès refusé" };
 
   await db.update(fiscalDocuments).set({ status: "processing", updatedAt: new Date() }).where(eq(fiscalDocuments.id, documentId));
@@ -83,9 +90,31 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
 
     await writeAudit(documentId, userId, "document_ocr_completed", { provider: ocrResult.provider, pageCount: ocrResult.pages.length, confidence: ocrResult.overallConfidence });
 
-    // Classification
-    const classification = classifyDocument(ocrResult.fullText);
-    await writeAudit(documentId, userId, "document_classified", { typeCode: classification.documentTypeCode, confidence: classification.confidence });
+    // Le type explicitement choisi par le client est prioritaire sur une classification OCR incertaine.
+    const ocrClassification = classifyDocument(ocrResult.fullText);
+    const selectedTypeHasExtractor = Boolean(uploadedTypeCode && uploadedTypeCode !== "OTHER" && getExtractor(uploadedTypeCode));
+    const typeConflict = selectedTypeHasExtractor && Boolean(
+      ocrClassification.documentTypeCode && ocrClassification.documentTypeCode !== uploadedTypeCode,
+    );
+    const classification = selectedTypeHasExtractor
+      ? {
+          ...ocrClassification,
+          documentTypeCode: uploadedTypeCode,
+          confidence: ocrClassification.documentTypeCode === uploadedTypeCode
+            ? Math.max(ocrClassification.confidence, 95)
+            : 100,
+          reason: typeConflict
+            ? `Type ${uploadedTypeCode} choisi au téléversement (OCR suggérait ${ocrClassification.documentTypeCode}).`
+            : `Type ${uploadedTypeCode} confirmé par le choix de téléversement.`,
+        }
+      : ocrClassification;
+    await writeAudit(documentId, userId, "document_classified", {
+      typeCode: classification.documentTypeCode,
+      confidence: classification.confidence,
+      uploadedTypeCode: uploadedTypeCode ?? null,
+      ocrSuggestedType: ocrClassification.documentTypeCode,
+      typeConflict,
+    });
 
     // Résoudre IDs
     let detectedDocumentTypeId: string | null = null;
@@ -112,7 +141,7 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       classificationReason: classification.reason, detectedTaxYear: classification.detectedTaxYear,
       detectedJurisdictionId, status: extractionResult ? "completed" as const : "needs_review" as const,
       ocrProvider: ocrResult.provider, overallConfidence: extractionResult?.overallConfidence ?? ocrResult.overallConfidence,
-      needsHumanReview: extractionResult?.needsHumanReview ?? true,
+      needsHumanReview: Boolean(extractionResult?.needsHumanReview ?? true) || typeConflict,
       yearMismatchWarning: extractionResult?.yearMismatchWarning ?? false,
       processingStartedAt: new Date(), ocrCompletedAt: new Date(),
       classifiedAt: new Date(), extractedAt: extractionResult ? new Date() : null,
@@ -144,15 +173,16 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       }
     }
 
-    const finalStatus = extractionResult?.needsHumanReview ? "needs_review" : "extracted";
+    const finalNeedsReview = Boolean(extractionResult?.needsHumanReview ?? true) || typeConflict;
+    const finalStatus = finalNeedsReview ? "needs_review" : "extracted";
     await db.update(fiscalDocuments).set({ status: finalStatus, updatedAt: new Date() }).where(eq(fiscalDocuments.id, documentId));
     await writeAudit(documentId, userId, "document_extraction_completed", { extractionId: extraction.id, fieldsCount: extractionResult?.fields.length ?? 0, confidence: extractionResult?.overallConfidence ?? 0 });
 
     return {
-      status: extractionResult?.needsHumanReview ? "needs_review" : "completed",
+      status: finalNeedsReview ? "needs_review" : "completed",
       extractionId: extraction.id,
       overallConfidence: extractionResult?.overallConfidence ?? ocrResult.overallConfidence,
-      needsHumanReview: extractionResult?.needsHumanReview ?? true,
+      needsHumanReview: finalNeedsReview,
       detectedType: classification.documentTypeCode ?? undefined,
       detectedYear: classification.detectedTaxYear,
       entriesCreated: 0,
