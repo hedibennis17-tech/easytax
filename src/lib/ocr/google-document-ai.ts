@@ -51,7 +51,14 @@ export class GoogleDocumentAiProvider implements OcrProvider {
     }
 
     const credentials = JSON.parse(credentialsJson);
-    const client = new DocumentProcessorServiceClient({ credentials });
+    // Les processeurs Document AI sont régionaux : us et eu utilisent leurs endpoints dédiés.
+    const apiEndpoint = location === "us" || location === "eu"
+      ? `${location}-documentai.googleapis.com`
+      : undefined;
+    const client = new DocumentProcessorServiceClient({
+      credentials,
+      ...(apiEndpoint ? { apiEndpoint } : {}),
+    });
 
     const processorName = `projects/${projectId}/locations/${location}/processors/${processorId}`;
 
