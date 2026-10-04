@@ -67,10 +67,15 @@ export async function GET(
     .where(eq(extractionFields.extractionId, extraction[0].id))
     .orderBy(extractionFields.fieldCode);
 
-  await db.insert(documentAuditLogs).values({
-    documentId: id, userId: ctx.clerkUserId, action: "document_viewed",
-    metadata: JSON.stringify({ context: "extraction_view" }),
-  });
+  try {
+    await db.insert(documentAuditLogs).values({
+      documentId: id, userId: ctx.clerkUserId, action: "document_viewed",
+      metadata: JSON.stringify({ context: "extraction_view" }),
+    });
+  } catch (error) {
+    // La consultation de l’extraction reste disponible si l’audit est temporairement indisponible.
+    console.warn("[documents/extraction] Audit log skipped", error);
+  }
 
   return NextResponse.json({ extraction: extraction[0], fields });
 }

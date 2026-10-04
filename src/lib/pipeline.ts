@@ -23,6 +23,20 @@ export interface PipelineResult {
   error?: string;
 }
 
+async function writeAudit(documentId: string, userId: string, action: string, metadata: Record<string, unknown>) {
+  try {
+    await db.insert(documentAuditLogs).values({
+      documentId,
+      userId,
+      action: action as never,
+      metadata: JSON.stringify(metadata),
+    });
+  } catch (error) {
+    // Un journal ne doit jamais empêcher le traitement fiscal du document.
+    console.warn("[ocr] Audit log skipped", { action, error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 export async function runOcrPipeline(params: { documentId: string; userId: string; taxYear?: number }): Promise<PipelineResult> {
   const { documentId, userId, taxYear } = params;
 
@@ -32,7 +46,7 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
   if (doc.userId !== userId) return { status: "failed", error: "Accès refusé" };
 
   await db.update(fiscalDocuments).set({ status: "processing", updatedAt: new Date() }).where(eq(fiscalDocuments.id, documentId));
-  await db.insert(documentAuditLogs).values({ documentId, userId, action: "document_ocr_started", metadata: JSON.stringify({ mimeType: doc.mimeType }) });
+  await writeAudit(documentId, userId, "document_ocr_started", { mimeType: doc.mimeType });
 
   try {
     // Télécharger depuis S3 directement (pas via signed URL pour éviter les problèmes réseau)
@@ -67,11 +81,11 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       }
     }
 
-    await db.insert(documentAuditLogs).values({ documentId, userId, action: "document_ocr_completed", metadata: JSON.stringify({ provider: ocrResult.provider, pageCount: ocrResult.pages.length, confidence: ocrResult.overallConfidence }) });
+    await writeAudit(documentId, userId, "document_ocr_completed", { provider: ocrResult.provider, pageCount: ocrResult.pages.length, confidence: ocrResult.overallConfidence });
 
     // Classification
     const classification = classifyDocument(ocrResult.fullText);
-    await db.insert(documentAuditLogs).values({ documentId, userId, action: "document_classified", metadata: JSON.stringify({ typeCode: classification.documentTypeCode, confidence: classification.confidence }) });
+    await writeAudit(documentId, userId, "document_classified", { typeCode: classification.documentTypeCode, confidence: classification.confidence });
 
     // Résoudre IDs
     let detectedDocumentTypeId: string | null = null;
@@ -86,23 +100,37 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
     }
 
     // Extraction
-    await db.insert(documentAuditLogs).values({ documentId, userId, action: "document_extraction_started", metadata: JSON.stringify({ typeCode: classification.documentTypeCode }) });
+    await writeAudit(documentId, userId, "document_extraction_started", { typeCode: classification.documentTypeCode });
 
     const extractor = classification.documentTypeCode ? getExtractor(classification.documentTypeCode) : null;
     const extractionResult = extractor ? extractor.extract(ocrResult.fullText, taxYear) : null;
 
     // Créer l'extraction
-    const [extraction] = await db.insert(documentExtractions).values({
+    const extractionValues = {
       fiscalDocumentId: documentId, userId,
       detectedDocumentTypeId, classificationConfidence: classification.confidence,
       classificationReason: classification.reason, detectedTaxYear: classification.detectedTaxYear,
-      detectedJurisdictionId, status: extractionResult ? "completed" : "needs_review",
+      detectedJurisdictionId, status: extractionResult ? "completed" as const : "needs_review" as const,
       ocrProvider: ocrResult.provider, overallConfidence: extractionResult?.overallConfidence ?? ocrResult.overallConfidence,
       needsHumanReview: extractionResult?.needsHumanReview ?? true,
       yearMismatchWarning: extractionResult?.yearMismatchWarning ?? false,
       processingStartedAt: new Date(), ocrCompletedAt: new Date(),
       classifiedAt: new Date(), extractedAt: extractionResult ? new Date() : null,
-    }).returning({ id: documentExtractions.id });
+      errorMessage: null,
+      updatedAt: new Date(),
+    };
+    const existingExtraction = await db.select({ id: documentExtractions.id })
+      .from(documentExtractions).where(eq(documentExtractions.fiscalDocumentId, documentId)).limit(1);
+    let extraction: { id: string };
+    if (existingExtraction[0]) {
+      await db.delete(extractionFields).where(eq(extractionFields.extractionId, existingExtraction[0].id));
+      const [updated] = await db.update(documentExtractions).set(extractionValues)
+        .where(eq(documentExtractions.id, existingExtraction[0].id)).returning({ id: documentExtractions.id });
+      extraction = updated;
+    } else {
+      const [created] = await db.insert(documentExtractions).values(extractionValues).returning({ id: documentExtractions.id });
+      extraction = created;
+    }
 
     // Persister les champs
     if (extractionResult?.fields.length) {
@@ -118,7 +146,7 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
 
     const finalStatus = extractionResult?.needsHumanReview ? "needs_review" : "extracted";
     await db.update(fiscalDocuments).set({ status: finalStatus, updatedAt: new Date() }).where(eq(fiscalDocuments.id, documentId));
-    await db.insert(documentAuditLogs).values({ documentId, userId, action: "document_extraction_completed", metadata: JSON.stringify({ extractionId: extraction.id, fieldsCount: extractionResult?.fields.length ?? 0, confidence: extractionResult?.overallConfidence ?? 0 }) });
+    await writeAudit(documentId, userId, "document_extraction_completed", { extractionId: extraction.id, fieldsCount: extractionResult?.fields.length ?? 0, confidence: extractionResult?.overallConfidence ?? 0 });
 
     return {
       status: extractionResult?.needsHumanReview ? "needs_review" : "completed",
@@ -132,7 +160,7 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : "Erreur inconnue";
     await db.update(fiscalDocuments).set({ status: "processing_failed", updatedAt: new Date() }).where(eq(fiscalDocuments.id, documentId));
-    await db.insert(documentAuditLogs).values({ documentId, userId, action: "document_ocr_failed", metadata: JSON.stringify({ error: errorMsg }) });
+    await writeAudit(documentId, userId, "document_ocr_failed", { error: errorMsg });
     return { status: "failed", error: errorMsg };
   }
 }
