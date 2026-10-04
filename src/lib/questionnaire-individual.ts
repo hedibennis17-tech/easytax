@@ -721,19 +721,20 @@ export const ALL_INDIVIDUAL_QUESTIONS: Question[] = [
 ];
 
 export const INDIVIDUAL_SECTIONS = [
+  // WORKFLOW: Triage → Documents (OCR) → Profil (valide OCR) → Famille → Emploi...
   { code: "triage",          fr: "Triage",            en: "Triage",        icon: "🧭", alwaysShow: true  },
-  { code: "profil",          fr: "Profil",             en: "Profile",       icon: "🪪", alwaysShow: true  },
-  { code: "famille",         fr: "Famille",            en: "Family",        icon: "👨‍👩‍👧", showIf: "t6=true" },
-  { code: "emploi",          fr: "Emploi",             en: "Employment",    icon: "💼", showIf: "t1=true" },
-  { code: "autonome",        fr: "Travail autonome",   en: "Self-employed", icon: "🧑‍💼", showIf: "t2=true" },
-  { code: "location",        fr: "Location",           en: "Rental",        icon: "🏠", showIf: "t3=true" },
-  { code: "placements",      fr: "Placements",         en: "Investments",   icon: "📈", showIf: "t4=true" },
-  { code: "autres_revenus",  fr: "Autres revenus",     en: "Other income",  icon: "💰", showIf: "t5=true" },
-  { code: "deductions",      fr: "Déductions",         en: "Deductions",    icon: "📉", alwaysShow: true  },
-  { code: "credits",         fr: "Crédits",            en: "Credits",       icon: "🎁", alwaysShow: true  },
-  { code: "ma_province",     fr: "Ma province",        en: "My province",   icon: "🏛️", alwaysShow: true  },
-  { code: "documents",       fr: "Documents",          en: "Documents",     icon: "📎", alwaysShow: true  },
-  { code: "revision",        fr: "Révision",           en: "Review",        icon: "📋", alwaysShow: true  },
+  { code: "documents",       fr: "Documents",         en: "Documents",     icon: "📎", alwaysShow: true  }, // ← position 2: upload+OCR avant tout
+  { code: "profil",          fr: "Profil",            en: "Profile",       icon: "🪪", alwaysShow: true  }, // ← position 3: valide données OCR
+  { code: "famille",         fr: "Famille",           en: "Family",        icon: "👨‍👩‍👧", showIf: "t6=true" },
+  { code: "emploi",          fr: "Emploi",            en: "Employment",    icon: "💼", showIf: "t1=true" },
+  { code: "autonome",        fr: "Travail autonome",  en: "Self-employed", icon: "🧑‍💼", showIf: "t2=true" },
+  { code: "location",        fr: "Location",          en: "Rental",        icon: "🏠", showIf: "t3=true" },
+  { code: "placements",      fr: "Placements",        en: "Investments",   icon: "📈", showIf: "t4=true" },
+  { code: "autres_revenus",  fr: "Autres revenus",    en: "Other income",  icon: "💰", showIf: "t5=true" },
+  { code: "deductions",      fr: "Déductions",        en: "Deductions",    icon: "📉", alwaysShow: true  },
+  { code: "credits",         fr: "Crédits",           en: "Credits",       icon: "🎁", alwaysShow: true  },
+  { code: "ma_province",     fr: "Ma province",       en: "My province",   icon: "🏛️", alwaysShow: true  },
+  { code: "revision",        fr: "Révision",          en: "Review",        icon: "📋", alwaysShow: true  },
 ];
 
 

@@ -285,11 +285,190 @@ function FieldPerson({ q, onConfirm }: { q: Question; onConfirm: () => void }) {
   );
 }
 
+// ── Composant section Documents — upload inline + pipeline OCR ──────────────
+function DocumentUploadSection({
+  lang, ocrSlips, onPipelineDone,
+}: {
+  lang: string;
+  ocrSlips: Array<{ typeCode: string; typeName: string | null; fields: Array<{ code: string; label: string | null; value: string | null }> }>;
+  onPipelineDone: (newAnswers: Record<string, unknown>) => void;
+}) {
+  const T = (fr: string, en: string) => lang === "en" ? en : fr;
+
+  const [uploading, setUploading] = useState(false);
+  const [step, setStep] = useState<"idle"|"uploading"|"ocr"|"done"|"error">("idle");
+  const [lastFile, setLastFile] = useState<string>("");
+  const [entries, setEntries] = useState(0);
+  const [error, setError] = useState("");
+
+  const DOC_QUICK = [
+    { code: "T4",   label: "T4",   desc: T("Rémunération d'emploi","Employment income") },
+    { code: "RL-1", label: "RL-1", desc: T("Relevé 1 (Québec)","RL-1 (Quebec)") },
+    { code: "T4A",  label: "T4A",  desc: T("Autres revenus","Other income") },
+    { code: "T4E",  label: "T4E",  desc: T("Assurance-emploi","Employment insurance") },
+    { code: "T5",   label: "T5",   desc: T("Placements","Investments") },
+    { code: "REER", label: "REER", desc: T("Cotisation REER","RRSP contribution") },
+    { code: "OTHER",label: T("Autre","Other"), desc: T("Autre document fiscal","Other tax doc") },
+  ];
+
+  const handleFile = async (file: File, typeCode: string) => {
+    setUploading(true);
+    setLastFile(file.name);
+    setStep("uploading");
+    setError("");
+
+    try {
+      // Upload
+      const form = new FormData();
+      form.append("file", file);
+      form.append("documentTypeCode", typeCode);
+      const upRes = await fetch("/api/documents/upload", { method: "POST", body: form });
+      if (!upRes.ok) {
+        const err = await upRes.json().catch(() => ({})) as { error?: string };
+        if (err.error !== "duplicate_detected") throw new Error(err.error ?? "Erreur upload");
+      }
+      const upData = await upRes.json() as { id: string; taxReturnId?: string };
+
+      // OCR
+      setStep("ocr");
+      await fetch(`/api/documents/${upData.id}/process`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taxYear: 2025 }),
+      });
+
+      // Sync + prefill
+      await fetch("/api/resume/sync-from-docs", { method: "POST" }).catch(() => {});
+
+      const prefill = await fetch("/api/ocr-prefill").then(r => r.ok ? r.json() : null) as { answers?: Record<string, unknown>; totals?: { totalEmploymentCents?: number; t4Count?: number } } | null;
+
+      setStep("done");
+      const count = prefill?.totals?.t4Count ?? 0;
+      setEntries(count);
+
+      // Passer les nouvelles réponses au questionnaire
+      if (prefill?.answers) {
+        onPipelineDone(prefill.answers);
+      }
+
+    } catch (err) {
+      setStep("error");
+      setError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const pickFile = (typeCode: string) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".pdf,.jpg,.jpeg,.png,.heic,.webp";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) handleFile(file, typeCode);
+    };
+    input.click();
+  };
+
+  return (
+    <div>
+      {/* Feuillets déjà extraits */}
+      {ocrSlips.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#9fd4cc", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+            ✓ {T("Feuillets déjà traités","Slips already processed")}
+          </div>
+          {ocrSlips.map((slip, i) => (
+            <div key={i} style={{ background: "rgba(11,107,103,0.04)", border: "1px solid rgba(11,107,103,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: slip.fields.length > 0 ? 8 : 0 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#0b6b67", background: "rgba(11,107,103,0.1)", padding: "1px 7px", borderRadius: 5, marginRight: 6 }}>
+                    {slip.typeCode}
+                  </span>
+                  <span style={{ fontSize: 12, color: "#526865" }}>{slip.typeName ?? slip.typeCode}</span>
+                </div>
+                <span style={{ fontSize: 11, color: "#059669", fontWeight: 600 }}>✓ {T("Extrait","Extracted")}</span>
+              </div>
+              {slip.fields.length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 5 }}>
+                  {slip.fields.slice(0, 6).map(f => (
+                    <div key={f.code} style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 7, padding: "5px 8px" }}>
+                      <div style={{ fontSize: 9, color: "#9fd4cc", textTransform: "uppercase", fontWeight: 700 }}>{f.label ?? f.code}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#0f1f1e", fontFamily: "monospace" }}>{f.value ?? "—"}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pipeline en cours */}
+      {step !== "idle" && step !== "done" && step !== "error" && (
+        <div style={{ background: "#fff", border: "1px solid #b6ddd6", borderRadius: 12, padding: "12px 14px", marginBottom: 12 }}>
+          <div style={{ fontSize: 12, color: "#0b6b67", fontWeight: 600, marginBottom: 6 }}>
+            📄 {lastFile}
+          </div>
+          <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+            {(["uploading","ocr","done"] as const).map((s, i) => (
+              <div key={s} style={{ flex: 1, textAlign: "center" }}>
+                <div style={{ width: 24, height: 24, borderRadius: "50%", margin: "0 auto 3px", background: step === s ? "#0b6b67" : i < (["uploading","ocr","done"]).indexOf(step) ? "#0b6b67" : "#e5ede9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 700 }}>
+                  {i < (["uploading","ocr","done"]).indexOf(step) ? "✓" : i+1}
+                </div>
+                <div style={{ fontSize: 9, color: step === s ? "#0b6b67" : "#a0b4b0" }}>
+                  {s === "uploading" ? T("Upload","Upload") : s === "ocr" ? "OCR" : T("Sync","Sync")}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ height: 3, background: "#e5ede9", borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: step === "uploading" ? "33%" : step === "ocr" ? "66%" : "100%", background: "#0b6b67", borderRadius: 3, transition: "width 500ms" }} />
+          </div>
+        </div>
+      )}
+
+      {step === "done" && (
+        <div style={{ background: "rgba(5,150,105,0.06)", border: "1px solid rgba(5,150,105,0.25)", borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#059669", fontWeight: 600 }}>
+          ✓ {lastFile} — {T("données extraites et intégrées dans votre profil","data extracted and integrated into your profile")}
+        </div>
+      )}
+
+      {step === "error" && (
+        <div style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#dc2626" }}>
+          ⚠ {error}
+        </div>
+      )}
+
+      {/* Boutons upload rapide */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
+        {DOC_QUICK.map(t => (
+          <button key={t.code} onClick={() => pickFile(t.code)} disabled={uploading}
+            style={{ padding: "10px 12px", borderRadius: 10, textAlign: "left", background: "#fff", border: "1px solid #dde8e5", cursor: uploading ? "not-allowed" : "pointer", opacity: uploading ? 0.5 : 1 }}
+            onMouseEnter={e => { if (!uploading) (e.currentTarget as HTMLButtonElement).style.borderColor = "#9fd4cc"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "#dde8e5"; }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#0b6b67", marginBottom: 2 }}>{t.label}</div>
+            <div style={{ fontSize: 11, color: "#526865" }}>{t.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      <p style={{ fontSize: 11, color: "#a0b4b0", textAlign: "center", marginTop: 10 }}>
+        {T("PDF, JPG, PNG · Les données extraites par OCR seront intégrées dans les sections suivantes.",
+           "PDF, JPG, PNG · OCR-extracted data will be pre-filled in subsequent sections.")}
+      </p>
+    </div>
+  );
+}
+
 // ── PAGE PRINCIPALE ────────────────────────────────────────────────────────
 export default function QuestionnairePage() {
   const router = useRouter();
   const { lang } = useApp();
-  const [answers, setAnswers]     = useState<Record<string, unknown>>({});
+  const [answers,    setAnswers]    = useState<Record<string, unknown>>({});
+  const [ocrAnswers, setOcrAnswers] = useState<Record<string, unknown>>({});
+  const [ocrSlips,   setOcrSlips]   = useState<Array<{ typeCode: string; typeName: string | null; fields: Array<{ code: string; label: string | null; value: string | null }> }>>([]);
+  const [ocrLoaded,  setOcrLoaded]  = useState(false);
   const [textVal,  setTextVal]    = useState("");
   const [numVal,   setNumVal]     = useState("");
   const [dateVal,  setDateVal]    = useState("");
@@ -320,6 +499,24 @@ export default function QuestionnairePage() {
       setQIdx(draft.questionIdx);
       setLastSaved(formatLastSaved(draft.lastSavedAt));
     }
+
+    // Charger les données OCR pour pré-remplissage
+    fetch("/api/ocr-prefill")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { answers?: Record<string, unknown>; slips?: typeof ocrSlips } | null) => {
+        if (!d) return;
+        if (d.answers && Object.keys(d.answers).length > 0) {
+          setOcrAnswers(d.answers);
+          // Fusionner dans les réponses si aucun brouillon existant
+          setAnswers(prev => {
+            const merged = { ...d.answers, ...prev }; // brouillon local > OCR
+            return merged;
+          });
+        }
+        if (d.slips) setOcrSlips(d.slips);
+        setOcrLoaded(true);
+      })
+      .catch(() => setOcrLoaded(true));
   }, [userId]);
 
   // Redirect non-INDIVIDUAL
@@ -597,6 +794,12 @@ export default function QuestionnairePage() {
             <h2 style={{ fontSize: 16, fontWeight: 700, color: "#0f1f1e", margin: "0 0 8px", lineHeight: 1.4 }}>
               {lang === "en" ? currentQ.en : currentQ.fr}
             </h2>
+            {/* Badge OCR si la réponse vient de l'OCR */}
+            {ocrAnswers[currentQ.id] !== undefined && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, color: "#0b6b67", background: "rgba(11,107,103,0.08)", border: "1px solid rgba(11,107,103,0.2)", borderRadius: 100, padding: "2px 8px", marginBottom: 8 }}>
+                📄 {lang === "en" ? "Pre-filled from your slip" : "Pré-rempli depuis vos feuillets"}
+              </div>
+            )}
 
             {/* Hint */}
             {(lang === "en" ? (currentQ.hintEn ?? currentQ.hint) : currentQ.hint) && (
