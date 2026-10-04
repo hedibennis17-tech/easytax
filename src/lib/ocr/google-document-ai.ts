@@ -6,9 +6,9 @@ import type { OcrProvider, OcrDocumentResult } from "./provider";
  *   GOOGLE_CLOUD_PROJECT_ID
  *   GOOGLE_DOCUMENT_AI_PROCESSOR_ID
  *   GOOGLE_APPLICATION_CREDENTIALS_JSON
+ *   GOOGLE_DOCUMENT_AI_LOCATION (optionnel, "us" par défaut)
  *
- * Installé via : npm install @google-cloud/documentai
- * (pas encore installé — évite une dépendance inutile sans credentials)
+ * Client installé : @google-cloud/documentai
  */
 export class GoogleDocumentAiProvider implements OcrProvider {
   readonly name = "google";
@@ -25,7 +25,8 @@ export class GoogleDocumentAiProvider implements OcrProvider {
       );
     }
 
-    return { projectId, processorId, credentialsJson };
+    const location = process.env.GOOGLE_DOCUMENT_AI_LOCATION ?? "us";
+    return { projectId, processorId, credentialsJson, location };
   }
 
   async processDocument(params: {
@@ -34,7 +35,7 @@ export class GoogleDocumentAiProvider implements OcrProvider {
     documentId: string;
   }): Promise<OcrDocumentResult> {
     const start = Date.now();
-    const { projectId, processorId, credentialsJson } = this.getConfig();
+    const { projectId, processorId, credentialsJson, location } = this.getConfig();
 
     // Chargement dynamique — évite l'erreur si le package n'est pas installé
     let DocumentProcessorServiceClient: any;
@@ -52,7 +53,7 @@ export class GoogleDocumentAiProvider implements OcrProvider {
     const credentials = JSON.parse(credentialsJson);
     const client = new DocumentProcessorServiceClient({ credentials });
 
-    const processorName = `projects/${projectId}/locations/us/processors/${processorId}`;
+    const processorName = `projects/${projectId}/locations/${location}/processors/${processorId}`;
 
     const [result] = await client.processDocument({
       name: processorName,

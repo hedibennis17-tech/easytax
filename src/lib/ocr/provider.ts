@@ -41,7 +41,13 @@ export async function getOcrProvider(): Promise<OcrProvider> {
     return new GoogleDocumentAiProvider();
   }
 
-  // Défaut — mock pour dev/test sans credentials
+  if (process.env.NODE_ENV === "production" && process.env.OCR_ALLOW_MOCK !== "true") {
+    throw new Error(
+      "L'analyse OCR réelle n'est pas configurée. Configurez Google Document AI avant de traiter des documents fiscaux."
+    );
+  }
+
+  // Mock autorisé uniquement en développement ou lors d'un test explicitement activé.
   const { MockOcrProvider } = await import("./mock-provider");
   return new MockOcrProvider();
 }
