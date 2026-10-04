@@ -2,6 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useApp } from "@/components/ThemeProvider";
+import { AppNav } from "@/components/AppNav";
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -1033,17 +1034,8 @@ function OnboardingContent() {
   return (
     <div className="wz">
       <style>{CSS}</style>
-      {/* Barre top */}
-      <nav style={{ position:"sticky", top:0, zIndex:50, background:"rgba(255,255,255,0.95)", backdropFilter:"blur(10px)", borderBottom:"1px solid var(--border)", padding:"0 20px", height:52, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <a href="/" style={{ textDecoration:"none", display:"flex", alignItems:"center" }}>
-          <span style={{ fontFamily:"Georgia,serif", fontSize:20, fontWeight:700, color:"#E5342A" }}>Easy</span>
-          <span style={{ fontFamily:"Georgia,serif", fontSize:20, fontWeight:700, color:"var(--text-primary)" }}>Tax</span>
-          <span style={{ marginLeft:8, fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:100, background:"rgba(11,107,103,0.1)", color:"#0b6b67", letterSpacing:"0.04em" }}>CANADA</span>
-        </a>
-        <a href="/sign-in" style={{ fontSize:13, color:"var(--text-muted)", textDecoration:"none", fontWeight:500 }}>
-          Déjà un compte ? Se connecter
-        </a>
-      </nav>
+      {/* Navigation complète avec liens desktop et menu hamburger mobile */}
+      <AppNav />
 
       <div className="wz-shell">
         <div className="topline" />
