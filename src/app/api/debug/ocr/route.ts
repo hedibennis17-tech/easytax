@@ -229,12 +229,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const documentId = request.nextUrl.searchParams.get("documentId");
+    const probeGoogle = request.nextUrl.searchParams.get("probeGoogle") === "1";
     const diagnostic = await getDocumentDiagnostic(ctx.clerkUserId, documentId);
     return NextResponse.json({
       generatedAt: new Date().toISOString(),
-      google: googleConfiguration(),
+      google: probeGoogle ? await probeGoogleDocumentAi() : googleConfiguration(),
       diagnostic,
-      nextStep: "Envoyez uniquement les états et les messages d’erreur au support. Ne partagez pas les valeurs de champs ni les variables d’environnement.",
+      nextStep: probeGoogle
+        ? "La sonde vérifie l’accès au processeur sans analyser ni transmettre de document."
+        : "Ajoutez ?probeGoogle=1 pour vérifier l’accès au processeur Document AI sans traiter de document.",
     });
   } catch (error) {
     return NextResponse.json({ error: "Le diagnostic OCR n’a pas pu être généré.", detail: redactError(error) }, { status: 500 });
