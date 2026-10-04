@@ -228,34 +228,36 @@ function FieldDate({ value, onChange, onConfirm }: { value: string; onChange: (v
 }
 
 // ── Champ ADDRESS ─────────────────────────────────────────────────────────
-function FieldAddress({ onConfirm }: { onConfirm: () => void }) {
-  const fields = ["Numéro et rue", "Appartement (optionnel)", "Ville", "Province / Territoire", "Code postal"];
+function FieldAddress({ required = false, initialValue, onConfirm }: { required?: boolean; initialValue?: string; onConfirm: (value: string) => void }) {
+  const labels = ["Numéro et rue", "Appartement (optionnel)", "Ville", "Province / Territoire", "Code postal"];
+  const [values, setValues] = useState<string[]>(() => {
+    try {
+      const parsed = JSON.parse(initialValue ?? "");
+      return Array.isArray(parsed) ? parsed : [initialValue ?? "", "", "", "", ""];
+    } catch { return [initialValue ?? "", "", "", "", ""]; }
+  });
+  const complete = Boolean(values[0]?.trim() && values[2]?.trim() && values[3]?.trim() && values[4]?.trim());
   return (
     <div>
-      {fields.map((label, i) => (
+      {labels.map((label, i) => (
         <input
-          key={i} type="text" placeholder={label}
-          style={{
-            width: "100%", padding: "10px 13px", borderRadius: 9, fontSize: 13,
-            border: "1.5px solid #dde8e5", outline: "none", marginBottom: 8, boxSizing: "border-box",
-          }}
+          key={i} type="text" placeholder={label} value={values[i] ?? ""}
+          onChange={e => setValues(current => current.map((v, index) => index === i ? e.target.value : v))}
+          style={{ width: "100%", padding: "10px 13px", borderRadius: 9, fontSize: 13, border: "1.5px solid #dde8e5", outline: "none", marginBottom: 8, boxSizing: "border-box" }}
           onFocus={e => (e.target.style.borderColor = "#0b6b67")}
           onBlur={e => (e.target.style.borderColor = "#dde8e5")}
         />
       ))}
       <button
-        onClick={onConfirm}
-        style={{
-          width: "100%", padding: "11px 0", borderRadius: 9, fontSize: 14, fontWeight: 600,
-          background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer", marginTop: 4,
-        }}
+        onClick={() => onConfirm(JSON.stringify(values))}
+        disabled={required && !complete}
+        style={{ width: "100%", padding: "11px 0", borderRadius: 9, fontSize: 14, fontWeight: 600, background: required && !complete ? "#edf2f0" : "#0b6b67", color: required && !complete ? "#a0b4b0" : "#fff", border: "none", cursor: required && !complete ? "not-allowed" : "pointer", marginTop: 4 }}
       >
-        Confirmer l&apos;adresse
+        Confirmer l&apos;adresse {required ? "(obligatoire)" : ""}
       </button>
     </div>
   );
 }
-
 // ── Champ PERSON ─────────────────────────────────────────────────────────
 function FieldPerson({ q, onConfirm }: { q: Question; onConfirm: () => void }) {
   return (
@@ -323,19 +325,26 @@ function DocumentUploadSection({
       form.append("file", file);
       form.append("documentTypeCode", typeCode);
       const upRes = await fetch("/api/documents/upload", { method: "POST", body: form });
-      const upData = await upRes.json().catch(() => ({})) as { id?: string; taxReturnId?: string; error?: string };
+      const upText = await upRes.text();
+      const upData = (upText ? JSON.parse(upText) : {}) as { id?: string; existingDocumentId?: string; taxReturnId?: string; error?: string; message?: string };
       if (!upRes.ok) {
-        if (upData.error !== "duplicate_detected") throw new Error(upData.error ?? "Erreur upload");
+        if (upData.error !== "duplicate_detected") throw new Error(upData.message ?? upData.error ?? "Erreur upload");
       }
-      if (!upData.id) throw new Error("ID document manquant");
+      const documentId = upData.id ?? upData.existingDocumentId;
+      if (!documentId) throw new Error("Le serveur n’a pas retourné l’identifiant du document. Veuillez réessayer.");
 
       // OCR
       setStep("ocr");
-      await fetch(`/api/documents/${upData.id}/process`, {
+      const processRes = await fetch(`/api/documents/${documentId}/process`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ taxYear: 2025 }),
       });
+      const processText = await processRes.text();
+      const processData = (processText ? JSON.parse(processText) : {}) as { status?: string; error?: string };
+      if (!processRes.ok || processData.status === "failed") {
+        throw new Error(processData.error ?? "Échec du traitement OCR");
+      }
 
       // Sync + prefill
       await fetch("/api/resume/sync-from-docs", { method: "POST" }).catch(() => {});
@@ -494,6 +503,19 @@ export default function QuestionnairePage() {
     fetch("/api/profile").then(r => r.ok ? r.json() : null).then(d => {
       const province = d?.fiscalResidence ?? d?.province;
       if (province) setProfileProvince(String(province));
+      if (!d) return;
+      setAnswers(prev => ({
+        ...prev,
+        ...(d.lastName ? { p1: d.lastName } : {}),
+        ...(d.firstName ? { p2: d.firstName } : {}),
+        ...(d.dateOfBirth ? { p4: String(d.dateOfBirth).slice(0, 10) } : {}),
+        ...(d.address || d.city || d.province || d.postalCode ? {
+          p5: JSON.stringify([d.address ?? "", "", d.city ?? "", d.province ?? d.fiscalResidence ?? "", d.postalCode ?? ""]),
+        } : {}),
+        ...(d.phone ? { p7: d.phone } : {}),
+        ...(d.email ? { p8: d.email } : {}),
+        ...(province ? { p14: province, profil_province: province, province } : {}),
+      }));
     }).catch(() => {});
   }, []);
 
@@ -504,7 +526,7 @@ export default function QuestionnairePage() {
     if (draft && draft.status === "in_progress" && Object.keys(draft.answers).length > 0) {
       setAnswers(draft.answers);
       setSecIdx(draft.sectionIdx);
-      setQIdx(draft.questionIdx);
+      setQIdx(0);
       setLastSaved(formatLastSaved(draft.lastSavedAt));
     }
 
@@ -565,7 +587,7 @@ export default function QuestionnairePage() {
 
   // Questions de la section courante seulement (pas triage)
   const curSectionQs = ALL_QUESTIONS
-    .filter(q => q.section === currentSection?.code && evalCond(q.showIf, answers) && (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)))
+    .filter(q => q.section === currentSection?.code && answers[q.id] === undefined && evalCond(q.showIf, answers) && (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)))
     .sort((a, b) => a.order - b.order);
 
   // Si on est au début, montrer triage d'abord
@@ -653,7 +675,7 @@ export default function QuestionnairePage() {
     // Recalculer les questions après la réponse
     const newTriageDone = triageQs.every(q => newAnswers[q.id] !== undefined);
     const newDisplayQs = !newTriageDone ? triageQs
-      : ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === currentSection?.code && evalCond(q.showIf, newAnswers) && (!q.provinceOnly || (userProvince && q.provinceOnly.includes(userProvince)))).sort((a, b) => a.order - b.order);
+      : ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === currentSection?.code && newAnswers[q.id] === undefined && evalCond(q.showIf, newAnswers) && (!q.provinceOnly || (userProvince && q.provinceOnly.includes(userProvince)))).sort((a, b) => a.order - b.order);
 
     const currentQPos = newDisplayQs.findIndex(q => q.id === qId);
     const nextIdx = currentQPos + 1;
@@ -899,7 +921,11 @@ export default function QuestionnairePage() {
               <FieldDate value={dateVal} onChange={setDateVal} onConfirm={() => { if (dateVal) saveAndNext(currentQ.id, dateVal); }} />
             )}
             {currentQ.type === "ADDRESS" && (
-              <FieldAddress onConfirm={() => saveAndNext(currentQ.id, "adresse_confirmée")} />
+              <FieldAddress
+                required={currentQ.required}
+                initialValue={typeof answers[currentQ.id] === "string" ? String(answers[currentQ.id]) : undefined}
+                onConfirm={value => saveAndNext(currentQ.id, value)}
+              />
             )}
             {currentQ.type === "PERSON" && (
               <FieldPerson q={currentQ} onConfirm={() => saveAndNext(currentQ.id, "personne_ajoutée")} />

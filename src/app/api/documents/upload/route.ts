@@ -102,6 +102,11 @@ export async function POST(req: NextRequest) {
   if (!validation.valid) return NextResponse.json({ error: validation.error }, { status: 400 });
 
   // ── Auto-provisioning profil + année ──────────────────────────────────────
+  const existingProfile = await db.select({ id: taxProfiles.id, address: taxProfiles.address, city: taxProfiles.city, province: taxProfiles.province, postalCode: taxProfiles.postalCode })
+    .from(taxProfiles).where(eq(taxProfiles.userId, clerkUserId)).limit(1);
+  if (!existingProfile[0] || !existingProfile[0].address || !existingProfile[0].city || !existingProfile[0].province || !existingProfile[0].postalCode) {
+    return NextResponse.json({ error: "profile_required", message: "Complétez d’abord votre profil avec votre adresse complète et votre province." }, { status: 422 });
+  }
   const { profileId, yearId, taxReturnId: ensuredTaxReturnId } = await ensureTaxProfile(clerkUserId);
   const taxYearId = taxYearIdParam ?? yearId;
   const effectiveTaxReturnId = taxReturnId ?? ensuredTaxReturnId;

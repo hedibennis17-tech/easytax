@@ -354,13 +354,17 @@ export default function DossierPage() {
       form.append("taxYear", "2025");
       setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, progress: 35 } : s) })));
       const upload = await fetch("/api/documents/upload", { method: "POST", body: form });
-      const uploadData = await upload.json().catch(() => ({}));
-      if (!upload.ok) throw new Error(uploadData.message || uploadData.error || "Échec du téléversement");
-      setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "analyzing" as DocStatus, progress: 60, documentId: uploadData.id, fileName: file.name } : s) })));
-      const processed = await fetch(`/api/documents/${uploadData.id}/process`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taxYear: 2025 }) });
-      const processData = await processed.json().catch(() => ({}));
+      const uploadText = await upload.text();
+      const uploadData = (uploadText ? JSON.parse(uploadText) : {}) as { id?: string; existingDocumentId?: string; message?: string; error?: string };
+      if (!upload.ok && uploadData.error !== "duplicate_detected") throw new Error(uploadData.message || uploadData.error || "Échec du téléversement");
+      const documentId = uploadData.id ?? uploadData.existingDocumentId;
+      if (!documentId) throw new Error("Le serveur n’a pas retourné l’identifiant du document. Veuillez réessayer.");
+      setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "analyzing" as DocStatus, progress: 60, documentId, fileName: file.name } : s) })));
+      const processed = await fetch(`/api/documents/${documentId}/process`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taxYear: 2025 }) });
+      const processText = await processed.text();
+      const processData = (processText ? JSON.parse(processText) : {}) as { status?: string; error?: string };
       if (!processed.ok || processData.status === "failed") throw new Error(processData.error || "Échec de l’analyse OCR");
-      setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "done" as DocStatus, progress: 100, documentId: uploadData.id } : s) })));
+      setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "done" as DocStatus, progress: 100, documentId } : s) })));
     } catch (error) {
       setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "error" as DocStatus, progress: 0, errorMessage: error instanceof Error ? error.message : "Erreur inconnue" } : s) })));
     }
