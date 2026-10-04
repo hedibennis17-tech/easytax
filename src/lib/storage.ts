@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadBucketCommand, CreateBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createHash, randomUUID } from "crypto";
 
@@ -100,6 +100,17 @@ export async function uploadDocument(params: {
   mimeType: string;
   originalFilename: string;
 }): Promise<void> {
+  try {
+    await s3.send(new HeadBucketCommand({ Bucket: BUCKET }));
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+    const name = (error as { name?: string }).name;
+    if (status === 404 || name === "NotFound" || name === "NoSuchBucket") {
+      await s3.send(new CreateBucketCommand({ Bucket: BUCKET }));
+    } else {
+      throw error;
+    }
+  }
   await s3.send(
     new PutObjectCommand({
       Bucket: BUCKET,

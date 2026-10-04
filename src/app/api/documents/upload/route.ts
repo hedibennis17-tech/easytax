@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
   fiscalDocuments, documentTypes, taxProfiles,
-  taxYears, documentAuditLogs, users,
+  taxYears, taxReturns, documentAuditLogs, users,
 } from "@/db/schema";
 import { validateFile, buildStorageKey, computeSHA256, uploadDocument, randomUUID } from "@/lib/storage";
 import { eq, and, isNull } from "drizzle-orm";
@@ -62,24 +62,21 @@ async function ensureTaxProfile(clerkUserId: string): Promise<{ profileId: strin
     year = created;
   }
 
-  // 4. Assurer qu'un taxReturn existe pour 2025
-  const { taxReturns } = await import("@/db/schema");
   let taxReturn = await db.select({ id: taxReturns.id })
     .from(taxReturns)
     .where(and(eq(taxReturns.profileId, profile.id), eq(taxReturns.taxYearId, year.id)))
     .limit(1).then(r => r[0] ?? null);
-
   if (!taxReturn) {
     const [created] = await db.insert(taxReturns).values({
       profileId: profile.id,
       taxYearId: year.id,
-      status: "in_progress",
+      status: "draft",
       federalStatus: "draft",
       quebecStatus: "draft",
+      version: 1,
     }).returning({ id: taxReturns.id });
     taxReturn = created;
   }
-
   return { profileId: profile.id, yearId: year.id, taxReturnId: taxReturn.id };
 }
 
@@ -105,9 +102,9 @@ export async function POST(req: NextRequest) {
   if (!validation.valid) return NextResponse.json({ error: validation.error }, { status: 400 });
 
   // ── Auto-provisioning profil + année ──────────────────────────────────────
-  const { profileId, yearId, taxReturnId: autoTaxReturnId } = await ensureTaxProfile(clerkUserId);
+  const { profileId, yearId, taxReturnId: ensuredTaxReturnId } = await ensureTaxProfile(clerkUserId);
   const taxYearId = taxYearIdParam ?? yearId;
-  const effectiveTaxReturnId = taxReturnId ?? autoTaxReturnId;
+  const effectiveTaxReturnId = taxReturnId ?? ensuredTaxReturnId;
 
   // ── Type de document ──────────────────────────────────────────────────────
   const docType = await db.select({ id: documentTypes.id })
@@ -163,7 +160,7 @@ export async function POST(req: NextRequest) {
     userId:         clerkUserId,
     taxProfileId:   profileId,
     taxYearId,
-    taxReturnId:    effectiveTaxReturnId ?? undefined,
+    taxReturnId:    effectiveTaxReturnId,
     documentTypeId: docType[0].id,
     originalFilename: file.name,
     mimeType:       file.type,
@@ -185,7 +182,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     id: created.id,
     status: created.status,
-    taxReturnId: effectiveTaxReturnId,
     message: "Document ajouté.",
+    profileCreated: !profileId, // flag pour le front
   }, { status: 201 });
 }

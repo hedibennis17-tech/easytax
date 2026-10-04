@@ -482,6 +482,7 @@ export default function QuestionnairePage() {
   const [done,       setDone]       = useState(false);
   const [lastSaved,  setLastSaved]  = useState<string>("");
   const [userId,     setUserId]     = useState<string>("guest");
+  const [profileProvince, setProfileProvince] = useState<string | null>(null);
   const TAX_YEAR = "2025";
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -489,6 +490,10 @@ export default function QuestionnairePage() {
   useEffect(() => {
     fetch("/api/user/me").then(r => r.ok ? r.json() : null).then(d => {
       if (d?.id) setUserId(d.id);
+    }).catch(() => {});
+    fetch("/api/profile").then(r => r.ok ? r.json() : null).then(d => {
+      const province = d?.fiscalResidence ?? d?.province;
+      if (province) setProfileProvince(String(province));
     }).catch(() => {});
   }, []);
 
@@ -533,7 +538,9 @@ export default function QuestionnairePage() {
   }, [router]);
 
   // Province détectée (depuis le profil ou les réponses du triage)
-  const userProvince = (answers["province"] as string) ??
+  const userProvince = profileProvince ??
+                       (answers["taxProvince"] as string) ??
+                       (answers["province"] as string) ??
                        (answers["profil_province"] as string) ?? null;
 
   // ── Filtre provinceOnly — exclure les questions d'autres provinces ────────
@@ -553,7 +560,7 @@ export default function QuestionnairePage() {
   const ALL_QUESTIONS = getAllQuestionsWithProvince();
   const allApplicable = ALL_QUESTIONS.filter(q => evalCond(q.showIf, answers) && (!q.provinceOnly || !userProvince || q.provinceOnly.includes(userProvince)));
   const sectionQs = ALL_QUESTIONS
-    .filter(q => (q.section === currentSection?.code || q.section === "triage") && evalCond(q.showIf, answers))
+    .filter(q => (q.section === currentSection?.code || q.section === "triage") && evalCond(q.showIf, answers) && (!q.provinceOnly || (userProvince && q.provinceOnly.includes(userProvince))))
     .sort((a, b) => a.order - b.order);
 
   // Questions de la section courante seulement (pas triage)
@@ -646,7 +653,7 @@ export default function QuestionnairePage() {
     // Recalculer les questions après la réponse
     const newTriageDone = triageQs.every(q => newAnswers[q.id] !== undefined);
     const newDisplayQs = !newTriageDone ? triageQs
-      : ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === currentSection?.code && evalCond(q.showIf, newAnswers)).sort((a, b) => a.order - b.order);
+      : ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === currentSection?.code && evalCond(q.showIf, newAnswers) && (!q.provinceOnly || (userProvince && q.provinceOnly.includes(userProvince)))).sort((a, b) => a.order - b.order);
 
     const currentQPos = newDisplayQs.findIndex(q => q.id === qId);
     const nextIdx = currentQPos + 1;

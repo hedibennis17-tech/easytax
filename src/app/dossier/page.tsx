@@ -1,558 +1,531 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { NavClient } from "@/components/NavClient";
-import { useApp } from "@/components/ThemeProvider";
 
-// ─── Types ────────────────────────────────────────────────────
-type PipelineStep = "idle" | "uploading" | "ocr" | "extraction" | "validation" | "calculation" | "done" | "error";
+// ─── Types ───────────────────────────────────────────────────────────────────
+type DocStatus = "empty" | "uploading" | "analyzing" | "done" | "error";
 
-interface DocEntry {
-  slotId:       string;
-  typeCode:     string;
-  typeLabel:    string;
-  fileName:     string;
-  file:         File;
-  step:         PipelineStep;
-  progress:     number;      // 0–100
-  documentId?:  string;      // après upload S3
-  taxReturnId?: string;      // après upload
-  entriesCreated?: number;   // après sync OCR
-  extractedFields?: Array<{ code: string; label: string | null; value: string | null }>;
-  error?:       string;
+interface DocSlot {
+  id: string;
+  typeCode: string;
+  typeLabel: string;
+  status: DocStatus;
+  fileName?: string;
+  documentId?: string;
+  errorMessage?: string;
+  progress?: number; // 0-100
 }
 
-// ─── Constantes ───────────────────────────────────────────────
+// ─── Types de documents ────────────────────────────────────────────────────
 const DOC_TYPES = [
-  { code: "T4",       label: "T4",       desc: "Rémunération d'emploi",    hint: "Case 14, 16, 18, 22..." },
-  { code: "RL-1",     label: "RL-1",     desc: "Relevé 1 (Québec emploi)", hint: "Case A, B, C, E..." },
-  { code: "T4A",      label: "T4A",      desc: "Autres revenus",           hint: "CNESST, pension, bourses" },
-  { code: "T4E",      label: "T4E",      desc: "Assurance-emploi",         hint: "Prestations AE" },
-  { code: "T5",       label: "T5",       desc: "Revenus de placements",    hint: "Intérêts, dividendes" },
-  { code: "T3",       label: "T3",       desc: "Fiducie / fonds",          hint: "Fonds communs" },
-  { code: "T4RSP",    label: "T4RSP",    desc: "Retrait REER",             hint: "Montant retiré" },
-  { code: "REER",     label: "Reçu REER",desc: "Cotisation REER",          hint: "Déduction REER 2025" },
-  { code: "T2202",    label: "T2202",    desc: "Frais de scolarité",       hint: "Université, cégep" },
-  { code: "RL-2",     label: "RL-2",     desc: "Retraite (Québec)",        hint: "Revenus de retraite" },
-  { code: "T5008",    label: "T5008",    desc: "Gains en capital",         hint: "Vente de placements" },
-  { code: "DONATION", label: "Reçu don", desc: "Dons de bienfaisance",     hint: "Organismes reconnus" },
-  { code: "MEDICAL",  label: "Médical",  desc: "Reçus médicaux",           hint: "Ordonnances, dentiste" },
-  { code: "OTHER",    label: "Autre",    desc: "Autre document fiscal",    hint: "Classification IA" },
+  { code: "T4",           label: "T4 — Rémunération d'emploi",       desc: "Case 14, 16, 18, 22..." },
+  { code: "RL-1",         label: "Relevé 1 (RL-1)",                   desc: "Québec — emploi" },
+  { code: "T4A",          label: "T4A — Autres revenus",              desc: "CNESST, pension, bourses" },
+  { code: "T4E",          label: "T4E — Assurance-emploi",            desc: "Prestations AE" },
+  { code: "T5",           label: "T5 — Revenus de placements",        desc: "Intérêts, dividendes" },
+  { code: "T3",           label: "T3 — Fiducie / fonds",              desc: "Fonds communs" },
+  { code: "T4RSP",        label: "T4RSP — Retrait REER",              desc: "Montant retiré" },
+  { code: "REER",         label: "Reçu cotisation REER",              desc: "Déduction REER 2025" },
+  { code: "T2202",        label: "T2202 — Frais de scolarité",        desc: "Université, cégep" },
+  { code: "RL-2",         label: "Relevé 2 — Retraite (QC)",          desc: "Revenus de retraite" },
+  { code: "T5008",        label: "T5008 — Gains en capital",          desc: "Vente de placements" },
+  { code: "T1135",        label: "T1135 — Biens étrangers",           desc: "> 100 000 $ CA" },
+  { code: "T2201",        label: "T2201 — Crédit handicap",           desc: "Certificat approuvé" },
+  { code: "DONATION",     label: "Reçu de dons",                      desc: "Organismes de bienfaisance" },
+  { code: "MEDICAL",      label: "Reçus médicaux",                    desc: "Ordonnances, dentiste..." },
+  { code: "OTHER",        label: "Autre document fiscal",             desc: "Classification par IA" },
 ];
 
-const STEPS: { key: PipelineStep; label: string; labelEn: string }[] = [
-  { key: "uploading",    label: "Upload",     labelEn: "Upload" },
-  { key: "ocr",         label: "OCR",        labelEn: "OCR" },
-  { key: "extraction",  label: "Extraction", labelEn: "Extraction" },
-  { key: "validation",  label: "Validation", labelEn: "Validation" },
-  { key: "calculation", label: "Calcul",     labelEn: "Calculation" },
-  { key: "done",        label: "Terminé",    labelEn: "Done" },
-];
-
-const STEP_ORDER: PipelineStep[] = ["idle","uploading","ocr","extraction","validation","calculation","done"];
-function stepIndex(s: PipelineStep) { return STEP_ORDER.indexOf(s); }
-
-// ─── Helpers visuels ──────────────────────────────────────────
-function StepBubble({ step, current, label }: { step: PipelineStep; current: PipelineStep; label: string }) {
-  const ci = stepIndex(current);
-  const si = stepIndex(step);
-  const done    = ci > si && current !== "error";
-  const active  = ci === si;
-  const error   = current === "error";
-  const bg = done ? "#0b6b67" : active ? (error ? "#dc2626" : "#0b6b67") : "#e5ede9";
-  const textColor = (done || active) ? "#fff" : "#9db8b3";
-  return (
-    <div style={{ flex: 1, textAlign: "center" }}>
-      <div style={{ width: 30, height: 30, borderRadius: "50%", margin: "0 auto 5px", background: bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: textColor, boxShadow: active ? "0 0 0 3px rgba(11,107,103,0.2)" : "none" }}>
-        {done ? "✓" : error && active ? "✕" : STEP_ORDER.indexOf(step)}
-      </div>
-      <div style={{ fontSize: 9, color: done || active ? "#0b6b67" : "#a0b4b0", fontWeight: active ? 700 : 400, whiteSpace: "nowrap" }}>{label}</div>
-    </div>
-  );
-}
-
-// ─── Carte document dans le pipeline ─────────────────────────
-function DocCard({
-  doc, lang, onValidateAll, onRetry, onRemove,
+// ─── Composant bloc document ──────────────────────────────────────────────
+function DocBlock({
+  slot, onUpload, onRemove,
 }: {
-  doc: DocEntry; lang: string;
-  onValidateAll: (slotId: string) => void;
-  onRetry: (slotId: string) => void;
-  onRemove: (slotId: string) => void;
+  slot: DocSlot;
+  onUpload: (id: string, file: File) => void;
+  onRemove: (id: string) => void;
 }) {
-  const T = (fr: string, en: string) => lang === "en" ? en : fr;
-  const isDone  = doc.step === "done";
-  const isError = doc.step === "error";
-  const isActive= !isDone && !isError && doc.step !== "idle";
-
-  const borderColor = isDone ? "#9fd4cc" : isError ? "#fca5a5" : isActive ? "#b6ddd6" : "#dde8e5";
-  const bg = isDone ? "rgba(11,107,103,0.04)" : isError ? "rgba(220,38,38,0.04)" : "#fff";
+  const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div style={{ border: `1px solid ${borderColor}`, borderRadius: 14, background: bg, padding: "14px 16px", marginBottom: 10, transition: "all 300ms" }}>
-      {/* En-tête carte */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+    <div style={{
+      border: `1px solid ${slot.status === "done" ? "#b6ddd6" : slot.status === "error" ? "#fca5a5" : "#dde8e5"}`,
+      borderRadius: 12,
+      background: slot.status === "done" ? "#f0faf8" : slot.status === "error" ? "#fff5f5" : "#fff",
+      padding: "14px 16px",
+      transition: "all 200ms",
+    }}>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".pdf,.jpg,.jpeg,.png,.heic,.webp"
+        style={{ display: "none" }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(slot.id, f); }}
+      />
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        {/* Icône statut */}
+        <div style={{
+          width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+          background: slot.status === "done" ? "#d1fae5" : slot.status === "error" ? "#fee2e2" : "#f0f4f3",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 16,
+        }}>
+          {slot.status === "done" ? "✓" :
+           slot.status === "error" ? "✕" :
+           slot.status === "uploading" || slot.status === "analyzing" ? "⋯" :
+           "📄"}
+        </div>
+
+        {/* Infos */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#0b6b67", background: "rgba(11,107,103,0.1)", padding: "2px 7px", borderRadius: 6 }}>
-              {doc.typeCode}
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#0f1f1e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>
-              {doc.fileName}
-            </span>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#0f1f1e" }}>
+            {slot.typeLabel}
           </div>
-          <div style={{ fontSize: 11, color: "#7a9c97", marginTop: 3 }}>{doc.typeLabel}</div>
-        </div>
-        <button onClick={() => onRemove(doc.slotId)} style={{ border: 0, background: "transparent", color: "#a0b4b0", cursor: "pointer", fontSize: 16, padding: "0 4px", flexShrink: 0 }}>✕</button>
-      </div>
+          {slot.status === "empty" && (
+            <div style={{ fontSize: 11, color: "#7a9c97" }}>En attente · PDF, JPG, PNG</div>
+          )}
+          {slot.status === "uploading" && (
+            <div style={{ fontSize: 11, color: "#0b6b67" }}>Téléversement...</div>
+          )}
+          {slot.status === "analyzing" && (
+            <div style={{ fontSize: 11, color: "#0b6b67" }}>Analyse OCR en cours...</div>
+          )}
+          {slot.status === "done" && (
+            <div style={{ fontSize: 11, color: "#059669", fontWeight: 500 }}>{slot.fileName} · Analysé</div>
+          )}
+          {slot.status === "error" && (
+            <div style={{ fontSize: 11, color: "#dc2626" }}>{slot.errorMessage ?? "Erreur — réessayer"}</div>
+          )}
 
-      {/* Pipeline visuel */}
-      <div style={{ display: "flex", alignItems: "center", marginBottom: 10, gap: 0 }}>
-        {STEPS.map((s, i) => (
-          <div key={s.key} style={{ display: "flex", alignItems: "center", flex: 1 }}>
-            <StepBubble step={s.key} current={doc.step} label={lang === "en" ? s.labelEn : s.label} />
-            {i < STEPS.length - 1 && (
-              <div style={{ flex: 1, height: 2, background: stepIndex(doc.step) > stepIndex(s.key) ? "#0b6b67" : "#e5ede9", transition: "background 400ms" }} />
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Barre progression */}
-      {isActive && (
-        <div style={{ height: 3, background: "#e5ede9", borderRadius: 3, overflow: "hidden", marginBottom: 8 }}>
-          <div style={{ height: "100%", width: `${doc.progress}%`, background: "#0b6b67", borderRadius: 3, transition: "width 400ms ease" }} />
-        </div>
-      )}
-
-      {/* Message d'état */}
-      {isActive && (
-        <div style={{ fontSize: 12, color: "#0b6b67", display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#0b6b67", animation: "pulse 1s infinite" }} />
-          {doc.step === "uploading"    && T("Envoi du fichier vers S3...","Uploading file to S3...")}
-          {doc.step === "ocr"         && T("Lecture OCR du document...","Running OCR on document...")}
-          {doc.step === "extraction"  && T("Extraction des cases fiscales...","Extracting tax fields...")}
-          {doc.step === "validation"  && T("Validation des données extraites...","Validating extracted data...")}
-          {doc.step === "calculation" && T("Calcul fiscal en cours...","Running tax calculation...")}
-        </div>
-      )}
-
-      {/* Résultat: succès */}
-      {isDone && (
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#059669", fontWeight: 600, marginBottom: 6 }}>
-            ✓ {T("Traitement complet","Processing complete")}
-            {(doc.entriesCreated ?? 0) > 0 && (
-              <span style={{ fontSize: 11, background: "rgba(5,150,105,0.1)", color: "#059669", padding: "1px 7px", borderRadius: 100, fontWeight: 700 }}>
-                {doc.entriesCreated} {T("donnée(s) fiscale(s) extraite(s)","tax data extracted")}
-              </span>
-            )}
-          </div>
-          {/* Champs extraits en aperçu */}
-          {(doc.extractedFields?.length ?? 0) > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 6, marginTop: 8 }}>
-              {doc.extractedFields!.slice(0, 8).map(f => (
-                <div key={f.code} style={{ background: "#f7f9f8", border: "1px solid #dde8e5", borderRadius: 8, padding: "6px 8px" }}>
-                  <div style={{ fontSize: 9, color: "#9fd4cc", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>
-                    {f.label ?? f.code}
-                  </div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#0f1f1e", fontFamily: "monospace", marginTop: 2 }}>
-                    {f.value ?? "—"}
-                  </div>
-                </div>
-              ))}
+          {/* Barre de progression */}
+          {(slot.status === "uploading" || slot.status === "analyzing") && (
+            <div style={{ height: 2, background: "#dde8e5", borderRadius: 2, marginTop: 6, overflow: "hidden" }}>
+              <div style={{
+                height: "100%", background: "#0b6b67", borderRadius: 2,
+                width: `${slot.progress ?? 30}%`,
+                transition: "width 400ms ease",
+              }} />
             </div>
           )}
-          {/* Bouton valider tout */}
-          {(doc.entriesCreated ?? 0) > 0 && (
-            <button onClick={() => onValidateAll(doc.slotId)}
-              style={{ marginTop: 10, padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer", width: "100%" }}>
-              {T("✓ Confirmer les données extraites","✓ Confirm extracted data")}
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          {slot.status === "empty" && (
+            <button
+              onClick={() => inputRef.current?.click()}
+              style={{
+                padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer",
+              }}
+            >
+              Choisir
             </button>
           )}
-        </div>
-      )}
-
-      {/* Résultat: erreur */}
-      {isError && (
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4 }}>
-          <span style={{ fontSize: 12, color: "#dc2626", flex: 1 }}>⚠ {doc.error ?? T("Erreur de traitement","Processing error")}</span>
-          <button onClick={() => onRetry(doc.slotId)} style={{ padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 700, background: "transparent", color: "#0b6b67", border: "1px solid #0b6b67", cursor: "pointer" }}>
-            {T("Réessayer","Retry")}
+          {slot.status === "error" && (
+            <button
+              onClick={() => inputRef.current?.click()}
+              style={{
+                padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                background: "#dc2626", color: "#fff", border: "none", cursor: "pointer",
+              }}
+            >
+              Réessayer
+            </button>
+          )}
+          {slot.status === "done" && (
+            <Link
+              href={slot.documentId ? `/documents/${slot.documentId}/extraction` : "/documents"}
+              style={{
+                padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600,
+                background: "transparent", color: "#0b6b67", border: "1px solid #b6ddd6", cursor: "pointer",
+              }}
+            >
+              Voir
+            </Link>
+          )}
+          <button
+            onClick={() => onRemove(slot.id)}
+            style={{
+              padding: "6px 8px", borderRadius: 7, fontSize: 12,
+              background: "transparent", color: "#a0b4b0", border: "none", cursor: "pointer",
+            }}
+          >
+            ✕
           </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════
-// PAGE PRINCIPALE
-// ═══════════════════════════════════════════════════════════
-export default function DossierPage() {
-  const router = useRouter();
-  const { lang } = useApp();
-  const T = (fr: string, en: string) => lang === "en" ? en : fr;
-
-  const [docs,          setDocs]          = useState<DocEntry[]>([]);
-  const [showPicker,    setShowPicker]    = useState(false);
-  const [taxReturnId,   setTaxReturnId]   = useState<string | null>(null);
-  const [calcDone,      setCalcDone]      = useState(false);
-  const [calcResult,    setCalcResult]    = useState<{ balance: number; isRefund: boolean } | null>(null);
-  const [existingDocs,  setExistingDocs]  = useState<Array<{ id: string; filename: string; typeCode: string | null; status: string; entriesCreated?: number }>>([]);
-  const fileInputsRef = useRef<Record<string, HTMLInputElement | null>>({});
-
-  // ── Charger les docs existants au démarrage ──────────────
-  useEffect(() => {
-    fetch("/api/resume")
-      .then(r => r.ok ? r.json() : null)
-      .then((d: { meta?: { taxReturnId?: string }; documents?: typeof existingDocs; calculation?: { totalBalanceCents?: number; isRefund?: boolean } } | null) => {
-        if (!d) return;
-        if (d.meta?.taxReturnId) setTaxReturnId(d.meta.taxReturnId);
-        if (d.documents) setExistingDocs(d.documents);
-        if (d.calculation) {
-          setCalcDone(true);
-          setCalcResult({ balance: d.calculation.totalBalanceCents ?? 0, isRefund: d.calculation.isRefund ?? false });
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  // ── Pipeline complet pour un document ────────────────────
-  const runPipeline = useCallback(async (slotId: string, file: File, typeCode: string) => {
-
-    const setStep = (step: PipelineStep, progress: number, extra?: Partial<DocEntry>) =>
-      setDocs(ds => ds.map(d => d.slotId === slotId ? { ...d, step, progress, ...extra } : d));
-
-    try {
-      // ── ÉTAPE 1: UPLOAD ───────────────────────────────────
-      setStep("uploading", 15);
-      const form = new FormData();
-      form.append("file", file);
-      form.append("documentTypeCode", typeCode);
-
-      const upRes = await fetch("/api/documents/upload", { method: "POST", body: form });
-
-      if (!upRes.ok) {
-        const err = await upRes.json().catch(() => ({})) as { error?: string; existingDocumentId?: string };
-        if (err.error === "duplicate_detected") {
-          // Doublon — traiter quand même comme done
-          setStep("done", 100, { documentId: err.existingDocumentId, entriesCreated: 0, error: T("Document déjà présent — données récupérées","Document already exists — data recovered") });
-          return;
-        }
-        throw new Error(err.error ?? "Erreur upload");
-      }
-
-      const upData = await upRes.json() as { id: string; taxReturnId?: string };
-      const documentId = upData.id;
-      if (upData.taxReturnId) setTaxReturnId(upData.taxReturnId);
-
-      setStep("uploading", 40, { documentId });
-
-      // ── ÉTAPE 2: OCR ──────────────────────────────────────
-      setStep("ocr", 50);
-
-      const ocrRes = await fetch(`/api/documents/${documentId}/process`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taxYear: 2025 }),
-      });
-
-      const ocrData = ocrRes.ok ? await ocrRes.json().catch(() => ({})) as { entriesCreated?: number; extractionId?: string } : {};
-
-      // ── ÉTAPE 3: EXTRACTION ───────────────────────────────
-      setStep("extraction", 65);
-
-      // Récupérer les champs extraits pour aperçu visuel
-      let extractedFields: DocEntry["extractedFields"] = [];
-      if (documentId) {
-        const resumeRes = await fetch("/api/resume").catch(() => null);
-        if (resumeRes?.ok) {
-          const resumeData = await resumeRes.json() as { slips?: Array<{ documentId: string; fields: Array<{ code: string; label: string | null; value: string | null }> }> };
-          const slip = resumeData.slips?.find(s => s.documentId === documentId);
-          if (slip) extractedFields = slip.fields;
-        }
-      }
-
-      setStep("extraction", 75, { extractedFields });
-
-      // ── ÉTAPE 4: VALIDATION AUTO ──────────────────────────
-      // Valider automatiquement les données OCR avec confiance élevée
-      setStep("validation", 82);
-
-      const syncRes = await fetch("/api/resume/sync-from-docs", { method: "POST" }).catch(() => null);
-      const syncData = syncRes?.ok ? await syncRes.json().catch(() => ({})) as { totalCreated?: number } : {};
-      const entriesCreated = (ocrData.entriesCreated ?? 0) + (syncData.totalCreated ?? 0);
-
-      // Auto-valider les entries issues de ce document
-      if (documentId && entriesCreated > 0) {
-        await fetch("/api/resume/edit", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "validate_all_from_doc", documentId }),
-        }).catch(() => {});
-      }
-
-      setStep("validation", 88, { entriesCreated });
-
-      // ── ÉTAPE 5: CALCUL FISCAL AUTO ───────────────────────
-      setStep("calculation", 93);
-
-      const currentTaxReturnId = upData.taxReturnId ?? taxReturnId;
-      if (currentTaxReturnId) {
-        const calcRes = await fetch("/api/tax-engine/calculate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ taxReturnId: currentTaxReturnId }),
-        }).catch(() => null);
-
-        if (calcRes?.ok) {
-          const calcData = await calcRes.json().catch(() => ({})) as { result?: { totalBalanceCents?: number; isRefund?: boolean } };
-          if (calcData.result) {
-            setCalcDone(true);
-            setCalcResult({
-              balance: calcData.result.totalBalanceCents ?? 0,
-              isRefund: (calcData.result.totalBalanceCents ?? 0) < 0,
-            });
-          }
-        }
-      }
-
-      // ── DONE ──────────────────────────────────────────────
-      setStep("done", 100, { entriesCreated, extractedFields });
-
-      // Rafraîchir la liste des docs existants
-      fetch("/api/resume")
-        .then(r => r.ok ? r.json() : null)
-        .then((d: { documents?: typeof existingDocs } | null) => { if (d?.documents) setExistingDocs(d.documents); })
-        .catch(() => {});
-
-    } catch (err) {
-      setStep("error", 0, { error: err instanceof Error ? err.message : "Erreur inconnue" });
-    }
-  }, [taxReturnId, lang]);
-
-  // ── Sélectionner un type et ouvrir le file picker ────────
-  const pickFile = (typeCode: string, typeLabel: string) => {
-    const slotId = `${typeCode}-${Date.now()}`;
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".pdf,.jpg,.jpeg,.png,.heic,.webp";
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const entry: DocEntry = { slotId, typeCode, typeLabel, fileName: file.name, file, step: "idle", progress: 0 };
-      setDocs(ds => [...ds, entry]);
-      setShowPicker(false);
-      runPipeline(slotId, file, typeCode);
-    };
-    input.click();
-  };
-
-  // ── Retry ─────────────────────────────────────────────────
-  const handleRetry = useCallback((slotId: string) => {
-    const doc = docs.find(d => d.slotId === slotId);
-    if (!doc) return;
-    setDocs(ds => ds.map(d => d.slotId === slotId ? { ...d, step: "idle", progress: 0, error: undefined } : d));
-    runPipeline(slotId, doc.file, doc.typeCode);
-  }, [docs, runPipeline]);
-
-  // ── Supprimer ─────────────────────────────────────────────
-  const handleRemove = useCallback((slotId: string) => {
-    setDocs(ds => ds.filter(d => d.slotId !== slotId));
-  }, []);
-
-  // ── Valider toutes les données d'un doc ───────────────────
-  const handleValidateAll = useCallback(async (slotId: string) => {
-    const doc = docs.find(d => d.slotId === slotId);
-    if (!doc?.documentId) return;
-    await fetch("/api/resume/validate-doc", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId: doc.documentId }),
-    }).catch(() => {});
-    // Recalculer après validation
-    if (taxReturnId) {
-      await fetch("/api/tax-engine/calculate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taxReturnId }),
-      }).then(r => r.ok ? r.json() : null)
-        .then((d: { result?: { totalBalanceCents?: number } } | null) => {
-          if (d?.result) {
-            setCalcDone(true);
-            setCalcResult({ balance: d.result.totalBalanceCents ?? 0, isRefund: (d.result.totalBalanceCents ?? 0) < 0 });
-          }
-        }).catch(() => {});
-    }
-  }, [docs, taxReturnId]);
-
-  const docsInProgress = docs.filter(d => d.step !== "idle" && d.step !== "done" && d.step !== "error");
-  const docsDone       = docs.filter(d => d.step === "done");
-  const totalEntries   = docs.reduce((s, d) => s + (d.entriesCreated ?? 0), 0);
-
-  // ── Style animé ──────────────────────────────────────────
-  const CSS = `@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`;
+// ─── Groupe de feuillets pour un type ────────────────────────────────────
+function DocGroup({
+  typeCode, typeLabel, typeDesc, slots, onUpload, onRemove, onAddSlot,
+}: {
+  typeCode: string; typeLabel: string; typeDesc: string;
+  slots: DocSlot[];
+  onUpload: (id: string, file: File) => void;
+  onRemove: (id: string) => void;
+  onAddSlot: (typeCode: string) => void;
+}) {
+  const doneCount = slots.filter(s => s.status === "done").length;
 
   return (
-    <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
+    <div style={{
+      border: "1px solid #dde8e5", borderRadius: 14,
+      background: "#fff", overflow: "hidden",
+      marginBottom: 10,
+    }}>
+      {/* En-tête du groupe */}
+      <div style={{
+        padding: "12px 16px", borderBottom: "1px solid #edf2f0",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+      }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0f1f1e" }}>{typeLabel}</div>
+          <div style={{ fontSize: 11, color: "#7a9c97" }}>{typeDesc}</div>
+        </div>
+        {doneCount > 0 && (
+          <span style={{
+            fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 100,
+            background: "#d1fae5", color: "#059669",
+          }}>
+            {doneCount} analysé{doneCount > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {/* Feuillets */}
+      <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {slots.map(slot => (
+          <DocBlock key={slot.id} slot={slot} onUpload={onUpload} onRemove={onRemove} />
+        ))}
+
+        {/* Ajouter un feuillet */}
+        <button
+          onClick={() => onAddSlot(typeCode)}
+          style={{
+            padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+            background: "transparent", color: "#0b6b67",
+            border: "1px dashed #9fd4cc", cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          + Ajouter un feuillet {typeLabel.split(" — ")[0]} supplémentaire
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── SÉLECTEUR DE TYPE ────────────────────────────────────────────────────
+function TypePicker({ onSelect }: { onSelect: (type: typeof DOC_TYPES[0]) => void }) {
+  const [query, setQuery] = useState("");
+  const filtered = DOC_TYPES.filter(t =>
+    t.code.toLowerCase().includes(query.toLowerCase()) ||
+    t.label.toLowerCase().includes(query.toLowerCase()) ||
+    t.desc.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div style={{
+      border: "1px solid #dde8e5", borderRadius: 14, background: "#fff",
+      padding: "16px", marginBottom: 10,
+    }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#0f1f1e", marginBottom: 10 }}>
+        Quel document souhaitez-vous ajouter ?
+      </div>
+      <input
+        type="text"
+        placeholder="Rechercher un type (T4, T5, REER...)"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        autoFocus
+        style={{
+          width: "100%", padding: "9px 12px", borderRadius: 8,
+          border: "1px solid #dde8e5", fontSize: 13, outline: "none",
+          marginBottom: 10, boxSizing: "border-box",
+        }}
+      />
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 260, overflowY: "auto" }}>
+        {filtered.map(t => (
+          <button
+            key={t.code}
+            onClick={() => onSelect(t)}
+            style={{
+              padding: "9px 12px", borderRadius: 8, textAlign: "left",
+              border: "1px solid transparent", background: "transparent",
+              cursor: "pointer", display: "flex", gap: 10, alignItems: "center",
+              transition: "background 120ms",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#f0faf8")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 5,
+              background: "#edf7f5", color: "#0b6b67", flexShrink: 0,
+            }}>{t.code}</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#0f1f1e" }}>{t.label}</div>
+              <div style={{ fontSize: 11, color: "#7a9c97" }}>{t.desc}</div>
+            </div>
+          </button>
+        ))}
+        {filtered.length === 0 && (
+          <div style={{ fontSize: 13, color: "#7a9c97", padding: "12px", textAlign: "center" }}>
+            Aucun résultat · <button onClick={() => onSelect({ code: "OTHER", label: "Autre document", desc: "Classification par IA" })} style={{ color: "#0b6b67", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>Ajouter quand même</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── PAGE PRINCIPALE ──────────────────────────────────────────────────────
+export default function DossierPage() {
+  // groups: { typeCode, typeLabel, typeDesc, slots }
+  const [groups, setGroups] = useState<{
+    typeCode: string; typeLabel: string; typeDesc: string; slots: DocSlot[];
+  }[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
+  const [totalDone, setTotalDone] = useState(0);
+  const [totalSlots, setTotalSlots] = useState(0);
+
+  useEffect(() => {
+    let done = 0, total = 0;
+    groups.forEach(g => { g.slots.forEach(s => { total++; if (s.status === "done") done++; }); });
+    setTotalDone(done);
+    setTotalSlots(total);
+  }, [groups]);
+
+  // Sync automatique au chargement: lier les données OCR existantes aux entries
+  useEffect(() => {
+    fetch("/api/resume/sync-from-docs", { method: "POST" }).catch(() => {});
+  }, []);
+
+  const addGroup = useCallback((type: typeof DOC_TYPES[0]) => {
+    setShowPicker(false);
+    const slotId = `${type.code}-${Date.now()}`;
+    setGroups(g => {
+      const existing = g.find(x => x.typeCode === type.code);
+      if (existing) {
+        // Ajouter un slot au groupe existant
+        return g.map(x => x.typeCode === type.code
+          ? { ...x, slots: [...x.slots, { id: slotId, typeCode: type.code, typeLabel: `${type.code} — Feuillet ${x.slots.length + 1}`, status: "empty" as DocStatus }] }
+          : x
+        );
+      }
+      return [...g, {
+        typeCode: type.code,
+        typeLabel: type.label,
+        typeDesc: type.desc,
+        slots: [{ id: slotId, typeCode: type.code, typeLabel: `${type.code} — Feuillet 1`, status: "empty" as DocStatus }],
+      }];
+    });
+  }, []);
+
+  const addSlot = useCallback((typeCode: string) => {
+    setGroups(g => g.map(x => {
+      if (x.typeCode !== typeCode) return x;
+      const n = x.slots.length + 1;
+      const slotId = `${typeCode}-${Date.now()}`;
+      return { ...x, slots: [...x.slots, { id: slotId, typeCode, typeLabel: `${typeCode} — Feuillet ${n}`, status: "empty" as DocStatus }] };
+    }));
+  }, []);
+
+  const removeSlot = useCallback((id: string) => {
+    setGroups(g => g
+      .map(x => ({ ...x, slots: x.slots.filter(s => s.id !== id) }))
+      .filter(x => x.slots.length > 0)
+    );
+  }, []);
+
+  const handleUpload = useCallback(async (id: string, file: File) => {
+    const group = groups.find(g => g.slots.some(s => s.id === id));
+    if (!group) return;
+    setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "uploading" as DocStatus, progress: 10, errorMessage: undefined } : s) })));
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("documentTypeCode", group.typeCode);
+      form.append("taxYear", "2025");
+      setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, progress: 35 } : s) })));
+      const upload = await fetch("/api/documents/upload", { method: "POST", body: form });
+      const uploadData = await upload.json().catch(() => ({}));
+      if (!upload.ok) throw new Error(uploadData.message || uploadData.error || "Échec du téléversement");
+      setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "analyzing" as DocStatus, progress: 60, documentId: uploadData.id, fileName: file.name } : s) })));
+      const processed = await fetch(`/api/documents/${uploadData.id}/process`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taxYear: 2025 }) });
+      const processData = await processed.json().catch(() => ({}));
+      if (!processed.ok || processData.status === "failed") throw new Error(processData.error || "Échec de l’analyse OCR");
+      setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "done" as DocStatus, progress: 100, documentId: uploadData.id } : s) })));
+    } catch (error) {
+      setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "error" as DocStatus, progress: 0, errorMessage: error instanceof Error ? error.message : "Erreur inconnue" } : s) })));
+    }
+  }, [groups]);
+  const docsPct = totalSlots > 0 ? Math.round((totalDone / totalSlots) * 100) : 0;
+
+  return (
+    <div style={{ background: "#f7f9f8", minHeight: "100vh" }}>
       <NavClient />
-      <style>{CSS}</style>
 
-      <main style={{ maxWidth: 680, margin: "0 auto", padding: "20px 16px 80px" }}>
+      <main style={{ maxWidth: 680, margin: "0 auto", padding: "24px 16px 80px" }}>
 
-        {/* ── En-tête ─────────────────────────────────────── */}
+        {/* ── En-tête ──────────────────────────────────────────────── */}
         <div style={{ marginBottom: 20 }}>
-          <h1 style={{ fontFamily: "Georgia,serif", fontSize: "clamp(1.5rem,4vw,2rem)", margin: "0 0 4px", color: "var(--text-primary)" }}>
-            {T("Mon dossier fiscal 2025","My 2025 Tax File")}
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: "#0f1f1e", margin: "0 0 4px" }}>
+            Mon dossier fiscal 2025
           </h1>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
-            {T("Uploadez vos feuillets — le système extrait, valide et calcule automatiquement.",
-               "Upload your slips — the system extracts, validates and calculates automatically.")}
+          <p style={{ fontSize: 13, color: "#526865", margin: 0, lineHeight: 1.5 }}>
+            Téléversez vos feuillets — le système extrait les données automatiquement.
           </p>
         </div>
 
-        {/* ── Résultat fiscal (si calcul fait) ────────────── */}
-        {calcDone && calcResult && (
-          <div onClick={() => router.push("/resume")} style={{ background: calcResult.isRefund ? "rgba(5,150,105,0.06)" : "rgba(220,38,38,0.06)", border: `1px solid ${calcResult.isRefund ? "rgba(5,150,105,0.3)" : "rgba(220,38,38,0.3)"}`, borderRadius: 14, padding: "14px 16px", marginBottom: 16, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: calcResult.isRefund ? "#059669" : "#dc2626", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>
-                🔢 {T("Résultat fiscal préliminaire","Preliminary tax result")}
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "monospace", color: calcResult.isRefund ? "#059669" : "#dc2626" }}>
-                {calcResult.isRefund ? "▲ " : "▼ "}{(Math.abs(calcResult.balance) / 100).toLocaleString("fr-CA", { minimumFractionDigits: 2 })} $
-              </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-                {calcResult.isRefund ? T("Remboursement estimé","Estimated refund") : T("Solde dû estimé","Estimated balance owing")} · {T("Voir le résumé →","See summary →")}
-              </div>
-            </div>
-            <span style={{ fontSize: 24, color: calcResult.isRefund ? "#059669" : "#dc2626" }}>
-              {calcResult.isRefund ? "💚" : "📊"}
-            </span>
+        {/* ── Progression globale ──────────────────────────────────── */}
+        <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "14px 16px", marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#0f1f1e" }}>Documents analysés</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#0b6b67" }}>{totalDone} / {totalSlots || "—"}</span>
           </div>
-        )}
+          <div style={{ height: 4, background: "#edf2f0", borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${docsPct}%`, background: "#0b6b67", borderRadius: 4, transition: "width 500ms ease" }} />
+          </div>
 
-        {/* ── Documents en cours de traitement ────────────── */}
-        {docs.length > 0 && (
-          <div style={{ marginBottom: 14 }}>
-            {docs.map(doc => (
-              <DocCard key={doc.slotId} doc={doc} lang={lang}
-                onValidateAll={handleValidateAll}
-                onRetry={handleRetry}
-                onRemove={handleRemove}
+          {/* Flow OCR */}
+          <div style={{ display: "flex", gap: 0, marginTop: 12, borderTop: "1px solid #edf2f0", paddingTop: 12 }}>
+            {["Upload", "OCR", "Extraction", "Validation", "Calcul"].map((step, i) => (
+              <div key={step} style={{ flex: 1, textAlign: "center" }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: "50%", margin: "0 auto 4px",
+                  background: i === 0 && totalSlots > 0 ? "#0b6b67" : "#edf2f0",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 11, fontWeight: 700,
+                  color: i === 0 && totalSlots > 0 ? "#fff" : "#a0b4b0",
+                }}>
+                  {i + 1}
+                </div>
+                <div style={{ fontSize: 10, color: "#7a9c97" }}>{step}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Documents ajoutés ────────────────────────────────────── */}
+        {groups.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            {groups.map(g => (
+              <DocGroup
+                key={g.typeCode}
+                typeCode={g.typeCode}
+                typeLabel={g.typeLabel}
+                typeDesc={g.typeDesc}
+                slots={g.slots}
+                onUpload={handleUpload}
+                onRemove={removeSlot}
+                onAddSlot={addSlot}
               />
             ))}
           </div>
         )}
 
-        {/* ── Stats rapides ────────────────────────────────── */}
-        {(docsDone.length > 0 || existingDocs.length > 0) && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
-            {[
-              { label: T("Docs traités","Docs processed"), value: docsDone.length + existingDocs.filter(d => d.status === "ready_for_tax_return").length },
-              { label: T("Données extraites","Data extracted"), value: totalEntries + existingDocs.reduce((s, d) => s + (d.entriesCreated ?? 0), 0) },
-              { label: T("Statut calcul","Calc status"), value: calcDone ? T("✓ Fait","✓ Done") : T("En attente","Pending") },
-            ].map(stat => (
-              <div key={stat.label} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 12px", textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>{stat.value}</div>
-                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{stat.label}</div>
-              </div>
-            ))}
+        {/* ── Sélecteur de type ou zone d'ajout ────────────────────── */}
+        {showPicker ? (
+          <div>
+            <TypePicker onSelect={addGroup} />
+            <button
+              onClick={() => setShowPicker(false)}
+              style={{ width: "100%", padding: "10px 0", borderRadius: 10, fontSize: 13, background: "transparent", color: "#7a9c97", border: "1px solid #dde8e5", cursor: "pointer" }}
+            >
+              Annuler
+            </button>
           </div>
+        ) : (
+          <button
+            onClick={() => setShowPicker(true)}
+            style={{
+              width: "100%", padding: "18px 0", borderRadius: 12, fontSize: 14, fontWeight: 600,
+              background: "#fff", color: "#0b6b67",
+              border: "1.5px dashed #9fd4cc", cursor: "pointer",
+              marginBottom: 16,
+            }}
+          >
+            + Ajouter un document fiscal
+          </button>
         )}
 
-        {/* ── Ajouter un document ──────────────────────────── */}
-        {!showPicker ? (
-          <button onClick={() => setShowPicker(true)} style={{ width: "100%", padding: "16px 0", borderRadius: 12, fontSize: 14, fontWeight: 600, background: "var(--bg-card)", color: "#0b6b67", border: "1.5px dashed #9fd4cc", cursor: "pointer", marginBottom: 14 }}>
-            + {T("Ajouter un feuillet ou document fiscal","Add a slip or tax document")}
-          </button>
-        ) : (
-          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 16, marginBottom: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>
-                {T("Choisir le type de document","Choose document type")}
-              </span>
-              <button onClick={() => setShowPicker(false)} style={{ border: 0, background: "transparent", color: "var(--text-muted)", cursor: "pointer", fontSize: 18 }}>✕</button>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
-              {DOC_TYPES.map(t => (
-                <button key={t.code} onClick={() => pickFile(t.code, t.label)}
-                  style={{ padding: "10px 12px", borderRadius: 10, textAlign: "left", background: "var(--bg-base)", border: "1px solid var(--border)", cursor: "pointer" }}
+        {/* ── Types courants (raccourcis rapides) ──────────────────── */}
+        {!showPicker && groups.length === 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#7a9c97", marginBottom: 8 }}>Documents courants</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {DOC_TYPES.slice(0, 8).map(t => (
+                <button
+                  key={t.code}
+                  onClick={() => addGroup(t)}
+                  style={{
+                    padding: "10px 12px", borderRadius: 10, textAlign: "left",
+                    background: "#fff", border: "1px solid #dde8e5", cursor: "pointer",
+                    transition: "border-color 120ms",
+                  }}
                   onMouseEnter={e => (e.currentTarget.style.borderColor = "#9fd4cc")}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border)")}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#0b6b67", marginBottom: 2 }}>{t.label}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.3 }}>{t.desc}</div>
-                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{t.hint}</div>
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = "#dde8e5")}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#0b6b67", marginBottom: 3 }}>{t.code}</div>
+                  <div style={{ fontSize: 12, color: "#0f1f1e", fontWeight: 500, lineHeight: 1.3 }}>
+                    {t.label.split(" — ")[1] || t.label}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#7a9c97", marginTop: 2 }}>{t.desc}</div>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* ── Docs existants (traités avant) ──────────────── */}
-        {existingDocs.length > 0 && (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-              {T("Documents de ce dossier","Documents in this file")}
-            </div>
-            {existingDocs.map(doc => (
-              <div key={doc.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#0b6b67", background: "rgba(11,107,103,0.08)", padding: "1px 6px", borderRadius: 5, marginRight: 6 }}>{doc.typeCode ?? "?"}</span>
-                  <span style={{ fontSize: 12, color: "var(--text-primary)" }}>{doc.filename}</span>
-                </div>
-                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, fontWeight: 600,
-                  background: doc.status === "ready_for_tax_return" ? "rgba(5,150,105,0.1)" : "rgba(245,158,11,0.1)",
-                  color: doc.status === "ready_for_tax_return" ? "#059669" : "#92400e" }}>
-                  {doc.status === "ready_for_tax_return" ? T("✓ Extrait","✓ Extracted") : T("⏳ Traitement","⏳ Processing")}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* ── Séparateur ───────────────────────────────────────────── */}
+        <div style={{ borderTop: "1px solid #dde8e5", margin: "20px 0" }} />
 
-        <div style={{ borderTop: "1px solid var(--border)", margin: "20px 0" }} />
-
-        {/* ── Actions ──────────────────────────────────────── */}
-        <div style={{ display: "grid", gap: 8 }}>
-          {/* Questions complémentaires */}
-          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        {/* ── Questionnaire complémentaire ─────────────────────────── */}
+        <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "14px 16px", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>
-                📝 {T("Questions complémentaires","Supplemental questions")}
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f1f1e", marginBottom: 3 }}>
+                Questions supplémentaires
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                {T("Bureau à domicile, véhicule, famille — ce qui ne figure pas sur les feuillets.",
-                   "Home office, vehicle, family — what's not on the slips.")}
+              <div style={{ fontSize: 12, color: "#526865", lineHeight: 1.4 }}>
+                Bureau à domicile, véhicule, famille — ce qui ne figure pas sur les feuillets.
               </div>
             </div>
-            <button onClick={() => router.push("/questionnaire")} style={{ padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer", flexShrink: 0 }}>
-              {T("Commencer →","Start →")}
-            </button>
+            <Link href="/questionnaire" style={{
+              padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+              background: "#0b6b67", color: "#fff", textDecoration: "none", flexShrink: 0,
+            }}>
+              Commencer →
+            </Link>
           </div>
-
-          {/* Résumé fiscal */}
-          <button onClick={() => router.push("/resume")} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, cursor: "pointer", width: "100%", textAlign: "left" }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>
-                📊 {T("Résumé fiscal","Tax summary")}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                {calcDone
-                  ? T("Voir le détail des calculs préliminaires","View preliminary calculation details")
-                  : T("Disponible après traitement des documents","Available after document processing")}
-              </div>
-            </div>
-            <span style={{ fontSize: 18, color: calcDone ? "#0b6b67" : "var(--text-muted)" }}>
-              {calcDone ? "✓" : "→"}
-            </span>
-          </button>
         </div>
 
-        <div style={{ marginTop: 20, fontSize: 11, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.5 }}>
-          {T("EasyTax produit des résultats préliminaires. Aucune déclaration n'est transmise sans votre validation explicite.",
-             "EasyTax produces preliminary results. No return is filed without your explicit approval.")}
+        {/* ── Résumé fiscal ────────────────────────────────────────── */}
+        <Link href="/resume" style={{ textDecoration: "none" }}>
+          <div style={{
+            background: "#fff", border: "1px solid #dde8e5", borderRadius: 14,
+            padding: "14px 16px", display: "flex", alignItems: "center",
+            justifyContent: "space-between", gap: 12,
+          }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f1f1e", marginBottom: 3 }}>
+                Résumé fiscal préliminaire
+              </div>
+              <div style={{ fontSize: 12, color: "#526865" }}>Disponible après validation des documents.</div>
+            </div>
+            <span style={{ fontSize: 18, color: "#a0b4b0" }}>→</span>
+          </div>
+        </Link>
+
+        {/* ── Note légale ──────────────────────────────────────────── */}
+        <div style={{ marginTop: 20, fontSize: 11, color: "#a0b4b0", textAlign: "center", lineHeight: 1.5 }}>
+          EasyTax produit des résultats <strong>préliminaires</strong>. Aucune déclaration n&apos;est transmise sans votre validation explicite.
         </div>
 
       </main>

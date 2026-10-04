@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { fiscalDocuments, documentExtractions, extractionFields, documentAuditLogs } from "@/db/schema";
+import { fiscalDocuments, documentExtractions, extractionFields, documentAuditLogs, documentTypes, documentPages } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { getAuthContext, unauthorized } from "@/lib/auth-helpers";
+import { syncOcrToEntries } from "@/lib/ocr-to-entries";
 
 export async function POST(
   req: NextRequest,
@@ -29,9 +30,12 @@ export async function POST(
 
   if (!extraction[0]) return NextResponse.json({ error: "Aucune extraction à valider" }, { status: 404 });
 
-  await db.update(extractionFields)
-    .set({ validationStatus: "confirmed", updatedAt: new Date() })
+  const pendingFields = await db.select({ id: extractionFields.id })
+    .from(extractionFields)
     .where(and(eq(extractionFields.extractionId, extraction[0].id), eq(extractionFields.validationStatus, "unreviewed")));
+  if (pendingFields.length > 0) {
+    return NextResponse.json({ error: "Tous les champs OCR doivent être confirmés ou corrigés avant validation." }, { status: 409 });
+  }
 
   await db.update(documentExtractions)
     .set({ status: "validated", validatedAt: new Date(), reviewedByUserId: ctx.clerkUserId, reviewedAt: new Date(), needsHumanReview: false, updatedAt: new Date() })
@@ -41,10 +45,31 @@ export async function POST(
     .set({ status: "ready_for_tax_return", updatedAt: new Date() })
     .where(eq(fiscalDocuments.id, id));
 
+  const [document] = await db.select({
+    taxReturnId: fiscalDocuments.taxReturnId,
+    typeCode: documentTypes.code,
+  }).from(fiscalDocuments)
+    .leftJoin(documentTypes, eq(fiscalDocuments.documentTypeId, documentTypes.id))
+    .where(eq(fiscalDocuments.id, id)).limit(1);
+  let entriesCreated = 0;
+  if (document?.taxReturnId && document.typeCode) {
+    const [page] = await db.select({ ocrText: documentPages.ocrText })
+      .from(documentPages).where(eq(documentPages.documentId, id)).limit(1);
+    const synced = await syncOcrToEntries({
+      extractionId: extraction[0].id,
+      documentId: id,
+      userId: ctx.clerkUserId,
+      taxReturnId: document.taxReturnId,
+      documentTypeCode: document.typeCode,
+      ocrText: page?.ocrText ?? undefined,
+    });
+    entriesCreated = synced.created;
+  }
+
   await db.insert(documentAuditLogs).values({
     documentId: id, userId: ctx.clerkUserId, action: "document_extraction_validated",
     metadata: JSON.stringify({ extractionId: extraction[0].id }),
   });
 
-  return NextResponse.json({ message: "Extraction validée. Document prêt pour la déclaration.", status: "ready_for_tax_return" });
+  return NextResponse.json({ message: "Extraction validée. Document prêt pour la déclaration.", status: "ready_for_tax_return", entriesCreated });
 }
