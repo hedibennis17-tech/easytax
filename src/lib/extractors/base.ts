@@ -43,6 +43,21 @@ export interface DocumentExtractor {
 export function classifyDocument(ocrText: string): ClassificationResult {
   const text = ocrText.toUpperCase();
 
+  // T4A doit être identifié avant T4 : « T4A » contient la chaîne « T4 ».
+  // Les deux feuillets ont des cases et un traitement fiscal différents.
+  if (
+    text.includes("T4A") &&
+    (text.includes("PENSION") || text.includes("RETRAITE") || text.includes("ANNUITY") || text.includes("HONORAIRES"))
+  ) {
+    return {
+      documentTypeCode: "T4A",
+      confidence: 95,
+      reason: "Mots-clés T4A détectés (pension, retraite, rente ou honoraires)",
+      detectedTaxYear: extractYear(ocrText),
+      detectedJurisdictionCode: "CA",
+    };
+  }
+
   // T4 fédéral
   if (
     (text.includes("T4") && text.includes("STATEMENT OF REMUNERATION")) ||
@@ -72,20 +87,6 @@ export function classifyDocument(ocrText: string): ClassificationResult {
       reason: "Mots-clés RL-1 détectés (Relevé 1, Case A)",
       detectedTaxYear: extractYear(ocrText),
       detectedJurisdictionCode: "QC",
-    };
-  }
-
-  // T4A
-  if (
-    text.includes("T4A") &&
-    (text.includes("PENSION") || text.includes("RETRAITE") || text.includes("ANNUITY"))
-  ) {
-    return {
-      documentTypeCode: "T4A",
-      confidence: 88,
-      reason: "Mots-clés T4A détectés (pension, retraite)",
-      detectedTaxYear: extractYear(ocrText),
-      detectedJurisdictionCode: "CA",
     };
   }
 

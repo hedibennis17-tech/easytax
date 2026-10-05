@@ -36,12 +36,12 @@ export async function POST() {
 
   const docs = await db.select({
     docId: fiscalDocuments.id,
-    typeCode: documentTypes.code,
     extractionId: documentExtractions.id,
+    detectedDocumentTypeId: documentExtractions.detectedDocumentTypeId,
+    uploadedDocumentTypeId: fiscalDocuments.documentTypeId,
     docTaxReturnId: fiscalDocuments.taxReturnId,
   }).from(fiscalDocuments)
     .innerJoin(documentExtractions, eq(documentExtractions.fiscalDocumentId, fiscalDocuments.id))
-    .leftJoin(documentTypes, eq(fiscalDocuments.documentTypeId, documentTypes.id))
     .where(and(
       eq(fiscalDocuments.userId, clerkUserId),
       isNotNull(documentExtractions.extractedAt),
@@ -59,7 +59,14 @@ export async function POST() {
   const results = [];
 
   for (const doc of docs) {
-    if (!doc.typeCode) continue;
+    // L'OCR peut corriger un choix initial T4/T4A erroné. Les écritures
+    // fiscales doivent toujours suivre ce type détecté, sinon les montants
+    // seraient rangés dans les mauvaises catégories de revenu.
+    const effectiveDocumentTypeId = doc.detectedDocumentTypeId ?? doc.uploadedDocumentTypeId;
+    const [effectiveDocumentType] = effectiveDocumentTypeId
+      ? await db.select({ code: documentTypes.code }).from(documentTypes).where(eq(documentTypes.id, effectiveDocumentTypeId)).limit(1)
+      : [];
+    if (!effectiveDocumentType?.code) continue;
 
     // Récupérer le texte OCR depuis les pages
     const { documentPages } = await import("@/db/schema");
@@ -73,12 +80,12 @@ export async function POST() {
       documentId: doc.docId,
       userId: clerkUserId,
       taxReturnId: taxReturn.id,
-      documentTypeCode: doc.typeCode,
+      documentTypeCode: effectiveDocumentType.code,
       ocrText: page?.ocrText ?? undefined,
     });
 
     totalCreated += syncResult.created;
-    results.push({ docId: doc.docId, typeCode: doc.typeCode, ...syncResult });
+    results.push({ docId: doc.docId, typeCode: effectiveDocumentType.code, ...syncResult });
   }
 
   return NextResponse.json({ ok: true, totalCreated, docs: results });

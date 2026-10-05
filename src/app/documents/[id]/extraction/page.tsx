@@ -21,6 +21,7 @@ type Extraction = {
   detectedTypeCode: string | null;
   detectedTypeLabelFr: string | null;
   classificationConfidence: number | null;
+  classificationReason: string | null;
   overallConfidence: number | null;
   detectedTaxYear: number | null;
   detectedJurisdictionCode: string | null;
@@ -268,6 +269,11 @@ export default function ExtractionPage() {
                 <span className="rounded-full border px-2 py-1">{data?.detectedTaxYear ?? "—"} · {data?.detectedJurisdictionCode ?? "Canada"}</span>
                 <span className="rounded-full border px-2 py-1">OCR {data?.ocrProvider ?? "—"}</span>
               </div>
+              {data?.classificationReason?.startsWith("Type corrigé automatiquement") && (
+                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  {data.classificationReason}
+                </p>
+              )}
             </section>
 
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
@@ -290,10 +296,10 @@ export default function ExtractionPage() {
             {fields.length === 0 ? (
               <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950">
                 <h2 className="font-semibold">Aucun champ utilisable n’a été trouvé</h2>
-                <p className="mt-2 text-sm leading-6">Le document reste conservé. Relancez l’analyse : le type choisi lors du téléversement sera utilisé en priorité et les cases du feuillet pourront ensuite être corrigées manuellement si nécessaire.</p>
+                <p className="mt-2 text-sm leading-6">Le document reste conservé. Relancez l’analyse : le type fiscal détecté avec forte confiance corrigera le choix initial si nécessaire, puis les cases pourront être confirmées ou corrigées manuellement.</p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <button onClick={retryOcr} disabled={busy} className="rounded-xl bg-teal-700 px-4 py-2 text-white disabled:opacity-50">
-                    {busy ? "Analyse en cours…" : "Relancer l’OCR avec le type choisi"}
+                    {busy ? "Analyse en cours…" : "Relancer l’OCR avec vérification du type"}
                   </button>
                   <button onClick={runDiagnostic} className="rounded-xl border border-teal-700 px-4 py-2 text-teal-800">Diagnostiquer l’OCR</button>
                 </div>

@@ -306,7 +306,7 @@ function DocumentUploadSection({
   const DOC_QUICK = [
     { code: "T4",   label: "T4",   desc: T("Rémunération d'emploi","Employment income") },
     { code: "RL-1", label: "RL-1", desc: T("Relevé 1 (Québec)","RL-1 (Quebec)") },
-    { code: "T4A",  label: "T4A",  desc: T("Autres revenus","Other income") },
+    { code: "T4A",  label: "T4A",  desc: T("Pension, retraite ou honoraires","Pension, retirement or fees") },
     { code: "T4E",  label: "T4E",  desc: T("Assurance-emploi","Employment insurance") },
     { code: "T5",   label: "T5",   desc: T("Placements","Investments") },
     { code: "REER", label: "REER", desc: T("Cotisation REER","RRSP contribution") },

@@ -15,7 +15,13 @@ export async function POST(
   const { id } = await params;
 
   const doc = await db
-    .select({ id: fiscalDocuments.id, userId: fiscalDocuments.userId, status: fiscalDocuments.status })
+    .select({
+      id: fiscalDocuments.id,
+      userId: fiscalDocuments.userId,
+      status: fiscalDocuments.status,
+      taxReturnId: fiscalDocuments.taxReturnId,
+      uploadedDocumentTypeId: fiscalDocuments.documentTypeId,
+    })
     .from(fiscalDocuments)
     .where(and(eq(fiscalDocuments.id, id), isNull(fiscalDocuments.deletedAt)))
     .limit(1);
@@ -23,7 +29,7 @@ export async function POST(
   if (!doc[0] || doc[0].userId !== ctx.clerkUserId) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
   const extraction = await db
-    .select({ id: documentExtractions.id })
+    .select({ id: documentExtractions.id, detectedDocumentTypeId: documentExtractions.detectedDocumentTypeId })
     .from(documentExtractions)
     .where(eq(documentExtractions.fiscalDocumentId, id))
     .limit(1);
@@ -45,22 +51,20 @@ export async function POST(
     .set({ status: "ready_for_tax_return", updatedAt: new Date() })
     .where(eq(fiscalDocuments.id, id));
 
-  const [document] = await db.select({
-    taxReturnId: fiscalDocuments.taxReturnId,
-    typeCode: documentTypes.code,
-  }).from(fiscalDocuments)
-    .leftJoin(documentTypes, eq(fiscalDocuments.documentTypeId, documentTypes.id))
-    .where(eq(fiscalDocuments.id, id)).limit(1);
+  const effectiveDocumentTypeId = extraction[0].detectedDocumentTypeId ?? doc[0].uploadedDocumentTypeId;
+  const [effectiveDocumentType] = effectiveDocumentTypeId
+    ? await db.select({ code: documentTypes.code }).from(documentTypes).where(eq(documentTypes.id, effectiveDocumentTypeId)).limit(1)
+    : [];
   let entriesCreated = 0;
-  if (document?.taxReturnId && document.typeCode) {
+  if (doc[0].taxReturnId && effectiveDocumentType?.code) {
     const [page] = await db.select({ ocrText: documentPages.ocrText })
       .from(documentPages).where(eq(documentPages.documentId, id)).limit(1);
     const synced = await syncOcrToEntries({
       extractionId: extraction[0].id,
       documentId: id,
       userId: ctx.clerkUserId,
-      taxReturnId: document.taxReturnId,
-      documentTypeCode: document.typeCode,
+      taxReturnId: doc[0].taxReturnId,
+      documentTypeCode: effectiveDocumentType.code,
       ocrText: page?.ocrText ?? undefined,
     });
     entriesCreated = synced.created;

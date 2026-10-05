@@ -246,8 +246,95 @@ export class T4Extractor implements DocumentExtractor {
   }
 }
 
-// Registre des extracteurs — ajouter RL-1, T4A, T5 ici plus tard
-export const EXTRACTORS: DocumentExtractor[] = [new T4Extractor()];
+/**
+ * T4AExtractor — État du revenu de pension, de retraite, de rente ou d'autres
+ * sources de revenu. Les numéros de cases sont propres au T4A et ne doivent
+ * jamais être lus par l'extracteur du T4 de rémunération.
+ */
+export class T4AExtractor implements DocumentExtractor {
+  readonly documentTypeCode = "T4A";
+
+  canHandle(ocrText: string): boolean {
+    const text = ocrText.toUpperCase();
+    return text.includes("T4A") && (text.includes("PENSION") || text.includes("RETRAITE") || text.includes("ANNUITY") || text.includes("HONORAIRES"));
+  }
+
+  extract(ocrText: string, taxYear?: number): ExtractionResult {
+    const detectedYear = extractYear(ocrText) ?? taxYear ?? null;
+    // Cette expression exige des centimes : elle évite de prendre les numéros
+    // de lignes ARC (11500, 43700, 10400) comme des montants déclarables.
+    const money = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2})|[0-9]+[.,][0-9]{2})";
+    const box = (number: string) => `(?:box|case)\\s*(?:[-—]?\\s*(?:box|case)\\s*)?0?${number}\\b`;
+    const definitions: Array<{ code: string; label: string; required: boolean; patterns: RegExp[] }> = [
+      { code: "box_016", label: "Case 16 — Pension ou rente", required: false, patterns: [
+        new RegExp(`${box("16")}[\\s\\S]{0,140}?${money}`, "i"),
+        new RegExp(`\\b0?16\\b(?:\\s|:|-){1,24}${money}`, "i"),
+        new RegExp(`(?:pension|superannuation|retraite|rente)[\\s\\S]{0,90}?${money}`, "i"),
+      ] },
+      { code: "box_018", label: "Case 18 — Paiement forfaitaire", required: false, patterns: [
+        new RegExp(`${box("18")}[\\s\\S]{0,140}?${money}`, "i"),
+        new RegExp(`\\b0?18\\b(?:\\s|:|-){1,24}${money}`, "i"),
+        new RegExp(`(?:lump[ -]?sum|paiement\\s+forfaitaire)[\\s\\S]{0,90}?${money}`, "i"),
+      ] },
+      { code: "box_020", label: "Case 20 — Commissions de travail indépendant", required: false, patterns: [
+        new RegExp(`${box("20")}[\\s\\S]{0,140}?${money}`, "i"),
+        new RegExp(`\\b0?20\\b(?:\\s|:|-){1,24}${money}`, "i"),
+        new RegExp(`(?:self[ -]?employed\\s+commissions|commissions?\\s+(?:de\\s+)?travail\\s+indépendant)[\\s\\S]{0,90}?${money}`, "i"),
+      ] },
+      { code: "box_022", label: "Case 22 — Impôt sur le revenu retenu", required: true, patterns: [
+        new RegExp(`${box("22")}[\\s\\S]{0,140}?${money}`, "i"),
+        new RegExp(`\\b0?22\\b(?:\\s|:|-){1,24}${money}`, "i"),
+        new RegExp(`(?:income\\s+tax\\s+deducted|imp[oô]t\\s+sur\\s+le\\s+revenu\\s+retenu)[\\s\\S]{0,90}?${money}`, "i"),
+      ] },
+      { code: "box_024", label: "Case 24 — Rentes", required: false, patterns: [
+        new RegExp(`${box("24")}[\\s\\S]{0,140}?${money}`, "i"),
+        new RegExp(`\\b0?24\\b(?:\\s|:|-){1,24}${money}`, "i"),
+        new RegExp(`(?:annuities|rentes?)[\\s\\S]{0,90}?${money}`, "i"),
+      ] },
+      { code: "box_048", label: "Case 48 — Honoraires pour services", required: false, patterns: [
+        new RegExp(`${box("48")}[\\s\\S]{0,140}?${money}`, "i"),
+        new RegExp(`\\b0?48\\b(?:\\s|:|-){1,24}${money}`, "i"),
+        new RegExp(`(?:fees?\\s+for\\s+services|honoraires?\\s+pour\\s+services)[\\s\\S]{0,90}?${money}`, "i"),
+      ] },
+      { code: "box_105", label: "Case 105 — Bourses d’études ou subventions", required: false, patterns: [
+        new RegExp(`${box("105")}[\\s\\S]{0,140}?${money}`, "i"),
+        new RegExp(`\\b105\\b(?:\\s|:|-){1,24}${money}`, "i"),
+        new RegExp(`(?:scholarship|bourse|fellowship|subvention)[\\s\\S]{0,90}?${money}`, "i"),
+      ] },
+    ];
+
+    const fields: ExtractedField[] = definitions.map(definition => {
+      let rawOcrValue: string | null = null;
+      for (const pattern of definition.patterns) {
+        const match = ocrText.match(pattern);
+        if (match?.[1]) {
+          rawOcrValue = match[1].replace(/\s+/g, "").trim();
+          break;
+        }
+      }
+      return {
+        fieldCode: definition.code,
+        fieldLabel: definition.label,
+        rawOcrValue,
+        confidence: rawOcrValue ? 90 : 0,
+        needsReview: true,
+        isRequired: definition.required,
+        pageNumber: 1,
+      };
+    });
+    const populated = fields.filter(field => field.rawOcrValue);
+    return {
+      fields,
+      overallConfidence: populated.length ? Math.round(populated.reduce((total, field) => total + field.confidence, 0) / populated.length) : 0,
+      needsHumanReview: true,
+      yearMismatchWarning: detectedYear !== null && taxYear !== undefined && detectedYear !== taxYear,
+      detectedTaxYear: detectedYear,
+      detectedJurisdictionCode: "CA",
+    };
+  }
+}
+
+export const EXTRACTORS: DocumentExtractor[] = [new T4Extractor(), new T4AExtractor()];
 
 export function getExtractor(documentTypeCode: string): DocumentExtractor | null {
   return EXTRACTORS.find((e) => e.documentTypeCode === documentTypeCode) ?? null;

@@ -96,13 +96,25 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       confidence: ocrResult.overallConfidence,
     });
 
-    // Le type explicitement choisi par le client est prioritaire sur une classification OCR incertaine.
+    // Le choix manuel reste un filet de sécurité lorsque l'OCR est incertain.
+    // Mais un type fiscal officiel identifié avec forte confiance (T4A vs T4,
+    // par exemple) doit corriger le choix erroné : les deux formulaires n'ont
+    // pas les mêmes cases ni la même incidence fiscale.
     const ocrClassification = classifyDocument(ocrResult.fullText);
     const selectedTypeHasExtractor = Boolean(uploadedTypeCode && uploadedTypeCode !== "OTHER" && getExtractor(uploadedTypeCode));
+    const ocrTypeHasExtractor = Boolean(
+      ocrClassification.documentTypeCode && getExtractor(ocrClassification.documentTypeCode),
+    );
     const typeConflict = selectedTypeHasExtractor && Boolean(
       ocrClassification.documentTypeCode && ocrClassification.documentTypeCode !== uploadedTypeCode,
     );
-    const classification = selectedTypeHasExtractor
+    const useOcrType = Boolean(typeConflict && ocrTypeHasExtractor && ocrClassification.confidence >= 85);
+    const classification = useOcrType
+      ? {
+          ...ocrClassification,
+          reason: `Type corrigé automatiquement : ${ocrClassification.documentTypeCode} détecté par OCR (le téléversement indiquait ${uploadedTypeCode}).`,
+        }
+      : selectedTypeHasExtractor
       ? {
           ...ocrClassification,
           documentTypeCode: uploadedTypeCode,
@@ -120,6 +132,7 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       uploadedTypeCode: uploadedTypeCode ?? null,
       ocrSuggestedType: ocrClassification.documentTypeCode,
       typeConflict,
+      useOcrType,
     });
 
     // Résoudre IDs

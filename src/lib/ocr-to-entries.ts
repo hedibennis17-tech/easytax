@@ -120,10 +120,13 @@ const T5_FIELD_MAP: Record<string, FieldMapping> = {
 };
 
 const T4A_FIELD_MAP: Record<string, FieldMapping> = {
-  box_16: { type: "income", category: "pension",    labelFr: "Pension ou rente (T4A case 16)", labelEn: "Pension or superannuation (T4A box 16)" },
-  box_20: { type: "income", category: "self_employment", labelFr: "Honoraires (T4A case 20)", labelEn: "Self-employment commissions (T4A box 20)" },
-  box_24: { type: "income", category: "ei_benefits",labelFr: "Assurance-emploi (T4E)",        labelEn: "EI benefits (T4E)" },
-  box_28: { type: "income", category: "other_income",labelFr: "Autres revenus (T4A case 28)", labelEn: "Other income (T4A box 28)" },
+  box_016: { type: "income", category: "pension",          labelFr: "Pension ou rente (T4A case 16)",                    labelEn: "Pension or superannuation (T4A box 16)" },
+  box_018: { type: "income", category: "other_income",     labelFr: "Paiement forfaitaire (T4A case 18)",                labelEn: "Lump-sum payment (T4A box 18)" },
+  box_020: { type: "income", category: "self_employment",  labelFr: "Commissions de travail indépendant (T4A case 20)", labelEn: "Self-employed commissions (T4A box 20)" },
+  box_022: { type: "withheld_federal",                       labelFr: "Impôt fédéral retenu (T4A case 22)",               labelEn: "Federal income tax withheld (T4A box 22)" },
+  box_024: { type: "income", category: "pension",          labelFr: "Rentes (T4A case 24)",                              labelEn: "Annuities (T4A box 24)" },
+  box_048: { type: "income", category: "self_employment",  labelFr: "Honoraires pour services (T4A case 48)",           labelEn: "Fees for services (T4A box 48)" },
+  box_105: { type: "income", category: "other_income",     labelFr: "Bourses ou subventions (T4A case 105)",            labelEn: "Scholarships or grants (T4A box 105)" },
 };
 
 const DOCUMENT_FIELD_MAPS: Record<string, Record<string, FieldMapping>> = {

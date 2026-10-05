@@ -22,7 +22,7 @@ interface DocSlot {
 const DOC_TYPES = [
   { code: "T4",           label: "T4 — Rémunération d'emploi",       desc: "Case 14, 16, 18, 22..." },
   { code: "RL-1",         label: "Relevé 1 (RL-1)",                   desc: "Québec — emploi" },
-  { code: "T4A",          label: "T4A — Autres revenus",              desc: "CNESST, pension, bourses" },
+  { code: "T4A",          label: "T4A — Pension, retraite ou honoraires", desc: "Pension, rente, commissions ou honoraires" },
   { code: "T4E",          label: "T4E — Assurance-emploi",            desc: "Prestations AE" },
   { code: "T5",           label: "T5 — Revenus de placements",        desc: "Intérêts, dividendes" },
   { code: "T3",           label: "T3 — Fiducie / fonds",              desc: "Fonds communs" },
