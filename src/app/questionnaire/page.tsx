@@ -525,8 +525,16 @@ export default function QuestionnairePage() {
     const draft = loadDraftLocal(userId, TAX_YEAR);
     if (draft && draft.status === "in_progress" && Object.keys(draft.answers).length > 0) {
       setAnswers(draft.answers);
-      setSecIdx(draft.sectionIdx);
-      setQIdx(0);
+      // Vérifier si t0 (province) est répondu — sinon forcer le retour au début du triage
+      // t0 est la nouvelle question province ajoutée au triage
+      if (draft.answers["t0"] === undefined) {
+        // t0 manquant: reset au début — triage doit recommencer avec la province
+        setSecIdx(0);
+        setQIdx(0);
+      } else {
+        setSecIdx(draft.sectionIdx);
+        setQIdx(0);
+      }
       setLastSaved(formatLastSaved(draft.lastSavedAt));
     }
 
