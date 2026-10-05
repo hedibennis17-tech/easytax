@@ -61,6 +61,12 @@ export function parseMoneyCents(raw: string | null | undefined): number | null {
   // Les feuillets québécois utilisent souvent « 7 201,32 » tandis que les
   // feuillets fédéraux emploient « 7,201.32 ». La virgule est décimale
   // seulement lorsqu’aucun point décimal n’est déjà présent.
+  const cellSplitAmount = raw.replace(/\u00a0/g, " ").trim().match(/^([0-9]{1,3}(?:[, ]\d{3})+)\s+(\d{2})$/);
+  if (cellSplitAmount) {
+    const dollars = Number(cellSplitAmount[1].replace(/[, ]/g, ""));
+    const cents = Number(cellSplitAmount[2]);
+    return Number.isFinite(dollars) && Number.isFinite(cents) ? dollars * 100 + cents : null;
+  }
   let cleaned = raw.replace(/[$\s]/g, "");
   if (cleaned.includes(",") && !cleaned.includes(".")) cleaned = cleaned.replace(",", ".");
   else cleaned = cleaned.replace(/,/g, "");

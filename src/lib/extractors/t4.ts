@@ -261,57 +261,59 @@ export class T4AExtractor implements DocumentExtractor {
 
   extract(ocrText: string, taxYear?: number): ExtractionResult {
     const detectedYear = extractYear(ocrText) ?? taxYear ?? null;
-    // Cette expression exige des centimes : elle évite de prendre les numéros
-    // de lignes ARC (11500, 43700, 10400) comme des montants déclarables.
-    const money = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2})|[0-9]+[.,][0-9]{2})";
+    // Le T4A peut imprimer « 7,212 90 » : les cents sont dans une cellule
+    // adjacente. C’est un seul montant de 7 212,90 $, pas deux montants.
+    const money = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2}|\\s+[0-9]{2})|[0-9]+[.,][0-9]{2})";
     const box = (number: string) => `(?:box|case)\\s*(?:[-—]?\\s*(?:box|case)\\s*)?0?${number}\\b`;
+    // La recherche s’arrête obligatoirement au prochain repère de case : une
+    // case vide ne peut jamais absorber le montant d’une autre case du T4A.
+    const boundedBox = (number: string) => new RegExp(`${box(number)}(?:(?!\\b(?:box|case)\\s*\\d{1,3}\\b)[\\s\\S]){0,120}?${money}`, "i");
+    const compactBox = (number: string) => new RegExp(`\\b0?${number}\\b[^\\n\\d]{0,80}${money}`, "i");
+    const sameLine = (label: string) => new RegExp(`${label}[^\\n\\d]{0,80}${money}`, "i");
+
     const definitions: Array<{ code: string; label: string; required: boolean; patterns: RegExp[] }> = [
       { code: "box_016", label: "Case 16 — Pension ou rente", required: false, patterns: [
-        new RegExp(`${box("16")}[\\s\\S]{0,140}?${money}`, "i"),
-        new RegExp(`\\b0?16\\b(?:\\s|:|-){1,24}${money}`, "i"),
-        new RegExp(`(?:pension|superannuation|retraite|rente)[\\s\\S]{0,90}?${money}`, "i"),
+        boundedBox("16"), compactBox("16"), sameLine("(?:pension|superannuation|retraite|rente)"),
       ] },
       { code: "box_018", label: "Case 18 — Paiement forfaitaire", required: false, patterns: [
-        new RegExp(`${box("18")}[\\s\\S]{0,140}?${money}`, "i"),
-        new RegExp(`\\b0?18\\b(?:\\s|:|-){1,24}${money}`, "i"),
-        new RegExp(`(?:lump[ -]?sum|paiement\\s+forfaitaire)[\\s\\S]{0,90}?${money}`, "i"),
+        boundedBox("18"), compactBox("18"), sameLine("(?:lump[ -]?sum|paiement\\s+forfaitaire)"),
       ] },
       { code: "box_020", label: "Case 20 — Commissions de travail indépendant", required: false, patterns: [
-        new RegExp(`${box("20")}[\\s\\S]{0,140}?${money}`, "i"),
-        new RegExp(`\\b0?20\\b(?:\\s|:|-){1,24}${money}`, "i"),
-        new RegExp(`(?:self[ -]?employed\\s+commissions|commissions?\\s+(?:de\\s+)?travail\\s+indépendant)[\\s\\S]{0,90}?${money}`, "i"),
+        boundedBox("20"), compactBox("20"), sameLine("(?:self[ -]?employed\\s+commissions|commissions?\\s+(?:de\\s+)?travail\\s+indépendant)"),
       ] },
       { code: "box_022", label: "Case 22 — Impôt sur le revenu retenu", required: true, patterns: [
-        new RegExp(`${box("22")}[\\s\\S]{0,140}?${money}`, "i"),
-        new RegExp(`\\b0?22\\b(?:\\s|:|-){1,24}${money}`, "i"),
-        new RegExp(`(?:income\\s+tax\\s+deducted|imp[oô]t\\s+sur\\s+le\\s+revenu\\s+retenu)[\\s\\S]{0,90}?${money}`, "i"),
+        boundedBox("22"), compactBox("22"), sameLine("(?:income\\s+tax\\s+deducted|imp[oô]t\\s+sur\\s+le\\s+revenu\\s+retenu)"),
       ] },
       { code: "box_024", label: "Case 24 — Rentes", required: false, patterns: [
-        new RegExp(`${box("24")}[\\s\\S]{0,140}?${money}`, "i"),
-        new RegExp(`\\b0?24\\b(?:\\s|:|-){1,24}${money}`, "i"),
-        new RegExp(`(?:annuities|rentes?)[\\s\\S]{0,90}?${money}`, "i"),
+        boundedBox("24"), compactBox("24"), sameLine("(?:annuities|rentes?)"),
       ] },
       { code: "box_048", label: "Case 48 — Honoraires pour services", required: false, patterns: [
-        new RegExp(`${box("48")}[\\s\\S]{0,140}?${money}`, "i"),
-        new RegExp(`\\b0?48\\b(?:\\s|:|-){1,24}${money}`, "i"),
-        new RegExp(`(?:fees?\\s+for\\s+services|honoraires?\\s+pour\\s+services)[\\s\\S]{0,90}?${money}`, "i"),
+        boundedBox("48"), compactBox("48"), sameLine("(?:fees?\\s+for\\s+services|honoraires?\\s+(?:ou\\s+autres\\s+sommes\\s+)?pour\\s+services(?:\\s+rendus)?)"),
       ] },
       { code: "box_105", label: "Case 105 — Bourses d’études ou subventions", required: false, patterns: [
-        new RegExp(`${box("105")}[\\s\\S]{0,140}?${money}`, "i"),
-        new RegExp(`\\b105\\b(?:\\s|:|-){1,24}${money}`, "i"),
-        new RegExp(`(?:scholarship|bourse|fellowship|subvention)[\\s\\S]{0,90}?${money}`, "i"),
+        boundedBox("105"), compactBox("105"), sameLine("(?:scholarship|bourse|fellowship|subvention)"),
       ] },
     ];
 
+    const normalizeExtractedMoney = (raw: string) => {
+      const compact = raw.replace(/\u00a0/g, " ").trim().replace(/\s+/g, " ");
+      const splitCents = compact.match(/^([0-9]{1,3}(?:[, ]\d{3})+)\s+(\d{2})$/);
+      if (splitCents) return `${splitCents[1].replace(/[, ]/g, "")}.${splitCents[2]}`;
+      return compact.replace(/\s+/g, "");
+    };
+    const candidateScore = (raw: string) => raw.replace(/\D/g, "").length;
+
     const fields: ExtractedField[] = definitions.map(definition => {
-      let rawOcrValue: string | null = null;
+      const candidates: string[] = [];
       for (const pattern of definition.patterns) {
-        const match = ocrText.match(pattern);
-        if (match?.[1]) {
-          rawOcrValue = match[1].replace(/\s+/g, "").trim();
-          break;
+        const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+        for (const match of ocrText.matchAll(new RegExp(pattern.source, flags))) {
+          if (match[1]) candidates.push(match[1]);
         }
       }
+      const rawOcrValue = candidates.length
+        ? normalizeExtractedMoney(candidates.sort((left, right) => candidateScore(right) - candidateScore(left))[0])
+        : null;
       return {
         fieldCode: definition.code,
         fieldLabel: definition.label,
@@ -322,6 +324,7 @@ export class T4AExtractor implements DocumentExtractor {
         pageNumber: 1,
       };
     });
+
     const populated = fields.filter(field => field.rawOcrValue);
     return {
       fields,

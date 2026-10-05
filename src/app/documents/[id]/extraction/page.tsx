@@ -266,6 +266,7 @@ export default function ExtractionPage() {
 
   const confirmed = fields.filter(field => field.validationStatus !== "unreviewed").length;
   const allConfirmed = fields.length > 0 && confirmed === fields.length;
+  const extractedValueCount = fields.filter(field => Boolean((field.validatedValue ?? field.rawOcrValue)?.trim())).length;
   const noExtractedValues = fields.length === 0 || fields.every(field => !(field.rawOcrValue ?? field.validatedValue)?.trim());
   const googleState = diagnostic?.google?.status ?? diagnostic?.google?.provider ?? null;
 
@@ -293,7 +294,8 @@ export default function ExtractionPage() {
               <h1 className="text-xl font-bold">{data?.detectedTypeLabelFr ?? data?.detectedTypeCode ?? "Document fiscal"}</h1>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 <span className={`rounded-full border px-2 py-1 ${badge(data?.classificationConfidence ?? 0)}`}>Type confirmé {data?.classificationConfidence ?? 0}%</span>
-                <span className={`rounded-full border px-2 py-1 ${badge(data?.overallConfidence ?? 0)}`}>Extraction {data?.overallConfidence ?? 0}%</span>
+                <span className={`rounded-full border px-2 py-1 ${badge(data?.overallConfidence ?? 0)}`}>Qualité OCR {data?.overallConfidence ?? 0}%</span>
+                <span className="rounded-full border px-2 py-1">Valeurs lues {extractedValueCount}/{fields.length}</span>
                 <span className="rounded-full border px-2 py-1">{data?.detectedTaxYear ?? "—"} · {data?.detectedJurisdictionCode ?? "Canada"}</span>
                 <span className="rounded-full border px-2 py-1">OCR {data?.ocrProvider ?? "—"}</span>
               </div>
