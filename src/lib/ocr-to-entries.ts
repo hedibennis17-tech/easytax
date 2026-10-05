@@ -56,10 +56,14 @@ type CreditCategory =
   | "home_buyers" | "first_home_savings" | "climate_action" | "other_credits";
 
 // ── Helper: parser un montant OCR ──────────────────────────────
-function parseMoneyCents(raw: string | null | undefined): number | null {
+export function parseMoneyCents(raw: string | null | undefined): number | null {
   if (!raw) return null;
-  // Supprimer symboles monétaires, espaces, garder les chiffres et séparateurs
-  const cleaned = raw.replace(/[$,\s]/g, "").replace(",", ".");
+  // Les feuillets québécois utilisent souvent « 7 201,32 » tandis que les
+  // feuillets fédéraux emploient « 7,201.32 ». La virgule est décimale
+  // seulement lorsqu’aucun point décimal n’est déjà présent.
+  let cleaned = raw.replace(/[$\s]/g, "");
+  if (cleaned.includes(",") && !cleaned.includes(".")) cleaned = cleaned.replace(",", ".");
+  else cleaned = cleaned.replace(/,/g, "");
   const num = parseFloat(cleaned);
   if (isNaN(num) || num < 0) return null;
   return Math.round(num * 100);
@@ -82,7 +86,7 @@ function extractEmployerName(ocrText: string): string | null {
 
 // ── Mapping cases → income/deduction/credit ────────────────────
 interface FieldMapping {
-  type: "income" | "deduction" | "credit" | "withheld_federal" | "withheld_provincial" | "skip";
+  type: "income" | "income_and_offset" | "deduction" | "credit" | "withheld_federal" | "withheld_provincial" | "skip";
   category?: IncomeCategory | DeductionCategory | CreditCategory;
   labelFr: string;
   labelEn: string;
@@ -130,12 +134,21 @@ const T4A_FIELD_MAP: Record<string, FieldMapping> = {
   box_105: { type: "income", category: "other_income",     labelFr: "Bourses ou subventions (T4A case 105)",            labelEn: "Scholarships or grants (T4A box 105)" },
 };
 
+// Les indemnités CNESST / accidents du travail sont déclarées comme revenu,
+// puis déduites entièrement : elles ne deviennent jamais un revenu imposable.
+const BENEFIT_FIELD_MAP: Record<string, FieldMapping> = {
+  box_10: { type: "income_and_offset", category: "social_assistance", labelFr: "Indemnités non imposables (T5007 case 10)", labelEn: "Non-taxable benefits (T5007 box 10)" },
+  case_c: { type: "income_and_offset", category: "social_assistance", labelFr: "Indemnités CNESST non imposables (RL-5 case C)", labelEn: "Non-taxable CNESST benefits (RL-5 box C)" },
+};
+
 const DOCUMENT_FIELD_MAPS: Record<string, Record<string, FieldMapping>> = {
   "T4":    T4_FIELD_MAP,
   "RL-1":  RL1_FIELD_MAP,
   "T5":    T5_FIELD_MAP,
   "T4A":   T4A_FIELD_MAP,
   "T4E":   { box_14: { type: "income", category: "ei_benefits", labelFr: "Prestations AE (T4E)", labelEn: "EI benefits (T4E)" } },
+  "T5007": BENEFIT_FIELD_MAP,
+  "RL-5":  BENEFIT_FIELD_MAP,
 };
 
 export function hasTaxMappingForDocumentType(documentTypeCode: string): boolean {
@@ -190,7 +203,7 @@ export async function syncOcrToEntries(params: {
     if (amountCents === null || amountCents === 0) { skipped++; continue; }
 
     try {
-      if (mapping.type === "income") {
+      if (mapping.type === "income" || mapping.type === "income_and_offset") {
         // Vérifier doublon
         const existing = await db.select({ id: incomeEntries.id })
           .from(incomeEntries)
@@ -218,6 +231,31 @@ export async function syncOcrToEntries(params: {
           isValidated: autoValidate,
         });
         created++;
+
+        if (mapping.type === "income_and_offset") {
+          const offsetLabel = `Déduction compensatoire — ${mapping.labelFr}`;
+          const [existingOffset] = await db.select({ id: deductionEntries.id })
+            .from(deductionEntries)
+            .where(and(
+              eq(deductionEntries.userId, userId),
+              eq(deductionEntries.taxReturnId, taxReturnId),
+              eq(deductionEntries.sourceDocumentId, documentId),
+              eq(deductionEntries.description, offsetLabel),
+            )).limit(1);
+          if (!existingOffset) {
+            await db.insert(deductionEntries).values({
+              userId, taxProfileId, taxYearId,
+              taxReturnId,
+              category: "other_deductions",
+              sourceDocumentId: documentId,
+              sourceType: "validated_ocr",
+              amountCents,
+              description: offsetLabel,
+              isValidated: true,
+            });
+            created++;
+          }
+        }
 
       } else if (mapping.type === "deduction") {
         const existing = await db.select({ id: deductionEntries.id })
