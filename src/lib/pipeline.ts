@@ -3,7 +3,7 @@ import {
   fiscalDocuments, documentPages, documentExtractions,
   extractionFields, documentAuditLogs, documentTypes, jurisdictions,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getOcrProvider } from "@/lib/ocr/provider";
 import { getExtractor } from "@/lib/extractors/t4";
 import { extractVisibleUnknownFields } from "@/lib/extractors/generic";
@@ -77,7 +77,10 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
     for (const page of ocrResult.pages) {
       const existing = await db.select({ id: documentPages.id })
         .from(documentPages)
-        .where(eq(documentPages.documentId, documentId))
+        .where(and(
+          eq(documentPages.documentId, documentId),
+          eq(documentPages.pageNumber, page.pageNumber),
+        ))
         .limit(1);
       if (existing.length === 0) {
         await db.insert(documentPages).values({
@@ -96,7 +99,7 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
           ocrConfidence: page.confidence,
           ocrCompletedAt: new Date(),
           ocrError: page.error ?? null,
-        }).where(eq(documentPages.documentId, documentId));
+        }).where(eq(documentPages.id, existing[0].id));
       }
     }
 

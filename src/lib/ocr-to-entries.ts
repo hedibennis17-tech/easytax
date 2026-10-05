@@ -125,9 +125,13 @@ const RL1_FIELD_MAP: Record<string, FieldMapping> = {
 };
 
 const T5_FIELD_MAP: Record<string, FieldMapping> = {
-  box_11: { type: "income", category: "dividends_eligible",   labelFr: "Dividendes déterminés (T5 case 11)",   labelEn: "Eligible dividends (T5 box 11)" },
-  box_25: { type: "income", category: "dividends_ineligible", labelFr: "Dividendes non déterminés (T5 case 25)", labelEn: "Non-eligible dividends (T5 box 25)" },
+  // T5 officiel : 11 = montant imposable non déterminé; 25 = montant
+  // imposable déterminé. Les montants réels 10/24 servent de contrôle, non de revenu à additionner.
+  box_11: { type: "income", category: "dividends_ineligible", labelFr: "Dividendes non déterminés (T5 case 11)", labelEn: "Non-eligible dividends (T5 box 11)" },
+  box_25: { type: "income", category: "dividends_eligible",   labelFr: "Dividendes déterminés (T5 case 25)",     labelEn: "Eligible dividends (T5 box 25)" },
   box_13: { type: "income", category: "interest",             labelFr: "Intérêts (T5 case 13)",                 labelEn: "Interest (T5 box 13)" },
+  box_15: { type: "income", category: "foreign_income",       labelFr: "Revenus étrangers (T5 case 15)",       labelEn: "Foreign income (T5 box 15)" },
+  box_18: { type: "income", category: "capital_gains",        labelFr: "Dividendes sur gains en capital (T5 case 18)", labelEn: "Capital gains dividends (T5 box 18)" },
 };
 
 const T4A_FIELD_MAP: Record<string, FieldMapping> = {
@@ -152,7 +156,13 @@ const DOCUMENT_FIELD_MAPS: Record<string, Record<string, FieldMapping>> = {
   "RL-1":  RL1_FIELD_MAP,
   "T5":    T5_FIELD_MAP,
   "T4A":   T4A_FIELD_MAP,
-  "T4E":   { box_14: { type: "income", category: "ei_benefits", labelFr: "Prestations AE (T4E)", labelEn: "EI benefits (T4E)" } },
+  "T4E":   {
+    box_14: { type: "income", category: "ei_benefits", labelFr: "Prestations AE (T4E case 14)", labelEn: "EI benefits (T4E box 14)" },
+    box_15: { type: "withheld_federal", labelFr: "Impôt fédéral retenu (T4E case 15)", labelEn: "Federal income tax withheld (T4E box 15)" },
+  },
+  "T2202": {
+    eligible_tuition: { type: "credit", category: "tuition", labelFr: "Frais de scolarité admissibles (T2202)", labelEn: "Eligible tuition fees (T2202)" },
+  },
   "T5007": BENEFIT_FIELD_MAP,
   "RL-5":  BENEFIT_FIELD_MAP,
 };

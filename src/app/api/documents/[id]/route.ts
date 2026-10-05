@@ -48,6 +48,22 @@ async function getDocumentForUser(documentId: string, userId: string) {
   return document ?? null;
 }
 
+// La suppression ne dépend volontairement pas des jointures de présentation
+// (type/année). Même une fiche partiellement migrée reste supprimable par son
+// propriétaire et ne doit jamais bloquer le nettoyage du coffre-fort.
+async function getDocumentRecordForDeletion(documentId: string, userId: string) {
+  const [document] = await db
+    .select({ id: fiscalDocuments.id, storageKey: fiscalDocuments.storageKey })
+    .from(fiscalDocuments)
+    .where(and(
+      eq(fiscalDocuments.id, documentId),
+      eq(fiscalDocuments.userId, userId),
+      isNull(fiscalDocuments.deletedAt),
+    ))
+    .limit(1);
+  return document ?? null;
+}
+
 // GET /api/documents/[id] — métadonnées publiques du document appartenant à la session.
 export async function GET(
   _req: NextRequest,
@@ -95,7 +111,7 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const document = await getDocumentForUser(id, ctx.clerkUserId);
+  const document = await getDocumentRecordForDeletion(id, ctx.clerkUserId);
   if (!document) return NextResponse.json({ error: "Document introuvable" }, { status: 404 });
 
   const pages = await db.select({ storageKey: documentPages.storageKey })
@@ -111,7 +127,7 @@ export async function DELETE(
   const storageCleanupWarning = storageCleanup.some(result => result.status === "rejected");
   if (storageCleanupWarning) console.error("[documents/delete] one or more storage objects could not be removed");
 
-  await db.transaction(async (tx) => {
+  const deleted = await db.transaction(async (tx) => {
     // Les demandes et messages restent dans l’historique du préparateur, mais
     // ne peuvent plus garder une clé étrangère vers un feuillet supprimé.
     await tx.update(documentRequests)
@@ -139,11 +155,19 @@ export async function DELETE(
     await tx.delete(deductionEntries).where(eq(deductionEntries.sourceDocumentId, document.id));
     await tx.delete(creditEntries).where(eq(creditEntries.sourceDocumentId, document.id));
     await tx.delete(documentAuditLogs).where(eq(documentAuditLogs.documentId, document.id));
-    await tx.delete(fiscalDocuments).where(and(
+    const removed = await tx.delete(fiscalDocuments).where(and(
       eq(fiscalDocuments.id, document.id),
       eq(fiscalDocuments.userId, ctx.clerkUserId),
-    ));
+    )).returning({ id: fiscalDocuments.id });
+    return removed.length === 1;
   });
+
+  // Ne jamais signaler une suppression réussie si la ligne a survécu à une
+  // contrainte ou à une condition concurrente. Le front peut ainsi avertir le
+  // client au lieu de conserver un feuillet fantôme.
+  if (!deleted) {
+    return NextResponse.json({ error: "La suppression n’a pas pu être confirmée. Réessayez; aucun autre document n’a été modifié." }, { status: 409 });
+  }
 
   return NextResponse.json({
     message: "Document, OCR et données associées supprimés définitivement.",

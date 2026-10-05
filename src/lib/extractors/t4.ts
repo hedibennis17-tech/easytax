@@ -1,5 +1,6 @@
 import type { DocumentExtractor, ExtractionResult, ExtractedField } from "./base";
-import { extractYear } from "./base";
+import { extractYear, spatialBoxValue } from "./base";
+import { TEMPLATE_EXTRACTORS } from "./templates";
 
 /**
  * T4Extractor — Cases officielles de l'ARC
@@ -165,15 +166,17 @@ export class T4Extractor implements DocumentExtractor {
 
     // ── Extraire les montants ─────────────────────────────────────────────
     for (const field of extractions) {
-      let rawValue: string | null = null;
-      let confidence = 0;
+      let rawValue: string | null = spatialBoxValue(ocrText, field.code.replace("box_", ""));
+      let confidence = rawValue ? 94 : 0;
 
-      for (const pattern of field.patterns) {
-        const match = ocrText.match(pattern);
-        if (match?.[1]) {
-          rawValue = match[1].trim().replace(/\s+/g, "");
-          confidence = 88; // confiance de base pour extraction par regex
-          break;
+      if (!rawValue) {
+        for (const pattern of field.patterns) {
+          const match = ocrText.match(pattern);
+          if (match?.[1]) {
+            rawValue = match[1].trim().replace(/\s+/g, "");
+            confidence = 82; // secours texte : le client doit toujours confirmer
+            break;
+          }
         }
       }
 
@@ -305,6 +308,8 @@ export class T4AExtractor implements DocumentExtractor {
 
     const fields: ExtractedField[] = definitions.map(definition => {
       const candidates: string[] = [];
+      const spatial = spatialBoxValue(ocrText, definition.code.replace("box_", ""));
+      if (spatial) candidates.push(spatial);
       for (const pattern of definition.patterns) {
         const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
         for (const match of ocrText.matchAll(new RegExp(pattern.source, flags))) {
@@ -398,6 +403,7 @@ export const EXTRACTORS: DocumentExtractor[] = [
   new T4AExtractor(),
   new BenefitSlipExtractor("T5007"),
   new BenefitSlipExtractor("RL-5"),
+  ...TEMPLATE_EXTRACTORS,
 ];
 
 export function getExtractor(documentTypeCode: string): DocumentExtractor | null {

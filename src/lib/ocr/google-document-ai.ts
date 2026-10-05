@@ -4,11 +4,15 @@ type TextAnchor = {
   textSegments?: Array<{ startIndex?: string | number | null; endIndex?: string | number | null }> | null;
 };
 
-type Layout = { textAnchor?: TextAnchor | null; confidence?: number | null };
+type Vertex = { x?: number | null; y?: number | null };
+type BoundingPoly = { normalizedVertices?: Vertex[] | null };
+type Layout = { textAnchor?: TextAnchor | null; confidence?: number | null; boundingPoly?: BoundingPoly | null };
+type DocumentAiToken = { layout?: Layout | null };
 
 type DocumentAiPage = {
   pageNumber?: number | null;
   layout?: Layout | null;
+  tokens?: DocumentAiToken[] | null;
   lines?: Array<{ layout?: Layout | null }> | null;
   paragraphs?: Array<{ layout?: Layout | null }> | null;
   formFields?: Array<{ fieldName?: Layout | null; fieldValue?: Layout | null }> | null;
@@ -24,6 +28,8 @@ type DocumentAiDocument = {
   entities?: Array<{ type?: string | null; mentionText?: string | null; textAnchor?: TextAnchor | null }> | null;
   error?: { message?: string | null } | null;
 };
+
+type SpatialToken = { text: string; x: number; y: number; width: number; height: number };
 
 function textFromAnchor(fullText: string, anchor?: TextAnchor | null): string {
   return (anchor?.textSegments ?? [])
@@ -43,11 +49,93 @@ function uniqueNonEmpty(values: Array<string | null | undefined>) {
   return [...new Set(values.map(value => value?.replace(/\s+/g, " ").trim()).filter(Boolean) as string[])];
 }
 
+function bounds(layout?: Layout | null) {
+  const vertices = layout?.boundingPoly?.normalizedVertices ?? [];
+  const xs = vertices.map(vertex => Number(vertex.x)).filter(Number.isFinite);
+  const ys = vertices.map(vertex => Number(vertex.y)).filter(Number.isFinite);
+  if (!xs.length || !ys.length) return null;
+  const left = Math.min(...xs);
+  const right = Math.max(...xs);
+  const top = Math.min(...ys);
+  const bottom = Math.max(...ys);
+  return { x: left, y: top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+}
+
+/**
+ * Reconstitue les lignes dans leur ordre visuel à partir de la géométrie du
+ * processeur Google. Le texte brut Document AI peut séparer un libellé, ses
+ * dollars et ses cents; ces lignes sont une seconde preuve pour les extracteurs.
+ */
+export function buildSpatialLines(fullText: string, page?: DocumentAiPage | null): string[] {
+  const tokens: SpatialToken[] = (page?.tokens ?? [])
+    .map(token => {
+      const text = textFromAnchor(fullText, token.layout?.textAnchor);
+      const box = bounds(token.layout);
+      return text && box ? { text, ...box } : null;
+    })
+    .filter((token): token is SpatialToken => Boolean(token));
+
+  if (!tokens.length) return [];
+
+  const rows: SpatialToken[][] = [];
+  for (const token of [...tokens].sort((left, right) => left.y - right.y || left.x - right.x)) {
+    const midpoint = token.y + token.height / 2;
+    const row = rows.find(candidate => {
+      const values = candidate.map(item => item.y + item.height / 2);
+      const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+      const tolerance = Math.max(0.012, token.height * 0.85);
+      return Math.abs(midpoint - average) <= tolerance;
+    });
+    if (row) row.push(token);
+    else rows.push([token]);
+  }
+
+  return rows
+    .sort((left, right) => Math.min(...left.map(item => item.y)) - Math.min(...right.map(item => item.y)))
+    .map(row => row.sort((left, right) => left.x - right.x).map(token => token.text).join(" ").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+const MONEY = /\(?-?\$?\s*\d{1,3}(?:[\s,\u00a0]\d{3})*(?:[.,]\d{2}|\s+\d{2})\)?|\(?-?\$?\s*\d+[.,]\d{2}\)?/g;
+
+function normalizeMoney(value: string) {
+  const compact = value.replace(/\u00a0/g, " ").trim().replace(/\s+/g, " ");
+  const splitCents = compact.match(/^([0-9]{1,3}(?:[, ]\d{3})+)\s+(\d{2})$/);
+  if (splitCents) return `${splitCents[1].replace(/[, ]/g, "")}.${splitCents[2]}`;
+  return compact.replace(/\s+/g, "");
+}
+
+/**
+ * Conserve les associations explicites « case → montant » trouvées sur une
+ * ligne visuelle. Elles sont des candidats OCR, jamais une validation fiscale.
+ * Les extracteurs de chaque feuillet gardent la responsabilité de vérifier le
+ * numéro de case, le libellé et le mapping avant toute injection.
+ */
+export function buildSpatialBoxCandidates(spatialLines: string[]): string[] {
+  const candidates: string[] = [];
+  for (let index = 0; index < spatialLines.length; index += 1) {
+    const line = spatialLines[index];
+    const boxMatch = line.match(/\b(?:box|case|case)\s*[-—:]?\s*([A-Z]{1,3}|0?\d{1,3})\b/i);
+    if (!boxMatch) continue;
+    const boxCode = boxMatch[1].toUpperCase();
+    const nearby = [line, spatialLines[index + 1] ?? ""].join(" ");
+    const values = [...nearby.matchAll(MONEY)].map(match => normalizeMoney(match[0]));
+    // Le numéro de case seul n’est jamais un montant. Les montants doivent avoir
+    // un séparateur décimal ou être imprimés dollars + cents.
+    for (const value of values) {
+      if (/\d[.,]\d{2}$/.test(value) || /^\d{1,3}\d{3}\.\d{2}$/.test(value)) {
+        candidates.push(`[EASYTAX_BOX code=${boxCode} value=${value}]`);
+      }
+    }
+  }
+  return [...new Set(candidates)];
+}
+
 /**
  * Form Parser et les extracteurs spécialisés rendent souvent les montants dans
- * formFields / tables. Cette fonction les remet en lignes « libellé : valeur »
- * afin que l'extracteur fiscal puisse les lire, même si le texte visuel du T4
- * a été réordonné par la mise en page.
+ * formFields / tables. Les lignes spatiales sont ajoutées afin qu’un libellé et
+ * un montant qui ont été séparés dans le texte brut restent disponibles à
+ * l’extracteur du bon feuillet.
  */
 export function buildDocumentAiText(document: DocumentAiDocument): {
   fullText: string;
@@ -85,7 +173,10 @@ export function buildDocumentAiText(document: DocumentAiDocument): {
     const layoutText = textFromAnchor(rawText, page.layout?.textAnchor);
     const lineTexts = uniqueNonEmpty((page.lines ?? []).map(line => textFromAnchor(rawText, line.layout?.textAnchor)));
     const paragraphTexts = uniqueNonEmpty((page.paragraphs ?? []).map(paragraph => textFromAnchor(rawText, paragraph.layout?.textAnchor)));
-    pageTexts.push(uniqueNonEmpty([layoutText, ...pageFragments, ...lineTexts, ...paragraphTexts]).join("\n"));
+    const spatialLines = buildSpatialLines(rawText, page);
+    const spatialBoxes = buildSpatialBoxCandidates(spatialLines);
+    structuredFragments.push(...spatialBoxes);
+    pageTexts.push(uniqueNonEmpty([layoutText, ...pageFragments, ...lineTexts, ...paragraphTexts, ...spatialLines, ...spatialBoxes]).join("\n"));
   }
 
   for (const entity of document.entities ?? []) {
@@ -100,7 +191,7 @@ export function buildDocumentAiText(document: DocumentAiDocument): {
   };
 }
 
-/** Google Document AI : OCR, Form Parser et Custom Extractor. */
+/** Google Document AI : lecture OCR et géométrie; EasyTax décide le sens fiscal. */
 export class GoogleDocumentAiProvider implements OcrProvider {
   readonly name = "google";
 

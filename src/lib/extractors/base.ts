@@ -62,3 +62,20 @@ export function parseMoney(raw: string | null): number | null {
   const num = parseFloat(cleaned);
   return Number.isNaN(num) ? null : Math.round(num * 100);
 }
+
+/**
+ * Les marqueurs EASYTAX_BOX sont produits uniquement à partir des tokens et
+ * coordonnées Google Document AI. Ils sont une meilleure source que le texte
+ * linéaire lorsque les colonnes d’un feuillet ont été réordonnées par l’OCR.
+ * Le résultat reste toujours soumis à la confirmation du client.
+ */
+export function spatialBoxValue(ocrText: string, boxCode: string): string | null {
+  const escaped = boxCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matches = [...ocrText.matchAll(new RegExp(`\\[EASYTAX_BOX\\s+code=0?${escaped}\\s+value=([^\\]]+)\\]`, "gi"))]
+    .map(match => match[1]?.trim())
+    .filter((value): value is string => Boolean(value));
+  if (!matches.length) return null;
+  // Plusieurs occurrences peuvent provenir de feuillets multiples : la plus
+  // longue conserve les milliers + cents au lieu d’un fragment tronqué.
+  return matches.sort((left, right) => right.replace(/\D/g, "").length - left.replace(/\D/g, "").length)[0];
+}
