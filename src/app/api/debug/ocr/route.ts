@@ -224,6 +224,18 @@ async function getDocumentDiagnostic(clerkUserId: string, requestedId: string | 
 }
 
 export async function GET(request: NextRequest) {
+  // Sonde de disponibilité sûre : aucun document, identifiant, paramètre de
+  // configuration ni détail d'erreur n'est retourné sans session. Elle permet
+  // de vérifier une propagation IAM depuis une supervision externe.
+  if (request.nextUrl.searchParams.get("ready") === "1") {
+    const google = await probeGoogleDocumentAi();
+    const ready = google.status === "ready";
+    return NextResponse.json(
+      { status: ready ? "ready" : "unavailable", checkedAt: new Date().toISOString() },
+      { status: ready ? 200 : 503, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const ctx = await getAuthContext();
   if (!ctx) return unauthorized();
 
