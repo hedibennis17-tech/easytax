@@ -101,15 +101,13 @@ export async function DELETE(
     .where(eq(documentPages.documentId, document.id));
   const storageKeys = [document.storageKey, ...pages.map(page => page.storageKey).filter((key): key is string => Boolean(key))];
 
-  try {
-    await Promise.all(storageKeys.map(storageKey => deleteFromStorage(storageKey)));
-  } catch (error) {
-    console.error("[documents/delete] storage deletion failed", error);
-    return NextResponse.json(
-      { error: "Le fichier n’a pas pu être supprimé du stockage; aucune donnée n’a été retirée." },
-      { status: 502 },
-    );
-  }
+  // Un problème ponctuel du stockage ne doit jamais empêcher le client de
+  // retirer son document de la base et du calcul. Les clés restent privées et
+  // impossibles à récupérer sans enregistrement en base; l’avertissement est
+  // renvoyé sans faire croire que la suppression a échoué.
+  const storageCleanup = await Promise.allSettled(storageKeys.map(storageKey => deleteFromStorage(storageKey)));
+  const storageCleanupWarning = storageCleanup.some(result => result.status === "rejected");
+  if (storageCleanupWarning) console.error("[documents/delete] one or more storage objects could not be removed");
 
   await db.transaction(async (tx) => {
     const extractions = await tx.select({ id: documentExtractions.id })
@@ -136,5 +134,8 @@ export async function DELETE(
     ));
   });
 
-  return NextResponse.json({ message: "Document, OCR et données associées supprimés définitivement." });
+  return NextResponse.json({
+    message: "Document, OCR et données associées supprimés définitivement.",
+    storageCleanupWarning,
+  });
 }

@@ -80,7 +80,7 @@ export default function DocumentsPage() {
   const loadDocs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/documents");
+      const res = await fetch("/api/documents", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setDocs(data.documents ?? []);
@@ -217,7 +217,10 @@ export default function DocumentsPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error ?? "Suppression impossible");
-      setActionMessage("Document supprimé définitivement, avec son OCR et ses données associées.");
+      setDocs(current => current.filter(currentDocument => currentDocument.id !== doc.id));
+      setActionMessage(data.storageCleanupWarning
+        ? "Document supprimé de la base, de l’OCR et du calcul. Le nettoyage du fichier de stockage devra être repris."
+        : "Document supprimé définitivement, avec son OCR et ses données associées.");
       await loadDocs();
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : "Suppression impossible");
