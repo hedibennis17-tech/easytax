@@ -1,6 +1,5 @@
 import type { DocumentExtractor, ExtractionResult, ExtractedField } from "./base";
-import { extractYear, spatialBoxValue } from "./base";
-import { TEMPLATE_EXTRACTORS } from "./templates";
+import { extractYear } from "./base";
 
 /**
  * T4Extractor — Cases officielles de l'ARC
@@ -18,6 +17,48 @@ export class T4Extractor implements DocumentExtractor {
     );
   }
 
+  /**
+   * Tente d'extraire une valeur depuis les champs structurés Google Document AI
+   * avant de tomber sur les regex (texte brut).
+   * Les champs structurés sont injectés dans ocrText sous forme "nom: valeur"
+   */
+  private extractFromStructured(
+    ocrText: string,
+    boxNumber: string,
+    keywords: string[]
+  ): string | null {
+    const lines = ocrText.split("\n");
+    // Chercher dans la section STRUCTURED FIELDS d'abord
+    const structStart = ocrText.indexOf("--- STRUCTURED FIELDS ---");
+    const structText  = structStart >= 0 ? ocrText.slice(structStart) : "";
+
+    // Patterns pour les entities Google (type = "box_14", "14", "Box 14"...)
+    const boxPatterns = [
+      new RegExp("box[_\\s-]?" + boxNumber + ":[\\s]*([\\d,. ]+)", "i"),
+      new RegExp("case[_\\s-]?" + boxNumber + ":[\\s]*([\\d,. ]+)", "i"),
+      new RegExp("^" + boxNumber + ":[\\s]*([\\d,. ]+)", "im"),
+    ];
+
+    for (const pat of boxPatterns) {
+      const m = structText.match(pat) ?? ocrText.match(pat);
+      if (m?.[1]) {
+        const v = m[1].replace(/\s/g, "").replace(",", ".");
+        if (!isNaN(parseFloat(v))) return m[1].trim();
+      }
+    }
+
+    // Chercher par keywords
+    for (const kw of keywords) {
+      const kwPat = new RegExp(`${kw}[:\s]+([\d,. ]+)`, "i");
+      const m = structText.match(kwPat) ?? ocrText.match(kwPat);
+      if (m?.[1]) {
+        const v = m[1].replace(/\s/g, "").replace(",", ".");
+        if (!isNaN(parseFloat(v)) && parseFloat(v) > 0) return m[1].trim();
+      }
+    }
+    return null;
+  }
+
   extract(ocrText: string, taxYear?: number): ExtractionResult {
     const fields: ExtractedField[] = [];
     const detectedYear = extractYear(ocrText) ?? taxYear ?? null;
@@ -33,7 +74,6 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_14",
         label: "Case 14 — Revenus d'emploi",
         patterns: [
-          /(?:box|case)\s*14\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*14[:\s-]+([0-9,.\s]+)/i,
           /case\s*14[:\s-]+([0-9,.\s]+)/i,
           /employment\s+income[:\s]+([0-9,.\s]+)/i,
@@ -45,7 +85,6 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_16",
         label: "Case 16 — Cotisations de l'employé au RPC/RRQ",
         patterns: [
-          /(?:box|case)\s*16\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*16[:\s-]+([0-9,.\s]+)/i,
           /case\s*16[:\s-]+([0-9,.\s]+)/i,
           /cpp\s+contributions[:\s]+([0-9,.\s]+)/i,
@@ -57,7 +96,6 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_18",
         label: "Case 18 — Cotisations de l'employé à l'AE",
         patterns: [
-          /(?:box|case)\s*18\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*18[:\s-]+([0-9,.\s]+)/i,
           /case\s*18[:\s-]+([0-9,.\s]+)/i,
           /ei\s+premiums[:\s]+([0-9,.\s]+)/i,
@@ -69,7 +107,6 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_22",
         label: "Case 22 — Impôt sur le revenu retenu",
         patterns: [
-          /(?:box|case)\s*22\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*22[:\s-]+([0-9,.\s]+)/i,
           /case\s*22[:\s-]+([0-9,.\s]+)/i,
           /income\s+tax\s+deducted[:\s]+([0-9,.\s]+)/i,
@@ -81,7 +118,6 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_24",
         label: "Case 24 — Gains assurables aux fins de l'AE",
         patterns: [
-          /(?:box|case)\s*24\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*24[:\s-]+([0-9,.\s]+)/i,
           /case\s*24[:\s-]+([0-9,.\s]+)/i,
           /ei\s+insurable\s+earnings[:\s]+([0-9,.\s]+)/i,
@@ -92,7 +128,6 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_26",
         label: "Case 26 — Gains ouvrant droit à pension au RPC/RRQ",
         patterns: [
-          /(?:box|case)\s*26\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*26[:\s-]+([0-9,.\s]+)/i,
           /case\s*26[:\s-]+([0-9,.\s]+)/i,
           /cpp.*pensionable\s+earnings[:\s]+([0-9,.\s]+)/i,
@@ -103,7 +138,6 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_44",
         label: "Case 44 — Cotisations syndicales",
         patterns: [
-          /(?:box|case)\s*44\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*44[:\s-]+([0-9,.\s]+)/i,
           /case\s*44[:\s-]+([0-9,.\s]+)/i,
           /union\s+dues[:\s]+([0-9,.\s]+)/i,
@@ -115,7 +149,6 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_46",
         label: "Case 46 — Dons de bienfaisance",
         patterns: [
-          /(?:box|case)\s*46\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*46[:\s-]+([0-9,.\s]+)/i,
           /case\s*46[:\s-]+([0-9,.\s]+)/i,
           /charitable\s+donations?[:\s]+([0-9,.\s]+)/i,
@@ -127,7 +160,6 @@ export class T4Extractor implements DocumentExtractor {
         code: "box_52",
         label: "Case 52 — Facteur d'équivalence",
         patterns: [
-          /(?:box|case)\s*52\b[^\d]{0,80}([0-9][0-9\s,.\u00a0]{0,20})/i,
           /box\s*52[:\s-]+([0-9,.\s]+)/i,
           /case\s*52[:\s-]+([0-9,.\s]+)/i,
           /pension\s+adjustment[:\s]+([0-9,.\s]+)/i,
@@ -164,17 +196,34 @@ export class T4Extractor implements DocumentExtractor {
       },
     ];
 
-    // ── Extraire les montants ─────────────────────────────────────────────
+    // ── Extraire les montants (structured fields en priorité) ────────────
     for (const field of extractions) {
-      let rawValue: string | null = spatialBoxValue(ocrText, field.code.replace("box_", ""));
-      let confidence = rawValue ? 94 : 0;
+      let rawValue: string | null = null;
+      let confidence = 0;
 
+      // 1. Extraction structurée Google Document AI (entities + formFields)
+      const boxNum = field.code.replace("box_", "");
+      const kwList: string[] = [];
+      for (const p of field.patterns) {
+        const src = p.source;
+        // Extraire les keywords non-box/case pour la recherche sémantique
+        if (!src.startsWith("box") && !src.startsWith("case")) {
+          kwList.push(src.split("[:\\\\s]")[0].replace(/[/\\]/g, "").trim());
+        }
+      }
+      const structured = this.extractFromStructured(ocrText, boxNum, kwList);
+      if (structured) {
+        rawValue = structured;
+        confidence = 92; // haute confiance Google
+      }
+
+      // 2. Fallback regex sur le texte brut (inclut le bloc STRUCTURED FIELDS enrichi)
       if (!rawValue) {
         for (const pattern of field.patterns) {
           const match = ocrText.match(pattern);
           if (match?.[1]) {
             rawValue = match[1].trim().replace(/\s+/g, "");
-            confidence = 82; // secours texte : le client doit toujours confirmer
+            confidence = 75;
             break;
           }
         }
@@ -249,162 +298,8 @@ export class T4Extractor implements DocumentExtractor {
   }
 }
 
-/**
- * T4AExtractor — État du revenu de pension, de retraite, de rente ou d'autres
- * sources de revenu. Les numéros de cases sont propres au T4A et ne doivent
- * jamais être lus par l'extracteur du T4 de rémunération.
- */
-export class T4AExtractor implements DocumentExtractor {
-  readonly documentTypeCode = "T4A";
-
-  canHandle(ocrText: string): boolean {
-    const text = ocrText.toUpperCase();
-    return text.includes("T4A") && (text.includes("PENSION") || text.includes("RETRAITE") || text.includes("ANNUITY") || text.includes("HONORAIRES"));
-  }
-
-  extract(ocrText: string, taxYear?: number): ExtractionResult {
-    const detectedYear = extractYear(ocrText) ?? taxYear ?? null;
-    // Le T4A peut imprimer « 7,212 90 » : les cents sont dans une cellule
-    // adjacente. C’est un seul montant de 7 212,90 $, pas deux montants.
-    const money = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2}|\\s+[0-9]{2})|[0-9]+[.,][0-9]{2})";
-    const box = (number: string) => `(?:box|case)\\s*(?:[-—]?\\s*(?:box|case)\\s*)?0?${number}\\b`;
-    // La recherche s’arrête obligatoirement au prochain repère de case : une
-    // case vide ne peut jamais absorber le montant d’une autre case du T4A.
-    const boundedBox = (number: string) => new RegExp(`${box(number)}(?:(?!\\b(?:box|case)\\s*\\d{1,3}\\b)[\\s\\S]){0,120}?${money}`, "i");
-    const compactBox = (number: string) => new RegExp(`\\b0?${number}\\b[^\\n\\d]{0,80}${money}`, "i");
-    const sameLine = (label: string) => new RegExp(`${label}[^\\n\\d]{0,80}${money}`, "i");
-
-    const definitions: Array<{ code: string; label: string; required: boolean; patterns: RegExp[] }> = [
-      { code: "box_016", label: "Case 16 — Pension ou rente", required: false, patterns: [
-        boundedBox("16"), compactBox("16"), sameLine("(?:pension|superannuation|retraite|rente)"),
-      ] },
-      { code: "box_018", label: "Case 18 — Paiement forfaitaire", required: false, patterns: [
-        boundedBox("18"), compactBox("18"), sameLine("(?:lump[ -]?sum|paiement\\s+forfaitaire)"),
-      ] },
-      { code: "box_020", label: "Case 20 — Commissions de travail indépendant", required: false, patterns: [
-        boundedBox("20"), compactBox("20"), sameLine("(?:self[ -]?employed\\s+commissions|commissions?\\s+(?:de\\s+)?travail\\s+indépendant)"),
-      ] },
-      { code: "box_022", label: "Case 22 — Impôt sur le revenu retenu", required: true, patterns: [
-        boundedBox("22"), compactBox("22"), sameLine("(?:income\\s+tax\\s+deducted|imp[oô]t\\s+sur\\s+le\\s+revenu\\s+retenu)"),
-      ] },
-      { code: "box_024", label: "Case 24 — Rentes", required: false, patterns: [
-        boundedBox("24"), compactBox("24"), sameLine("(?:annuities|rentes?)"),
-      ] },
-      { code: "box_048", label: "Case 48 — Honoraires pour services", required: false, patterns: [
-        boundedBox("48"), compactBox("48"), sameLine("(?:fees?\\s+for\\s+services|honoraires?\\s+(?:ou\\s+autres\\s+sommes\\s+)?pour\\s+services(?:\\s+rendus)?)"),
-      ] },
-      { code: "box_105", label: "Case 105 — Bourses d’études ou subventions", required: false, patterns: [
-        boundedBox("105"), compactBox("105"), sameLine("(?:scholarship|bourse|fellowship|subvention)"),
-      ] },
-    ];
-
-    const normalizeExtractedMoney = (raw: string) => {
-      const compact = raw.replace(/\u00a0/g, " ").trim().replace(/\s+/g, " ");
-      const splitCents = compact.match(/^([0-9]{1,3}(?:[, ]\d{3})+)\s+(\d{2})$/);
-      if (splitCents) return `${splitCents[1].replace(/[, ]/g, "")}.${splitCents[2]}`;
-      return compact.replace(/\s+/g, "");
-    };
-    const candidateScore = (raw: string) => raw.replace(/\D/g, "").length;
-
-    const fields: ExtractedField[] = definitions.map(definition => {
-      const candidates: string[] = [];
-      const spatial = spatialBoxValue(ocrText, definition.code.replace("box_", ""));
-      if (spatial) candidates.push(spatial);
-      for (const pattern of definition.patterns) {
-        const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
-        for (const match of ocrText.matchAll(new RegExp(pattern.source, flags))) {
-          if (match[1]) candidates.push(match[1]);
-        }
-      }
-      const rawOcrValue = candidates.length
-        ? normalizeExtractedMoney(candidates.sort((left, right) => candidateScore(right) - candidateScore(left))[0])
-        : null;
-      return {
-        fieldCode: definition.code,
-        fieldLabel: definition.label,
-        rawOcrValue,
-        confidence: rawOcrValue ? 90 : 0,
-        needsReview: true,
-        isRequired: definition.required,
-        pageNumber: 1,
-      };
-    });
-
-    const populated = fields.filter(field => field.rawOcrValue);
-    return {
-      fields,
-      overallConfidence: populated.length ? Math.round(populated.reduce((total, field) => total + field.confidence, 0) / populated.length) : 0,
-      needsHumanReview: true,
-      yearMismatchWarning: detectedYear !== null && taxYear !== undefined && detectedYear !== taxYear,
-      detectedTaxYear: detectedYear,
-      detectedJurisdictionCode: "CA",
-    };
-  }
-}
-
-class BenefitSlipExtractor implements DocumentExtractor {
-  constructor(readonly documentTypeCode: "T5007" | "RL-5") {}
-
-  canHandle(ocrText: string): boolean {
-    return this.documentTypeCode === "T5007"
-      ? /\bT5007\b/i.test(ocrText) && /Statement of Benefits|État des prestations/i.test(ocrText)
-      : /\bRL\s*-?\s*5\b|\bRelev[ée]\s*5\b/i.test(ocrText) && /Prestations et indemnités/i.test(ocrText);
-  }
-
-  extract(ocrText: string, taxYear?: number): ExtractionResult {
-    const money = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2})|[0-9]+[.,][0-9]{2})";
-    const makeField = (fieldCode: string, fieldLabel: string, rawOcrValue: string | null): ExtractedField => ({
-      fieldCode,
-      fieldLabel,
-      rawOcrValue: rawOcrValue?.replace(/\s+/g, "").trim() ?? null,
-      confidence: rawOcrValue ? 88 : 0,
-      needsReview: true,
-      isRequired: false,
-      pageNumber: 1,
-    });
-    let fields: ExtractedField[];
-
-    if (this.documentTypeCode === "T5007") {
-      // Le formulaire officiel imprime l’étiquette de la case 10 sur la ligne
-      // du dessus et le montant sur la ligne suivante.
-      const amount = ocrText.match(new RegExp(`\\b10\\s+Workers'?\\s+compensation\\s+benefits[\\s\\S]{0,160}?\\n\\s*20\\d{2}\\s+${money}`, "i"))?.[1]
-        ?? ocrText.match(new RegExp(`Indemnités?\\s+pour\\s+accidents?\\s+du\\s+travail[\\s\\S]{0,160}?\\n\\s*20\\d{2}\\s+${money}`, "i"))?.[1]
-        ?? null;
-      fields = [makeField("box_10", "Case 10 — Indemnités pour accidents du travail / prestations", amount)];
-    } else {
-      // RL-5 : C et M apparaissent sur le même en-tête, puis leurs montants
-      // sont alignés sur la ligne suivante. La position est vérifiée avant
-      // toute proposition au client; aucune valeur n’est injectée automatiquement.
-      const topAmounts = ocrText.match(new RegExp(`C\\s*-\\s*CNESST[\\s\\S]{0,500}?\\n\\s*${money}\\s+${money}`, "i"));
-      const caseC = topAmounts?.[1] ?? null;
-      const caseM = topAmounts?.[2] ?? null;
-      const caseO = ocrText.match(new RegExp(`O\\s*-\\s*Redressement[\\s\\S]{0,260}?\\b20\\d{2}\\s+${money}`, "i"))?.[1] ?? null;
-      fields = [
-        makeField("case_c", "Case C — CNESST", caseC),
-        makeField("case_m", "Case M — Redressement pour indemnités reçues", caseM),
-        makeField("case_o", "Case O — Redressement pour années passées", caseO),
-      ];
-    }
-    const filled = fields.filter(field => field.rawOcrValue);
-    const detectedYear = extractYear(ocrText) ?? taxYear ?? null;
-    return {
-      fields,
-      overallConfidence: filled.length ? 85 : 0,
-      needsHumanReview: true,
-      yearMismatchWarning: detectedYear !== null && taxYear !== undefined && detectedYear !== taxYear,
-      detectedTaxYear: detectedYear,
-      detectedJurisdictionCode: this.documentTypeCode === "RL-5" ? "QC" : "CA",
-    };
-  }
-}
-
-export const EXTRACTORS: DocumentExtractor[] = [
-  new T4Extractor(),
-  new T4AExtractor(),
-  new BenefitSlipExtractor("T5007"),
-  new BenefitSlipExtractor("RL-5"),
-  ...TEMPLATE_EXTRACTORS,
-];
+// Registre des extracteurs — ajouter RL-1, T4A, T5 ici plus tard
+export const EXTRACTORS: DocumentExtractor[] = [new T4Extractor()];
 
 export function getExtractor(documentTypeCode: string): DocumentExtractor | null {
   return EXTRACTORS.find((e) => e.documentTypeCode === documentTypeCode) ?? null;
