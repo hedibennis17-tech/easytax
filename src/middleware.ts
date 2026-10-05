@@ -36,6 +36,10 @@ const isProtectedRoute = createRouteMatcher([
 // Route de migration — pas de vérification Clerk
 const isAdminMigrateRoute = createRouteMatcher(["/api/admin/migrate"]);
 
+function isPublicOcrReadinessRoute(request: NextRequest): boolean {
+  return request.nextUrl.pathname === "/api/debug/ocr" && request.nextUrl.searchParams.get("ready") === "1";
+}
+
 // Routes qui nécessitent un rôle spécifique (vérification légère en middleware)
 // La vérification complète est toujours faite dans chaque page/API côté serveur
 const ADMIN_ROUTES    = ["/admin"];
@@ -48,6 +52,7 @@ function startsWithAny(path: string, prefixes: string[]): boolean {
 
 export default clerkMiddleware(async (auth, request: NextRequest) => {
   if (isAdminMigrateRoute(request)) return NextResponse.next();
+  if (isPublicOcrReadinessRoute(request)) return NextResponse.next();
 
   if (!isProtectedRoute(request)) return NextResponse.next();
 
