@@ -31,6 +31,7 @@
  */
 
 import { db } from "@/lib/db";
+import { getLineMapping } from "@/lib/slip-line-map";
 import {
   incomeEntries, deductionEntries, creditEntries,
   taxReturns, taxYears, taxProfiles, extractionFields,
@@ -173,6 +174,10 @@ export function hasTaxMappingForDocumentType(documentTypeCode: string): boolean 
 }
 
 // ── Fonction principale ────────────────────────────────────────
+/**
+ * MISE À JOUR: utilise slip-line-map.ts pour le mapping case→ligne T1/TP-1
+ * Chaque entry créée contient maintenant t1Line et tp1Line pour la page déclaration.
+ */
 export async function syncOcrToEntries(params: {
   extractionId: string;
   documentId: string;

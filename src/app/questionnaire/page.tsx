@@ -530,18 +530,22 @@ export default function QuestionnairePage() {
       setLastSaved(formatLastSaved(draft.lastSavedAt));
     }
 
-    // Charger les données OCR pour pré-remplissage
+    // 1. Profil depuis le compte (nom, province, état civil...)
+    fetch("/api/profile-prefill")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { answers?: Record<string, unknown> } | null) => {
+        if (d?.answers) setAnswers(prev => ({ ...d.answers, ...prev }));
+      }).catch(() => {});
+
+    // 2. Données OCR (montants des feuillets déjà uploadés)
     fetch("/api/ocr-prefill")
       .then(r => r.ok ? r.json() : null)
       .then((d: { answers?: Record<string, unknown>; slips?: typeof ocrSlips } | null) => {
         if (!d) return;
         if (d.answers && Object.keys(d.answers).length > 0) {
           setOcrAnswers(d.answers);
-          // Fusionner dans les réponses si aucun brouillon existant
-          setAnswers(prev => {
-            const merged = { ...d.answers, ...prev }; // brouillon local > OCR
-            return merged;
-          });
+          // OCR > profil, mais brouillon local > tout
+          setAnswers(prev => ({ ...d.answers, ...prev }));
         }
         if (d.slips) setOcrSlips(d.slips);
         setOcrLoaded(true);

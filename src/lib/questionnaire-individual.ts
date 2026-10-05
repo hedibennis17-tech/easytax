@@ -43,44 +43,87 @@ export interface Question {
   autoCalculated?: boolean; // true = calculé par le moteur sans poser la question
 }
 
-// ─── TRIAGE (6 questions) ────────────────────────────────────────────────────
+// ─── TRIAGE — 8 questions (province en premier, puis revenus) ────────────────
+// La province détermine: TP-1 vs T1 seul, RL-1 vs T4, surtaxe ON, AT1 AB...
+
+export const PROVINCE_OPTIONS: QuestionOption[] = [
+  { value: "QC", fr: "Québec",                      en: "Quebec"                    },
+  { value: "ON", fr: "Ontario",                      en: "Ontario"                   },
+  { value: "AB", fr: "Alberta",                      en: "Alberta"                   },
+  { value: "BC", fr: "Colombie-Britannique",         en: "British Columbia"          },
+  { value: "SK", fr: "Saskatchewan",                 en: "Saskatchewan"              },
+  { value: "MB", fr: "Manitoba",                     en: "Manitoba"                  },
+  { value: "NB", fr: "Nouveau-Brunswick",            en: "New Brunswick"             },
+  { value: "NS", fr: "Nouvelle-Écosse",              en: "Nova Scotia"               },
+  { value: "PE", fr: "Île-du-Prince-Édouard",        en: "Prince Edward Island"      },
+  { value: "NL", fr: "Terre-Neuve-et-Labrador",      en: "Newfoundland and Labrador" },
+  { value: "NT", fr: "Territoires du Nord-Ouest",    en: "Northwest Territories"     },
+  { value: "NU", fr: "Nunavut",                      en: "Nunavut"                   },
+  { value: "YT", fr: "Yukon",                        en: "Yukon"                     },
+];
 
 export const TRIAGE: Question[] = [
+  // ── Question 0: Province — détermine toute la suite ──────────────────────
+  {
+    id: "t0", section: "triage", order: 0,
+    fr: "Dans quelle province ou territoire résidez-vous au 31 décembre 2025 ?",
+    en: "In which province or territory do you reside on December 31, 2025?",
+    hint: "Votre province de résidence au 31 décembre détermine votre déclaration provinciale.",
+    hintEn: "Your province of residence on December 31 determines your provincial tax return.",
+    type: "SINGLE_CHOICE", required: true,
+    options: PROVINCE_OPTIONS,
+  },
+  // ── Questions 1-6: Types de revenus ──────────────────────────────────────
   {
     id: "t1", section: "triage", order: 1,
     fr: "Avez-vous eu un revenu d'emploi (salarié) en 2025 ?",
     en: "Did you have employment (salaried) income in 2025?",
+    hint: "T4 d'un employeur, RL-1 au Québec.",
+    hintEn: "T4 from an employer, RL-1 in Quebec.",
     type: "BOOLEAN", required: true,
   },
   {
     id: "t2", section: "triage", order: 2,
     fr: "Avez-vous eu des revenus de travail autonome en 2025 ? (Uber, DoorDash, freelance, contrats...)",
     en: "Did you have self-employment income in 2025? (Uber, DoorDash, freelance, contracts...)",
+    hint: "Formulaire T2125 requis. T4A case 048.",
     type: "BOOLEAN", required: true,
   },
   {
     id: "t3", section: "triage", order: 3,
     fr: "Avez-vous perçu des revenus de location en 2025 ? (immeuble, logement, stationnement...)",
     en: "Did you earn rental income in 2025? (property, housing, parking...)",
+    hint: "Formulaire T776. Revenus et dépenses de location.",
     type: "BOOLEAN", required: true,
   },
   {
     id: "t4", section: "triage", order: 4,
-    fr: "Avez-vous eu des revenus de placements en 2025 ? (intérêts, dividendes, gains en capital, cryptomonnaies)",
+    fr: "Avez-vous eu des revenus de placements en 2025 ? (intérêts, dividendes, gains en capital, crypto)",
     en: "Did you have investment income in 2025? (interest, dividends, capital gains, crypto)",
+    hint: "T5, T3, T5008. Comptes bancaires, actions, obligations.",
     type: "BOOLEAN", required: true,
   },
   {
     id: "t5", section: "triage", order: 5,
-    fr: "Avez-vous touché d'autres revenus en 2025 ? (retraite, RPC/RRQ, assurance-emploi, bourses, revenus étrangers)",
-    en: "Did you receive other income in 2025? (pension, CPP/QPP, EI, scholarships, foreign income)",
+    fr: "Avez-vous touché d'autres revenus en 2025 ? (retraite, RPC/RRQ, AE, bourses, CNESST)",
+    en: "Did you receive other income in 2025? (pension, CPP/QPP, EI, scholarships, workers comp)",
+    hint: "T4A, T4A(P), T4A(OAS), T4E, T5007, RL-5.",
     type: "BOOLEAN", required: true,
   },
   {
     id: "t6", section: "triage", order: 6,
-    fr: "Avez-vous un époux/conjoint ou des personnes à charge (enfants...) ?",
-    en: "Do you have a spouse/partner or dependants (children...)?",
+    fr: "Avez-vous un époux/conjoint de fait ou des personnes à charge (enfants, parents...) ?",
+    en: "Do you have a spouse/common-law partner or dependants (children, parents...)?",
+    hint: "Affecte plusieurs crédits d'impôt non remboursables.",
     type: "BOOLEAN", required: true,
+  },
+  // ── Question 7: Situation particulière ────────────────────────────────────
+  {
+    id: "t7", section: "triage", order: 7,
+    fr: "Avez-vous vécu une situation particulière en 2025 ?",
+    en: "Did you experience a special situation in 2025?",
+    hint: "Immigration, émigration, décès, faillite, biens étrangers > 100 000 $.",
+    type: "BOOLEAN", required: false,
   },
 ];
 
