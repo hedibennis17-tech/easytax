@@ -73,6 +73,9 @@ export default function DocumentsPage() {
   const [dragOver, setDragOver] = useState(false);
   const [taxYearId, setTaxYearId] = useState<string | null>(null);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const [allowDuplicate, setAllowDuplicate] = useState(false);
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState("");
 
   const loadDocs = useCallback(async () => {
     setLoading(true);
@@ -131,6 +134,7 @@ export default function DocumentsPage() {
       formData.append("file", selectedFile);
       formData.append("documentTypeCode", selectedType);
       formData.append("taxYearId", yearId);
+      formData.append("allowDuplicate", String(allowDuplicate));
 
       const res = await fetch("/api/documents/upload", { method: "POST", body: formData });
       const data = await res.json();
@@ -160,6 +164,7 @@ export default function DocumentsPage() {
         setUploadDone(false);
         setSelectedFile(null);
         setSelectedType("");
+        setAllowDuplicate(false);
         setUploading(false);
         loadDocs(); // Recharger la liste
       }, 1200);
@@ -175,6 +180,50 @@ export default function DocumentsPage() {
     setUploadError("");
     setSelectedFile(null);
     setSelectedType("");
+    setAllowDuplicate(false);
+  }
+
+  async function archiveDocument(doc: Doc) {
+    setActionBusyId(doc.id);
+    setActionMessage("");
+    try {
+      const action = doc.status === "archived" ? "restore" : "archive";
+      const response = await fetch(`/api/documents/${doc.id}/archive`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? "Action impossible");
+      setActionMessage(action === "archive" ? "Document archivé. Il peut être restauré ou supprimé définitivement." : "Document restauré.");
+      await loadDocs();
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Action impossible");
+    } finally {
+      setActionBusyId(null);
+    }
+  }
+
+  async function permanentlyDeleteDocument(doc: Doc) {
+    const accepted = window.confirm(`Supprimer définitivement « ${doc.originalFilename} » ?\n\nLe fichier, son OCR et les montants issus de ce feuillet seront retirés du dossier. Cette action est irréversible.`);
+    if (!accepted) return;
+    setActionBusyId(doc.id);
+    setActionMessage("");
+    try {
+      const response = await fetch(`/api/documents/${doc.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: "DELETE_PERMANENTLY" }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? "Suppression impossible");
+      setActionMessage("Document supprimé définitivement, avec son OCR et ses données associées.");
+      await loadDocs();
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Suppression impossible");
+    } finally {
+      setActionBusyId(null);
+    }
   }
 
   return (
@@ -192,6 +241,12 @@ export default function DocumentsPage() {
             <span>📄</span> Ajouter un document
           </button>
         </div>
+
+        {actionMessage && (
+          <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            {actionMessage}
+          </div>
+        )}
 
         {/* Filtres */}
         <div className="flex flex-wrap gap-2 mb-6">
@@ -254,6 +309,20 @@ export default function DocumentsPage() {
                             className="text-xs text-blue-600 hover:underline">
                             OCR
                           </Link>
+                          <button
+                            onClick={() => archiveDocument(doc)}
+                            disabled={actionBusyId === doc.id}
+                            className="text-xs text-gray-600 hover:underline disabled:opacity-50"
+                          >
+                            {doc.status === "archived" ? "Restaurer" : "Archiver"}
+                          </button>
+                          <button
+                            onClick={() => permanentlyDeleteDocument(doc)}
+                            disabled={actionBusyId === doc.id}
+                            className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                          >
+                            Supprimer
+                          </button>
                         </div>
                       </div>
                     );
@@ -327,6 +396,16 @@ export default function DocumentsPage() {
                     {documentTypes.map(t => <option key={t.code} value={t.code}>{t.code} — {t.labelFr}</option>)}
                   </select>
                 </div>
+
+                <label className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allowDuplicate}
+                    onChange={event => setAllowDuplicate(event.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span><strong>Conserver une deuxième copie du même fichier</strong><br />À activer uniquement si vous souhaitez volontairement conserver deux exemplaires identiques.</span>
+                </label>
 
                 {uploadError && (
                   <div className="mb-3 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{uploadError}</div>

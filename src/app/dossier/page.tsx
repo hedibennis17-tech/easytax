@@ -149,12 +149,13 @@ function DocBlock({
           )}
           <button
             onClick={() => onRemove(slot.id)}
+            title={slot.documentId ? "Supprimer définitivement ce feuillet" : "Retirer ce feuillet"}
             style={{
-              padding: "6px 8px", borderRadius: 7, fontSize: 12,
-              background: "transparent", color: "#a0b4b0", border: "none", cursor: "pointer",
+              padding: "6px 8px", borderRadius: 7, fontSize: 11,
+              background: "transparent", color: slot.documentId ? "#b91c1c" : "#a0b4b0", border: "none", cursor: "pointer",
             }}
           >
-            ✕
+            {slot.documentId ? "Supprimer" : "✕"}
           </button>
         </div>
       </div>
@@ -332,12 +333,27 @@ export default function DossierPage() {
     }));
   }, []);
 
-  const removeSlot = useCallback((id: string) => {
+  const removeSlot = useCallback(async (id: string) => {
+    const slot = groups.flatMap(group => group.slots).find(candidate => candidate.id === id);
+    if (slot?.documentId) {
+      const accepted = window.confirm(`Supprimer définitivement « ${slot.fileName ?? slot.typeLabel} » ?\n\nLe fichier, son OCR et les montants provenant de ce feuillet seront retirés. Cette action est irréversible.`);
+      if (!accepted) return;
+      const response = await fetch(`/api/documents/${slot.documentId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: "DELETE_PERMANENTLY" }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        window.alert(data.error ?? "Suppression impossible");
+        return;
+      }
+    }
     setGroups(g => g
       .map(x => ({ ...x, slots: x.slots.filter(s => s.id !== id) }))
       .filter(x => x.slots.length > 0)
     );
-  }, []);
+  }, [groups]);
 
   const handleUpload = useCallback(async (id: string, file: File) => {
     const group = groups.find(g => g.slots.some(s => s.id === id));
@@ -348,12 +364,15 @@ export default function DossierPage() {
       form.append("file", file);
       form.append("documentTypeCode", group.typeCode);
       form.append("taxYear", "2025");
+      // L’ajout d’un feuillet supplémentaire est le choix explicite de
+      // conserver une seconde copie, même si le fichier est identique.
+      form.append("allowDuplicate", "true");
       setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, progress: 35 } : s) })));
       const upload = await fetch("/api/documents/upload", { method: "POST", body: form });
       const uploadText = await upload.text();
       const uploadData = (uploadText ? JSON.parse(uploadText) : {}) as { id?: string; existingDocumentId?: string; message?: string; error?: string };
-      if (!upload.ok && uploadData.error !== "duplicate_detected") throw new Error(uploadData.message || uploadData.error || "Échec du téléversement");
-      const documentId = uploadData.id ?? uploadData.existingDocumentId;
+      if (!upload.ok) throw new Error(uploadData.message || uploadData.error || "Échec du téléversement");
+      const documentId = uploadData.id;
       if (!documentId) throw new Error("Le serveur n’a pas retourné l’identifiant du document. Veuillez réessayer.");
       setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "analyzing" as DocStatus, progress: 60, documentId, fileName: file.name } : s) })));
       const processed = await fetch(`/api/documents/${documentId}/process`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taxYear: 2025 }) });

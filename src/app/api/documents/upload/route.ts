@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
   const file             = formData.get("file")             as File   | null;
   const requestedDocumentTypeCode = formData.get("documentTypeCode") as string | null;
   const taxReturnId      = formData.get("taxReturnId")      as string | null;
+  const allowDuplicate   = formData.get("allowDuplicate") === "true";
   // taxYearId est optionnel — on utilise 2025 par défaut
   const taxYearIdParam   = formData.get("taxYearId")        as string | null;
 
@@ -148,10 +149,10 @@ export async function POST(req: NextRequest) {
       isNull(fiscalDocuments.deletedAt),
     )).limit(1);
 
-  if (duplicate.length > 0) {
+  if (duplicate.length > 0 && !allowDuplicate) {
     return NextResponse.json({
       error: "duplicate_detected",
-      message: "Ce document semble déjà avoir été ajouté.",
+      message: "Ce document semble déjà avoir été ajouté. Activez l’option « Conserver une deuxième copie » pour l’importer quand même.",
       existingDocumentId: duplicate[0].id,
     }, { status: 409 });
   }
@@ -189,7 +190,7 @@ export async function POST(req: NextRequest) {
     documentId: created.id,
     userId: clerkUserId,
     action: "document_uploaded",
-    metadata: JSON.stringify({ requestedDocumentTypeCode: documentTypeCode, automaticDetection, mimeType: file.type, fileSizeBytes: file.size }),
+    metadata: JSON.stringify({ requestedDocumentTypeCode: documentTypeCode, automaticDetection, allowDuplicate, mimeType: file.type, fileSizeBytes: file.size }),
   });
 
   return NextResponse.json({
