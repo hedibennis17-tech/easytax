@@ -93,10 +93,26 @@ function hasToken(text: string, token: string): boolean {
 }
 
 function extractTaxYear(text: string): number | null {
+  // L’année d’imposition est répétée sur le feuillet (champ « Année », pied
+  // de page) alors que les autres années (redressements, rappels) sont rares :
+  // on retient l’année la plus fréquente. La mention contextuelle
+  // (« Année … 2025 ») sert de départage en cas d’égalité.
+  const years = text.match(/\b(20(?:1[8-9]|2\d|30))\b/g)?.map(Number) ?? [];
+  if (!years.length) return null;
+  const counts = new Map<number, number>();
+  for (const year of years) counts.set(year, (counts.get(year) ?? 0) + 1);
   const contextual = text.match(/(?:ANN[ÉE]E|YEAR|ANNÉE FISCALE|TAX YEAR)[\s\S]{0,80}?\b(20(?:1[8-9]|2\d|30))\b/i);
-  if (contextual?.[1]) return Number(contextual[1]);
-  const match = text.match(/\b(20(?:1[8-9]|2\d|30))\b/);
-  return match ? Number(match[1]) : null;
+  const contextualYear = contextual?.[1] ? Number(contextual[1]) : null;
+  let best = years[0];
+  let bestScore = -1;
+  for (const [year, count] of counts) {
+    const score = count * 2 + (year === contextualYear ? 1 : 0);
+    if (score > bestScore) {
+      best = year;
+      bestScore = score;
+    }
+  }
+  return best;
 }
 
 function preferredFrenchLabel(document: CatalogDocumentType): string {

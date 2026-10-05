@@ -266,7 +266,9 @@ export class T4AExtractor implements DocumentExtractor {
     const detectedYear = extractYear(ocrText) ?? taxYear ?? null;
     // Le T4A peut imprimer « 7,212 90 » : les cents sont dans une cellule
     // adjacente. C’est un seul montant de 7 212,90 $, pas deux montants.
-    const money = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2}|\\s+[0-9]{2})|[0-9]+[.,][0-9]{2})";
+    // Le (?!\d) final empêche d’interpréter « 024 04 » (le numéro de la case
+    // suivante, ex. « 024 048 ») comme un montant « 024,04 ».
+    const money = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2}|\\s+[0-9]{2})(?!\\d)|[0-9]+[.,][0-9]{2}(?!\\d))";
     const box = (number: string) => `(?:box|case)\\s*(?:[-—]?\\s*(?:box|case)\\s*)?0?${number}\\b`;
     // La recherche s’arrête obligatoirement au prochain repère de case : une
     // case vide ne peut jamais absorber le montant d’une autre case du T4A.
@@ -352,24 +354,37 @@ class BenefitSlipExtractor implements DocumentExtractor {
   }
 
   extract(ocrText: string, taxYear?: number): ExtractionResult {
-    const money = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2})|[0-9]+[.,][0-9]{2})";
-    const makeField = (fieldCode: string, fieldLabel: string, rawOcrValue: string | null): ExtractedField => ({
-      fieldCode,
-      fieldLabel,
-      rawOcrValue: rawOcrValue?.replace(/\s+/g, "").trim() ?? null,
-      confidence: rawOcrValue ? 88 : 0,
-      needsReview: true,
-      isRequired: false,
-      pageNumber: 1,
-    });
+    // Le (?!\d) final empêche d’absorber un chiffre de la colonne suivante
+    // (ex. le NAS) dans le montant.
+    const money = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2})(?!\\d)|[0-9]+[.,][0-9]{2}(?!\\d))";
+    const makeField = (fieldCode: string, fieldLabel: string, rawOcrValue: string | null): ExtractedField => {
+      // Normaliser « 7 201,32 » → « 7201.32 » (même convention que le T4A).
+      const compacted = rawOcrValue?.replace(/\s+/g, "").trim() ?? null;
+      const normalized = compacted && !compacted.includes(".") ? compacted.replace(",", ".") : compacted;
+      return {
+        fieldCode,
+        fieldLabel,
+        rawOcrValue: normalized,
+        confidence: normalized ? 88 : 0,
+        needsReview: true,
+        isRequired: false,
+        pageNumber: 1,
+      };
+    };
     let fields: ExtractedField[];
 
     if (this.documentTypeCode === "T5007") {
-      // Le formulaire officiel imprime l’étiquette de la case 10 sur la ligne
-      // du dessus et le montant sur la ligne suivante.
-      const amount = ocrText.match(new RegExp(`\\b10\\s+Workers'?\\s+compensation\\s+benefits[\\s\\S]{0,160}?\\n\\s*20\\d{2}\\s+${money}`, "i"))?.[1]
-        ?? ocrText.match(new RegExp(`Indemnités?\\s+pour\\s+accidents?\\s+du\\s+travail[\\s\\S]{0,160}?\\n\\s*20\\d{2}\\s+${money}`, "i"))?.[1]
-        ?? null;
+      // Document AI rend les tableaux du T5007 sous la forme
+      // « 2025 | 7 201,32 | 314 003 062 | 0 » (année | montant | NAS | code),
+      // et le libellé peut aussi porter le montant accolé après « : ».
+      // On essaie dans l’ordre : ligne de tableau, montant accolé au libellé
+      // (anglais puis français), puis les motifs historiques en repli.
+      const tableRow = ocrText.match(new RegExp(`\\b20\\d{2}\\s*\\|\\s*${money}`, "i"))?.[1];
+      const labeledEn = ocrText.match(new RegExp(`Workers'?\\s+compensation\\s+benefits\\s*:\\s*${money}`, "i"))?.[1];
+      const labeledFr = ocrText.match(new RegExp(`Indemnités?\\s+pour\\s+accidents?\\s+du\\s+travail\\s*:\\s*${money}`, "i"))?.[1];
+      const legacyEn = ocrText.match(new RegExp(`\\b10\\s+Workers'?\\s+compensation\\s+benefits[\\s\\S]{0,160}?\\n\\s*20\\d{2}\\s+${money}`, "i"))?.[1];
+      const legacyFr = ocrText.match(new RegExp(`Indemnités?\\s+pour\\s+accidents?\\s+du\\s+travail[\\s\\S]{0,160}?\\n\\s*20\\d{2}\\s+${money}`, "i"))?.[1];
+      const amount = tableRow ?? labeledEn ?? labeledFr ?? legacyEn ?? legacyFr ?? null;
       fields = [makeField("box_10", "Case 10 — Indemnités pour accidents du travail / prestations", amount)];
     } else {
       // RL-5 : C et M apparaissent sur le même en-tête, puis leurs montants

@@ -49,10 +49,26 @@ export function classifyDocument(ocrText: string): ClassificationResult {
   };
 }
 
-/** Extraire une année fiscale imprimée. */
+/**
+ * Extraire une année fiscale imprimée. Les feuillets répètent l’année
+ * d’imposition (champ « Année », pied de page, code du formulaire) alors que
+ * les mentions d’autres années (redressements, rappels) sont rares : on
+ * retient donc l’année la plus fréquente, pas la première rencontrée.
+ */
 export function extractYear(text: string): number | null {
-  const match = text.match(/\b(20[12][0-9])\b/);
-  return match ? parseInt(match[1], 10) : null;
+  const years = text.match(/\b(20[12][0-9])\b/g)?.map(Number) ?? [];
+  if (!years.length) return null;
+  const counts = new Map<number, number>();
+  for (const year of years) counts.set(year, (counts.get(year) ?? 0) + 1);
+  let best = years[0];
+  let bestCount = 0;
+  for (const [year, count] of counts) {
+    if (count > bestCount) {
+      best = year;
+      bestCount = count;
+    }
+  }
+  return best;
 }
 
 /** Parser un montant monétaire vers des cents. */
