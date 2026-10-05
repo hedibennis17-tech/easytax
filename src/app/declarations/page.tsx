@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { NavClient } from "@/components/NavClient";
 import { useApp } from "@/components/ThemeProvider";
+import { OcrUpload } from "./OcrUpload";
 
 // ─── Types ────────────────────────────────────────────────
 interface SlipField { code: string; label: string | null; value: string | null; validated: boolean; confidence: number | null }
@@ -142,7 +143,9 @@ export default function DeclarationPage() {
   const t4Slips = slips.filter((s) => s.typeCode === "T4");
   const rl5Slips = slips.filter((s) => s.typeCode === "RL-5");
   const rl1Slips = slips.filter((s) => s.typeCode === "RL-1");
-  const otherSlips = slips.filter((s) => !["T4A", "T5007", "T4", "RL-5", "RL-1"].includes(s.typeCode ?? ""));
+  const genericSlips = slips.filter((s) => !["T4A", "T5007", "T4", "RL-5", "RL-1"].includes(s.typeCode ?? ""));
+  // Hors Québec, les relevés s'affichent en tableau générique dans la section B
+  const otherSlips = isQC ? genericSlips : [...genericSlips, ...rl5Slips, ...rl1Slips];
 
   const card: React.CSSProperties = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "18px 20px", marginBottom: 18 };
   const h2: React.CSSProperties = { fontFamily: "Georgia,serif", fontSize: "1.25rem", margin: "0 0 4px", color: "var(--text-primary)" };
@@ -168,6 +171,32 @@ export default function DeclarationPage() {
             <span>{T("Résultats PRÉLIMINAIRES — à titre indicatif seulement. Aucune déclaration n'a été transmise à l'ARC", "PRELIMINARY results — for information only. No return has been filed with the CRA")}{isQC && T(" ou à Revenu Québec", " or Revenu Québec")}.</span>
           </div>
         </div>
+
+        {/* ═══ STEPPER WORKFLOW ═══ */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+          {[
+            { n: 1, label: T("Province", "Province"), done: true },
+            { n: 2, label: T("Feuillets (OCR)", "Slips (OCR)"), done: slips.length > 0 },
+            { n: 3, label: T("Questionnaire", "Questionnaire"), done: false, href: "/questionnaire" },
+            { n: 4, label: T("Calcul", "Calculation"), done: !!calculation },
+          ].map((s) => (
+            <div key={s.n} style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 20,
+              background: s.done ? "#0b6b67" : "var(--bg-card)", color: s.done ? "#fff" : "var(--text-secondary)",
+              border: "1px solid var(--border)", fontSize: 13, fontWeight: 700,
+              cursor: s.href ? "pointer" : "default",
+            }} onClick={s.href ? () => router.push(s.href!) : undefined}>
+              <span style={{
+                width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                background: s.done ? "#fff" : "var(--border)", color: s.done ? "#0b6b67" : "var(--text-secondary)", fontSize: 12,
+              }}>{s.done ? "✓" : s.n}</span>
+              {s.label}
+            </div>
+          ))}
+        </div>
+
+        {/* ═══ OCR EN HAUT ═══ */}
+        <OcrUpload taxReturnId={meta.taxReturnId} taxYear={meta.taxYear} onValidated={load} />
 
         {/* ═══ A. PROVINCE D'ABORD ═══ */}
         <section style={card}>
@@ -264,9 +293,30 @@ export default function DeclarationPage() {
           ))}
 
           {otherSlips.map((s) => (
-            <div key={s.documentId} style={{ marginBottom: 12, fontSize: 14 }}>
-              <strong>{s.typeCode ?? T("Feuillet", "Slip")}</strong> — {s.filename}
-              <span style={{ color: "var(--text-secondary)", fontSize: 12 }}> · {s.fields.filter((f) => f.value).length}/{s.fields.length} {T("champs", "fields")}</span>
+            <div key={s.documentId} style={{ marginBottom: 16 }}>
+              <h3 style={{ fontSize: 14, margin: "0 0 8px", color: "var(--text-primary)" }}>
+                {s.typeCode ?? T("Feuillet", "Slip")} — {s.filename}
+                <span style={{ fontWeight: 400, color: "var(--text-secondary)", fontSize: 12 }}> · {s.typeName ?? ""}</span>
+              </h3>
+              <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><tr>
+                  <th style={th}>{T("Case", "Box")}</th>
+                  <th style={th}>{T("Montant", "Amount")}</th>
+                </tr></thead>
+                <tbody>
+                  {s.fields.filter((f) => f.value).map((f) => (
+                    <tr key={f.code}>
+                      <td style={td}>{f.label ?? f.code}</td>
+                      <td style={{ ...td, fontWeight: 700 }}>{fmtMoney(parseVal(f.value))}</td>
+                    </tr>
+                  ))}
+                  {s.fields.filter((f) => f.value).length === 0 && (
+                    <tr><td style={td} colSpan={2}>{T("Aucune valeur extraite.", "No extracted values.")}</td></tr>
+                  )}
+                </tbody>
+              </table>
+              </div>
             </div>
           ))}
         </section>
