@@ -321,40 +321,40 @@ export const MODULE_FAMILLE: Question[] = [
 
 export const MODULE_EMPLOI: Question[] = [
   {
-    id: "e1", section: "emploi", order: 1,
+    id: "e1", section: "revenus", order: 1,
     fr: "Combien d'employeurs avez-vous eus en 2025 ?", en: "How many employers did you have in 2025?",
     type: "NUMBER", required: true, showIf: "t1=true",
   },
   {
-    id: "e2", section: "emploi", order: 2,
+    id: "e2", section: "revenus", order: 2,
     fr: "Avez-vous reçu un T4 de votre employeur ?", en: "Did you receive a T4 from your employer?",
     type: "BOOLEAN", required: true, showIf: "t1=true",
     documentRequired: "T4",
   },
   {
-    id: "e3", section: "emploi", order: 3,
+    id: "e3", section: "revenus", order: 3,
     fr: "Avez-vous reçu des pourboires non indiqués sur vos feuillets T4 ? (montant)", en: "Did you receive tips not shown on your T4 slips? (amount)",
     type: "MONEY", required: false, showIf: "t1=true",
     placeholder: "0,00 $",
   },
   {
-    id: "e4", section: "emploi", order: 4,
+    id: "e4", section: "revenus", order: 4,
     fr: "Avez-vous gagné des commissions ? Sont-elles indiquées sur le T4 ?", en: "Did you earn commissions? Are they shown on the T4?",
     type: "BOOLEAN", required: false, showIf: "t1=true",
   },
   {
-    id: "e5", section: "emploi", order: 5,
+    id: "e5", section: "revenus", order: 5,
     fr: "Avez-vous exercé des options d'achat d'actions de votre employeur en 2025 ?", en: "Did you exercise employee stock options in 2025?",
     type: "BOOLEAN", required: false, showIf: "t1=true",
   },
   {
-    id: "e6", section: "emploi", order: 6,
+    id: "e6", section: "revenus", order: 6,
     fr: "Avez-vous reçu des feuillets T4A (bourses, subventions, case 048, etc.) ?", en: "Did you receive T4A slips (scholarships, grants, box 048, etc.)?",
     type: "BOOLEAN", required: false, showIf: "t1=true",
     documentRequired: "T4A",
   },
   {
-    id: "e7", section: "emploi", order: 7,
+    id: "e7", section: "revenus", order: 7,
     fr: "Votre employeur vous a-t-il signé un T2200 (dépenses d'emploi) ?", en: "Did your employer sign a T2200 (employment expenses)?",
     type: "BOOLEAN", required: false, showIf: "t1=true",
     documentRequired: "T2200",
@@ -365,7 +365,7 @@ export const MODULE_EMPLOI: Question[] = [
 
 export const MODULE_AUTONOME: Question[] = [
   {
-    id: "a1", section: "autonome", order: 1,
+    id: "a1", section: "revenus", order: 1,
     fr: "Type d'activité autonome", en: "Type of self-employment activity",
     type: "MULTI_CHOICE", required: true, showIf: "t2=true",
     options: [
@@ -380,25 +380,25 @@ export const MODULE_AUTONOME: Question[] = [
     ],
   },
   {
-    id: "a2", section: "autonome", order: 2,
+    id: "a2", section: "revenus", order: 2,
     fr: "Nom commercial et numéro d'entreprise (NEQ au Québec, ou NE de l'ARC)", en: "Business name and business number (NEQ in Québec, or CRA BN)",
     type: "TEXT", required: false, showIf: "t2=true",
     placeholder: "Ex: Restauration XYZ / 1234567890",
   },
   {
-    id: "a3", section: "autonome", order: 3,
+    id: "a3", section: "revenus", order: 3,
     fr: "Date de début de l'activité en 2025", en: "Start date of the activity in 2025",
     type: "DATE", required: false, showIf: "t2=true",
   },
   {
-    id: "a4", section: "autonome", order: 4,
+    id: "a4", section: "revenus", order: 4,
     fr: "Revenus bruts de l'entreprise en 2025", en: "Gross business income in 2025",
     type: "MONEY", required: true, showIf: "t2=true",
     placeholder: "0,00 $",
     hint: "Avant déduction des dépenses d'entreprise",
   },
   {
-    id: "a5", section: "autonome", order: 5,
+    id: "a5", section: "revenus", order: 5,
     fr: "Méthode comptable", en: "Accounting method",
     type: "SINGLE_CHOICE", required: false, showIf: "t2=true",
     options: [
@@ -407,48 +407,48 @@ export const MODULE_AUTONOME: Question[] = [
     ],
   },
   {
-    id: "a6", section: "autonome", order: 6,
+    id: "a6", section: "revenus", order: 6,
     fr: "Avez-vous des dépenses d'entreprise à déclarer ?", en: "Do you have business expenses to claim?",
     type: "BOOLEAN", required: true, showIf: "t2=true",
   },
   {
-    id: "a7", section: "autonome", order: 7,
+    id: "a7", section: "revenus", order: 7,
     fr: "Dépenses d'entreprise 2025 — publicité", en: "Business expenses 2025 — advertising",
     type: "MONEY", required: false, showIf: "a6=true", placeholder: "0,00 $",
   },
   {
-    id: "a8", section: "autonome", order: 8,
+    id: "a8", section: "revenus", order: 8,
     fr: "Dépenses d'entreprise 2025 — assurances", en: "Business expenses 2025 — insurance",
     type: "MONEY", required: false, showIf: "a6=true", placeholder: "0,00 $",
   },
   {
-    id: "a9", section: "autonome", order: 9,
+    id: "a9", section: "revenus", order: 9,
     fr: "Dépenses d'entreprise 2025 — repas et représentation (50 % déductible)", en: "Business expenses 2025 — meals and entertainment (50% deductible)",
     type: "MONEY", required: false, showIf: "a6=true", placeholder: "0,00 $",
   },
   {
-    id: "a10", section: "autonome", order: 10,
+    id: "a10", section: "revenus", order: 10,
     fr: "Inventaire de fin d'année (marchandises, travaux en cours)", en: "Year-end inventory (goods, work in progress)",
     type: "MONEY", required: false, showIf: "t2=true", placeholder: "0,00 $",
   },
   {
-    id: "a11", section: "autonome", order: 11,
+    id: "a11", section: "revenus", order: 11,
     fr: "Utilisez-vous un véhicule pour l'entreprise ?", en: "Do you use a vehicle for the business?",
     type: "BOOLEAN", required: false, showIf: "t2=true",
   },
   {
-    id: "a12", section: "autonome", order: 12,
+    id: "a12", section: "revenus", order: 12,
     fr: "Kilomètres totaux parcourus en 2025", en: "Total kilometres driven in 2025",
     type: "NUMBER", required: false, showIf: "a11=true", placeholder: "Ex: 25 000",
   },
   {
-    id: "a13", section: "autonome", order: 13,
+    id: "a13", section: "revenus", order: 13,
     fr: "Utilisez-vous une partie de votre domicile comme bureau d'affaires ?", en: "Do you use part of your home as a business office?",
     type: "BOOLEAN", required: false, showIf: "t2=true",
     hint: "Superficie du bureau / superficie totale du logement",
   },
   {
-    id: "a14", section: "autonome", order: 14,
+    id: "a14", section: "revenus", order: 14,
     fr: "Êtes-vous inscrit aux taxes (TPS/TVH/TVQ) ?", en: "Are you registered for GST/HST/QST?",
     type: "BOOLEAN", required: false, showIf: "t2=true",
     hint: "Obligatoire si revenus > 30 000 $ sur 4 trimestres consécutifs",
@@ -459,25 +459,25 @@ export const MODULE_AUTONOME: Question[] = [
 
 export const MODULE_LOCATION: Question[] = [
   {
-    id: "l1", section: "location", order: 1,
+    id: "l1", section: "revenus", order: 1,
     fr: "Pour chaque immeuble loué : adresse, nombre de logements, loyers bruts", en: "For each rental property: address, number of units, gross rents",
     type: "TEXT", required: true, showIf: "t3=true",
     hint: "Ajoutez autant de propriétés que nécessaire",
   },
   {
-    id: "l2", section: "location", order: 2,
+    id: "l2", section: "revenus", order: 2,
     fr: "Revenus de location bruts totaux 2025", en: "Total gross rental income 2025",
     type: "MONEY", required: true, showIf: "t3=true", placeholder: "0,00 $",
   },
   {
-    id: "l3", section: "location", order: 3,
+    id: "l3", section: "revenus", order: 3,
     fr: "Dépenses de location 2025 (assurances, intérêts hypothécaires, entretien, taxes, services publics)",
     en: "Rental expenses 2025 (insurance, mortgage interest, maintenance, taxes, utilities)",
     type: "TEXT", required: false, showIf: "t3=true",
     hint: "Précisez le montant par catégorie de dépense",
   },
   {
-    id: "l4", section: "location", order: 4,
+    id: "l4", section: "revenus", order: 4,
     fr: "Quote-part de copropriété (indivision ou société de personnes)", en: "Co-ownership share (undivided or partnership)",
     type: "MONEY", required: false, showIf: "t3=true", placeholder: "0,00 $",
   },
@@ -487,61 +487,61 @@ export const MODULE_LOCATION: Question[] = [
 
 export const MODULE_PLACEMENTS: Question[] = [
   {
-    id: "inv1", section: "placements", order: 1,
+    id: "inv1", section: "revenus", order: 1,
     fr: "Avez-vous un revenu de placement ? (T5, dividendes, etc.)", en: "Do you have investment income? (T5, dividends, etc.)",
     type: "BOOLEAN", required: true, showIf: "t4=true",
     documentRequired: "T5",
   },
   {
-    id: "inv2", section: "placements", order: 2,
+    id: "inv2", section: "revenus", order: 2,
     fr: "Avez-vous gagné des intérêts ou dividendes de source étrangère ?", en: "Did you earn foreign interest or dividends?",
     type: "BOOLEAN", required: false, showIf: "t4=true",
     hint: "Précisez le pays, les montants et l'impôt étranger retenu",
   },
   {
-    id: "inv3", section: "placements", order: 3,
+    id: "inv3", section: "revenus", order: 3,
     fr: "Avez-vous des biens étrangers dont le coût total dépasse 100 000 $ CA ? (T1135)", en: "Do you own foreign property costing over CAD $100,000? (T1135)",
     type: "BOOLEAN", required: false, showIf: "t4=true",
     documentRequired: "T1135",
   },
   {
-    id: "inv4", section: "placements", order: 4,
+    id: "inv4", section: "revenus", order: 4,
     fr: "Avez-vous effectué des transactions en cryptomonnaies en 2025 ?", en: "Did you transact in cryptocurrency in 2025?",
     type: "BOOLEAN", required: false, showIf: "t4=true",
     hint: "Achat, vente, échange — précisez les gains/pertes",
   },
   {
-    id: "inv5", section: "placements", order: 5,
+    id: "inv5", section: "revenus", order: 5,
     fr: "Avez-vous vendu en 2025 des actions, obligations, fonds, immeubles ou autres immobilisations ?", en: "Did you sell stocks, bonds, funds, real estate or other capital property in 2025?",
     type: "BOOLEAN", required: false, showIf: "t4=true",
   },
   {
-    id: "inv6", section: "placements", order: 6,
+    id: "inv6", section: "revenus", order: 6,
     fr: "Pour chaque disposition : description, dates, produit de disposition, prix de base rajusté, frais",
     en: "For each disposition: description, dates, proceeds, adjusted cost base, expenses",
     type: "TEXT", required: false, showIf: "inv5=true",
     hint: "Remplissez une ligne par bien vendu",
   },
   {
-    id: "inv7", section: "placements", order: 7,
+    id: "inv7", section: "revenus", order: 7,
     fr: "Avez-vous vendu votre résidence principale en 2025 ? (T2091)", en: "Did you sell your principal residence in 2025? (T2091)",
     type: "BOOLEAN", required: false, showIf: "t4=true",
     documentRequired: "T2091",
   },
   {
-    id: "inv8", section: "placements", order: 8,
+    id: "inv8", section: "revenus", order: 8,
     fr: "Déclarez-vous une provision pour gains en capital (solde de prix de vente à recevoir) ?",
     en: "Are you claiming a capital gains reserve (unpaid sale proceeds)?",
     type: "BOOLEAN", required: false, showIf: "t4=true",
   },
   {
-    id: "inv9", section: "placements", order: 9,
+    id: "inv9", section: "revenus", order: 9,
     fr: "Avez-vous vendu des actions admissibles de petite entreprise ou biens agricoles/de pêche (ECGC, plafond 1 250 000 $) ?",
     en: "Did you sell qualified small business shares or farm/fishing property (LCGE, $1,250,000 limit)?",
     type: "BOOLEAN", required: false, showIf: "t4=true",
   },
   {
-    id: "inv10", section: "placements", order: 10,
+    id: "inv10", section: "revenus", order: 10,
     fr: "Avez-vous subi des pertes en capital en 2025 ou des pertes inutilisées d'années antérieures ?",
     en: "Did you incur capital losses in 2025 or have unused prior-year losses?",
     type: "BOOLEAN", required: false, showIf: "t4=true",
@@ -551,29 +551,29 @@ export const MODULE_PLACEMENTS: Question[] = [
 // ─── MODULE AUTRES REVENUS (23 questions) ────────────────────────────────────
 
 export const MODULE_AUTRES_REVENUS: Question[] = [
-  { id: "r1",  section: "autres_revenus", order: 1,  fr: "Avez-vous reçu une allocation de retraite (indemnité de départ) ? Montant, transfert REER ?", en: "Did you receive a retiring allowance? Amount, RRSP transfer?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $" },
-  { id: "r2",  section: "autres_revenus", order: 2,  fr: "Avez-vous gagné un revenu d'emploi à l'extérieur du Canada ?", en: "Did you earn employment income outside Canada?", type: "BOOLEAN", required: false, showIf: "t5=true", hint: "Précisez le pays, le montant et l'impôt étranger retenu" },
-  { id: "r3",  section: "autres_revenus", order: 3,  fr: "Recevez-vous la pension de la Sécurité de la vieillesse (SV) ?", en: "Do you receive Old Age Security (OAS)?", type: "BOOLEAN", required: false, showIf: "t5=true", documentRequired: "T4A(OAS)" },
-  { id: "r4",  section: "autres_revenus", order: 4,  fr: "Recevez-vous une rente du RPC ou du RRQ ?", en: "Do you receive CPP or QPP benefits?", type: "BOOLEAN", required: false, showIf: "t5=true", documentRequired: "T4A(P)" },
-  { id: "r5",  section: "autres_revenus", order: 5,  fr: "Avez-vous effectué des retraits d'un REER en 2025 ?", en: "Did you withdraw from an RRSP in 2025?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $", documentRequired: "T4RSP" },
-  { id: "r6",  section: "autres_revenus", order: 6,  fr: "Avez-vous effectué des retraits d'un FERR en 2025 ?", en: "Did you withdraw from a RRIF in 2025?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $", documentRequired: "T4RIF" },
-  { id: "r7",  section: "autres_revenus", order: 7,  fr: "Avez-vous effectué des retraits d'un CELIAPP ? S'agissait-il de retraits admissibles ?", en: "Did you withdraw from an FHSA? Were they qualifying withdrawals?", type: "BOOLEAN", required: false, showIf: "t5=true", documentRequired: "T4FHSA" },
-  { id: "r8",  section: "autres_revenus", order: 8,  fr: "Recevez-vous une pension d'un régime de retraite d'employeur ou une rente ?", en: "Do you receive an employer pension plan pension or annuity?", type: "BOOLEAN", required: false, showIf: "t5=true" },
-  { id: "r9",  section: "autres_revenus", order: 9,  fr: "Recevez-vous une pension d'un pays étranger ?", en: "Do you receive a pension from a foreign country?", type: "BOOLEAN", required: false, showIf: "t5=true", hint: "Précisez le pays, le montant brut et l'impôt retenu" },
-  { id: "r10", section: "autres_revenus", order: 10, fr: "Désirez-vous fractionner votre revenu de pension avec votre époux/conjoint (T1032) ?", en: "Do you want to split eligible pension income with your spouse (T1032)?", type: "BOOLEAN", required: false, showIf: "t5=true" },
-  { id: "r11", section: "autres_revenus", order: 11, fr: "Recevez-vous des prestations d'invalidité du RPC/RRQ ?", en: "Do you receive CPP/QPP disability benefits?", type: "BOOLEAN", required: false, showIf: "t5=true" },
-  { id: "r12", section: "autres_revenus", order: 12, fr: "Recevez-vous le Supplément de revenu garanti (SRG) ou l'Allocation au survivant ?", en: "Do you receive the Guaranteed Income Supplement (GIS) or Allowance for the Survivor?", type: "BOOLEAN", required: false, showIf: "t5=true" },
-  { id: "r13", section: "autres_revenus", order: 13, fr: "Avez-vous reçu des prestations d'assurance-emploi en 2025 ?", en: "Did you receive Employment Insurance benefits in 2025?", type: "BOOLEAN", required: false, showIf: "t5=true", documentRequired: "T4E" },
-  { id: "r14", section: "autres_revenus", order: 14, fr: "Avez-vous reçu de l'aide sociale ou des prestations provinciales ?", en: "Did you receive social assistance or provincial benefits?", type: "BOOLEAN", required: false, showIf: "t5=true", documentRequired: "T5007" },
-  { id: "r15", section: "autres_revenus", order: 15, fr: "Avez-vous reçu des indemnités d'accident du travail (ex. CNESST) ?", en: "Did you receive workers' compensation benefits (e.g. CNESST)?", type: "BOOLEAN", required: false, showIf: "t5=true" },
-  { id: "r16", section: "autres_revenus", order: 16, fr: "Avez-vous reçu des prestations d'invalidité (assurance salaire privée ou publique) ?", en: "Did you receive disability insurance benefits (private or public)?", type: "BOOLEAN", required: false, showIf: "t5=true" },
-  { id: "r17", section: "autres_revenus", order: 17, fr: "Avez-vous remboursé en 2025 des prestations reçues en trop (AE, SV, PCU/PCRE) ?", en: "Did you repay overpaid benefits in 2025 (EI, OAS, CERB/CRB)?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $" },
-  { id: "r18", section: "autres_revenus", order: 18, fr: "Recevez-vous une pension alimentaire ?", en: "Do you receive support payments?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $", hint: "Montant et date de l'ordonnance (avant/après le 30 avril 1997)" },
-  { id: "r19", section: "autres_revenus", order: 19, fr: "Avez-vous reçu des bourses d'études ou subventions de recherche ?", en: "Did you receive scholarships or research grants?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $", documentRequired: "T4A" },
-  { id: "r20", section: "autres_revenus", order: 20, fr: "Avez-vous reçu des paiements d'un REEI ?", en: "Did you receive RDSP payments?", type: "BOOLEAN", required: false, showIf: "t5=true" },
-  { id: "r21", section: "autres_revenus", order: 21, fr: "Avez-vous reçu des jetons de présence d'administrateur ou honoraires de juré ?", en: "Did you receive director's fees or jury fees?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $" },
-  { id: "r22", section: "autres_revenus", order: 22, fr: "Avez-vous reçu des ristournes, subventions ou paiements gouvernementaux imposables ?", en: "Did you receive taxable patronage dividends, grants or government payments?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $" },
-  { id: "r23", section: "autres_revenus", order: 23, fr: "Autres revenus non énumérés ci-dessus (précisez et montant)", en: "Other income not listed above (describe and amount)", type: "TEXT", required: false, showIf: "t5=true", placeholder: "Description et montant" },
+  { id: "r1",  section: "revenus", order: 1,  fr: "Avez-vous reçu une allocation de retraite (indemnité de départ) ? Montant, transfert REER ?", en: "Did you receive a retiring allowance? Amount, RRSP transfer?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $" },
+  { id: "r2",  section: "revenus", order: 2,  fr: "Avez-vous gagné un revenu d'emploi à l'extérieur du Canada ?", en: "Did you earn employment income outside Canada?", type: "BOOLEAN", required: false, showIf: "t5=true", hint: "Précisez le pays, le montant et l'impôt étranger retenu" },
+  { id: "r3",  section: "revenus", order: 3,  fr: "Recevez-vous la pension de la Sécurité de la vieillesse (SV) ?", en: "Do you receive Old Age Security (OAS)?", type: "BOOLEAN", required: false, showIf: "t5=true", documentRequired: "T4A(OAS)" },
+  { id: "r4",  section: "revenus", order: 4,  fr: "Recevez-vous une rente du RPC ou du RRQ ?", en: "Do you receive CPP or QPP benefits?", type: "BOOLEAN", required: false, showIf: "t5=true", documentRequired: "T4A(P)" },
+  { id: "r5",  section: "revenus", order: 5,  fr: "Avez-vous effectué des retraits d'un REER en 2025 ?", en: "Did you withdraw from an RRSP in 2025?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $", documentRequired: "T4RSP" },
+  { id: "r6",  section: "revenus", order: 6,  fr: "Avez-vous effectué des retraits d'un FERR en 2025 ?", en: "Did you withdraw from a RRIF in 2025?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $", documentRequired: "T4RIF" },
+  { id: "r7",  section: "revenus", order: 7,  fr: "Avez-vous effectué des retraits d'un CELIAPP ? S'agissait-il de retraits admissibles ?", en: "Did you withdraw from an FHSA? Were they qualifying withdrawals?", type: "BOOLEAN", required: false, showIf: "t5=true", documentRequired: "T4FHSA" },
+  { id: "r8",  section: "revenus", order: 8,  fr: "Recevez-vous une pension d'un régime de retraite d'employeur ou une rente ?", en: "Do you receive an employer pension plan pension or annuity?", type: "BOOLEAN", required: false, showIf: "t5=true" },
+  { id: "r9",  section: "revenus", order: 9,  fr: "Recevez-vous une pension d'un pays étranger ?", en: "Do you receive a pension from a foreign country?", type: "BOOLEAN", required: false, showIf: "t5=true", hint: "Précisez le pays, le montant brut et l'impôt retenu" },
+  { id: "r10", section: "revenus", order: 10, fr: "Désirez-vous fractionner votre revenu de pension avec votre époux/conjoint (T1032) ?", en: "Do you want to split eligible pension income with your spouse (T1032)?", type: "BOOLEAN", required: false, showIf: "t5=true" },
+  { id: "r11", section: "revenus", order: 11, fr: "Recevez-vous des prestations d'invalidité du RPC/RRQ ?", en: "Do you receive CPP/QPP disability benefits?", type: "BOOLEAN", required: false, showIf: "t5=true" },
+  { id: "r12", section: "revenus", order: 12, fr: "Recevez-vous le Supplément de revenu garanti (SRG) ou l'Allocation au survivant ?", en: "Do you receive the Guaranteed Income Supplement (GIS) or Allowance for the Survivor?", type: "BOOLEAN", required: false, showIf: "t5=true" },
+  { id: "r13", section: "revenus", order: 13, fr: "Avez-vous reçu des prestations d'assurance-emploi en 2025 ?", en: "Did you receive Employment Insurance benefits in 2025?", type: "BOOLEAN", required: false, showIf: "t5=true", documentRequired: "T4E" },
+  { id: "r14", section: "revenus", order: 14, fr: "Avez-vous reçu de l'aide sociale ou des prestations provinciales ?", en: "Did you receive social assistance or provincial benefits?", type: "BOOLEAN", required: false, showIf: "t5=true", documentRequired: "T5007" },
+  { id: "r15", section: "revenus", order: 15, fr: "Avez-vous reçu des indemnités d'accident du travail (ex. CNESST) ?", en: "Did you receive workers' compensation benefits (e.g. CNESST)?", type: "BOOLEAN", required: false, showIf: "t5=true" },
+  { id: "r16", section: "revenus", order: 16, fr: "Avez-vous reçu des prestations d'invalidité (assurance salaire privée ou publique) ?", en: "Did you receive disability insurance benefits (private or public)?", type: "BOOLEAN", required: false, showIf: "t5=true" },
+  { id: "r17", section: "revenus", order: 17, fr: "Avez-vous remboursé en 2025 des prestations reçues en trop (AE, SV, PCU/PCRE) ?", en: "Did you repay overpaid benefits in 2025 (EI, OAS, CERB/CRB)?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $" },
+  { id: "r18", section: "revenus", order: 18, fr: "Recevez-vous une pension alimentaire ?", en: "Do you receive support payments?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $", hint: "Montant et date de l'ordonnance (avant/après le 30 avril 1997)" },
+  { id: "r19", section: "revenus", order: 19, fr: "Avez-vous reçu des bourses d'études ou subventions de recherche ?", en: "Did you receive scholarships or research grants?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $", documentRequired: "T4A" },
+  { id: "r20", section: "revenus", order: 20, fr: "Avez-vous reçu des paiements d'un REEI ?", en: "Did you receive RDSP payments?", type: "BOOLEAN", required: false, showIf: "t5=true" },
+  { id: "r21", section: "revenus", order: 21, fr: "Avez-vous reçu des jetons de présence d'administrateur ou honoraires de juré ?", en: "Did you receive director's fees or jury fees?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $" },
+  { id: "r22", section: "revenus", order: 22, fr: "Avez-vous reçu des ristournes, subventions ou paiements gouvernementaux imposables ?", en: "Did you receive taxable patronage dividends, grants or government payments?", type: "MONEY", required: false, showIf: "t5=true", placeholder: "0,00 $" },
+  { id: "r23", section: "revenus", order: 23, fr: "Autres revenus non énumérés ci-dessus (précisez et montant)", en: "Other income not listed above (describe and amount)", type: "TEXT", required: false, showIf: "t5=true", placeholder: "Description et montant" },
 ];
 
 // ─── MODULE DÉDUCTIONS (35 questions) ────────────────────────────────────────
@@ -718,44 +718,194 @@ export const MODULE_QUEBEC: Question[] = [
 // Type DOCUMENT = bloc upload avec support multi-feuillets
 
 export const MODULE_DOCUMENTS: Question[] = [
-  { id: "doc1", section: "documents", order: 1, fr: "T4 — Rémunération d'un employeur", en: "T4 — Employment income slip", type: "DOCUMENT", required: false, showIf: "t1=true", documentRequired: "T4", hint: "Ajoutez un bloc par employeur (T4 #1, T4 #2...)" },
-  { id: "doc2", section: "documents", order: 2, fr: "Relevé 1 (RL-1) — Revenus d'emploi (Québec)", en: "RL-1 — Employment income (Québec)", type: "DOCUMENT", required: false, showIf: "t1=true", documentRequired: "RL-1", hint: "Un RL-1 par employeur" },
-  { id: "doc3", section: "documents", order: 3, fr: "T5 — Relevé de revenus de placements", en: "T5 — Investment income slip", type: "DOCUMENT", required: false, showIf: "t4=true", documentRequired: "T5", hint: "Un T5 par institution financière" },
-  { id: "doc4", section: "documents", order: 4, fr: "T4A — Autres revenus (pension, bourses, case 048...)", en: "T4A — Other income (pension, scholarships, box 048...)", type: "DOCUMENT", required: false, documentRequired: "T4A", hint: "Pension, bourses, allocations de retraite" },
-  { id: "doc5", section: "documents", order: 5, fr: "T4E — Prestations d'assurance-emploi", en: "T4E — Employment Insurance benefits", type: "DOCUMENT", required: false, showIf: "r13=true", documentRequired: "T4E" },
-  { id: "doc6", section: "documents", order: 6, fr: "Reçus de cotisation REER", en: "RRSP contribution receipts", type: "DOCUMENT", required: false, showIf: "d1=true", documentRequired: "RRSP_RECEIPT", hint: "Reçus de votre institution financière" },
-  { id: "doc7", section: "documents", order: 7, fr: "Autres documents fiscaux", en: "Other tax documents", type: "DOCUMENT", required: false, hint: "T3, T5013, RL-2, T2202, reçus médicaux, dons, etc." },
+  { id: "doc1", section: "revenus", order: 1, fr: "T4 — Rémunération d'un employeur", en: "T4 — Employment income slip", type: "DOCUMENT", required: false, showIf: "t1=true", documentRequired: "T4", hint: "Ajoutez un bloc par employeur (T4 #1, T4 #2...)" },
+  { id: "doc2", section: "revenus", order: 2, fr: "Relevé 1 (RL-1) — Revenus d'emploi (Québec)", en: "RL-1 — Employment income (Québec)", type: "DOCUMENT", required: false, showIf: "t1=true", documentRequired: "RL-1", hint: "Un RL-1 par employeur" },
+  { id: "doc3", section: "revenus", order: 3, fr: "T5 — Relevé de revenus de placements", en: "T5 — Investment income slip", type: "DOCUMENT", required: false, showIf: "t4=true", documentRequired: "T5", hint: "Un T5 par institution financière" },
+  { id: "doc4", section: "revenus", order: 4, fr: "T4A — Autres revenus (pension, bourses, case 048...)", en: "T4A — Other income (pension, scholarships, box 048...)", type: "DOCUMENT", required: false, documentRequired: "T4A", hint: "Pension, bourses, allocations de retraite" },
+  { id: "doc5", section: "revenus", order: 5, fr: "T4E — Prestations d'assurance-emploi", en: "T4E — Employment Insurance benefits", type: "DOCUMENT", required: false, showIf: "r13=true", documentRequired: "T4E" },
+  { id: "doc6", section: "revenus", order: 6, fr: "Reçus de cotisation REER", en: "RRSP contribution receipts", type: "DOCUMENT", required: false, showIf: "d1=true", documentRequired: "RRSP_RECEIPT", hint: "Reçus de votre institution financière" },
+  { id: "doc7", section: "revenus", order: 7, fr: "Autres documents fiscaux", en: "Other tax documents", type: "DOCUMENT", required: false, hint: "T3, T5013, RL-2, T2202, reçus médicaux, dons, etc." },
 ];
 
 // ─── MODULE RÉVISION (13 questions) ──────────────────────────────────────────
 
 export const MODULE_REVISION: Question[] = [
-  { id: "rev1",  section: "revision", order: 1,  fr: "Avez-vous des dettes fiscales impayées auprès de l'ARC ou de Revenu Québec ?", en: "Do you have unpaid tax debts with CRA or Revenu Québec?", type: "BOOLEAN", required: false },
-  { id: "rev2",  section: "revision", order: 2,  fr: "Souhaitez-vous souscrire au dépôt direct pour recevoir votre remboursement ?", en: "Do you want to sign up for direct deposit to receive your refund?", type: "BOOLEAN", required: false },
-  { id: "rev3",  section: "revision", order: 3,  fr: "Numéro de compte bancaire pour dépôt direct (institution, transit, compte)", en: "Bank account number for direct deposit (institution, transit, account)", type: "TEXT", required: false, showIf: "rev2=true" },
-  { id: "rev4",  section: "revision", order: 4,  fr: "Souhaitez-vous verser une somme à un REER, CELIAPP ou CELI ?", en: "Do you want to contribute to an RRSP, FHSA or TFSA?", type: "BOOLEAN", required: false },
-  { id: "rev5",  section: "revision", order: 5,  fr: "Avez-vous reçu un avis de cotisation ou une demande de renseignements de l'ARC en 2025 ?", en: "Did you receive a notice of assessment or information request from CRA in 2025?", type: "BOOLEAN", required: false },
-  { id: "rev6",  section: "revision", order: 6,  fr: "Avez-vous été cotisé en trop les années précédentes (droits à un remboursement non réclamé) ?", en: "Were you over-assessed in prior years (unclaimed refund rights)?", type: "BOOLEAN", required: false },
-  { id: "rev7",  section: "revision", order: 7,  fr: "Désirez-vous que votre préparateur reçoive votre avis de cotisation ?", en: "Do you want your preparer to receive your notice of assessment?", type: "BOOLEAN", required: false },
-  { id: "rev8",  section: "revision", order: 8,  fr: "Autorisez-vous votre préparateur à discuter de votre dossier avec l'ARC ?", en: "Do you authorize your preparer to discuss your file with CRA?", type: "BOOLEAN", required: false },
-  { id: "rev9",  section: "revision", order: 9,  fr: "Autorisez-vous votre préparateur à discuter de votre dossier avec Revenu Québec ?", en: "Do you authorize your preparer to discuss your file with Revenu Québec?", type: "BOOLEAN", required: false },
-  { id: "rev10", section: "revision", order: 10, fr: "Avez-vous des commentaires ou des situations particulières à signaler à votre préparateur ?", en: "Do you have comments or special situations to report to your preparer?", type: "TEXT", required: false, placeholder: "Décrivez toute situation particulière..." },
-  { id: "rev11", section: "revision", order: 11, fr: "Confirmez-vous que toutes les informations fournies sont complètes et exactes à votre connaissance ?", en: "Do you confirm that all information provided is complete and accurate to the best of your knowledge?", type: "BOOLEAN", required: true },
-  { id: "rev12", section: "revision", order: 12, fr: "Signature électronique", en: "Electronic signature", type: "TEXT", required: true, placeholder: "Entrez votre nom complet pour signer" },
-  { id: "rev13", section: "revision", order: 13, fr: "Date de signature", en: "Signature date", type: "DATE", required: true },
+  { id: "rev1",  section: "declaration", order: 1,  fr: "Avez-vous des dettes fiscales impayées auprès de l'ARC ou de Revenu Québec ?", en: "Do you have unpaid tax debts with CRA or Revenu Québec?", type: "BOOLEAN", required: false },
+  { id: "rev2",  section: "declaration", order: 2,  fr: "Souhaitez-vous souscrire au dépôt direct pour recevoir votre remboursement ?", en: "Do you want to sign up for direct deposit to receive your refund?", type: "BOOLEAN", required: false },
+  { id: "rev3",  section: "declaration", order: 3,  fr: "Numéro de compte bancaire pour dépôt direct (institution, transit, compte)", en: "Bank account number for direct deposit (institution, transit, account)", type: "TEXT", required: false, showIf: "rev2=true" },
+  { id: "rev4",  section: "declaration", order: 4,  fr: "Souhaitez-vous verser une somme à un REER, CELIAPP ou CELI ?", en: "Do you want to contribute to an RRSP, FHSA or TFSA?", type: "BOOLEAN", required: false },
+  { id: "rev5",  section: "declaration", order: 5,  fr: "Avez-vous reçu un avis de cotisation ou une demande de renseignements de l'ARC en 2025 ?", en: "Did you receive a notice of assessment or information request from CRA in 2025?", type: "BOOLEAN", required: false },
+  { id: "rev6",  section: "declaration", order: 6,  fr: "Avez-vous été cotisé en trop les années précédentes (droits à un remboursement non réclamé) ?", en: "Were you over-assessed in prior years (unclaimed refund rights)?", type: "BOOLEAN", required: false },
+  { id: "rev7",  section: "declaration", order: 7,  fr: "Désirez-vous que votre préparateur reçoive votre avis de cotisation ?", en: "Do you want your preparer to receive your notice of assessment?", type: "BOOLEAN", required: false },
+  { id: "rev8",  section: "declaration", order: 8,  fr: "Autorisez-vous votre préparateur à discuter de votre dossier avec l'ARC ?", en: "Do you authorize your preparer to discuss your file with CRA?", type: "BOOLEAN", required: false },
+  { id: "rev9",  section: "declaration", order: 9,  fr: "Autorisez-vous votre préparateur à discuter de votre dossier avec Revenu Québec ?", en: "Do you authorize your preparer to discuss your file with Revenu Québec?", type: "BOOLEAN", required: false },
+  { id: "rev10", section: "declaration", order: 10, fr: "Avez-vous des commentaires ou des situations particulières à signaler à votre préparateur ?", en: "Do you have comments or special situations to report to your preparer?", type: "TEXT", required: false, placeholder: "Décrivez toute situation particulière..." },
+  { id: "rev11", section: "declaration", order: 11, fr: "Confirmez-vous que toutes les informations fournies sont complètes et exactes à votre connaissance ?", en: "Do you confirm that all information provided is complete and accurate to the best of your knowledge?", type: "BOOLEAN", required: true },
+  { id: "rev12", section: "declaration", order: 12, fr: "Signature électronique", en: "Electronic signature", type: "TEXT", required: true, placeholder: "Entrez votre nom complet pour signer" },
+  { id: "rev13", section: "declaration", order: 13, fr: "Date de signature", en: "Signature date", type: "DATE", required: true },
 ];
 
 // ─── EXPORT CONSOLIDÉ ────────────────────────────────────────────────────────
+
+
+// ─── MODULE REVENUS (section unifiée) ────────────────────────────────────────
+// Upload feuillets OCR + questions complémentaires uniquement
+// Les montants des feuillets sont extraits par OCR — on ne les repose pas
+// On pose seulement ce qui n'est PAS sur les feuillets
+export const MODULE_REVENUS: Question[] = [
+  // ── Emploi — complémentaires ──────────────────────────────
+  {
+    id: "r_emp_tip", section: "revenus", order: 10,
+    fr: "Avez-vous reçu des pourboires non indiqués sur vos feuillets T4 ? (montant)",
+    en: "Did you receive tips not shown on your T4 slips? (amount)",
+    type: "MONEY", required: false, showIf: "t1=true",
+    hint: "Montant total des pourboires non déclarés par l'employeur → ligne 10400 T1",
+  },
+  {
+    id: "r_emp_opt", section: "revenus", order: 11,
+    fr: "Avez-vous exercé des options d'achat d'actions de votre employeur en 2025 ?",
+    en: "Did you exercise employee stock options in 2025?",
+    type: "BOOLEAN", required: false, showIf: "t1=true",
+    hint: "Avantage imposable → ligne 10100 T1. Nécessite le relevé de votre employeur.",
+  },
+  {
+    id: "r_emp_t2200", section: "revenus", order: 12,
+    fr: "Votre employeur vous a-t-il signé un T2200 (dépenses d'emploi) ?",
+    en: "Did your employer sign a T2200 (employment expenses)?",
+    type: "BOOLEAN", required: false, showIf: "t1=true",
+    hint: "Bureau à domicile, véhicule, fournitures — formulaire T2200 obligatoire.",
+  },
+  {
+    id: "r_emp_comm", section: "revenus", order: 13,
+    fr: "Avez-vous des commissions non indiquées sur vos feuillets T4 ?",
+    en: "Do you have commissions not shown on your T4 slips?",
+    type: "MONEY", required: false, showIf: "t1=true",
+  },
+  // ── Travail autonome ──────────────────────────────────────
+  {
+    id: "r_aut_type", section: "revenus", order: 20,
+    fr: "Type d'activité de travail autonome",
+    en: "Type of self-employment activity",
+    type: "MULTI_CHOICE", required: true, showIf: "t2=true",
+    options: [
+      { value: "uber",      fr: "Uber / covoiturage",       en: "Uber / rideshare" },
+      { value: "doordash",  fr: "DoorDash / livraison",     en: "DoorDash / delivery" },
+      { value: "freelance", fr: "Freelance / contrats",     en: "Freelance / contracts" },
+      { value: "airbnb",    fr: "Airbnb / location courte", en: "Airbnb / short-term rental" },
+      { value: "commerce",  fr: "Commerce / ventes",        en: "Commerce / sales" },
+      { value: "autre",     fr: "Autre",                    en: "Other" },
+    ],
+  },
+  {
+    id: "r_aut_brut", section: "revenus", order: 21,
+    fr: "Revenus bruts de travail autonome (si pas de T4A case 048)",
+    en: "Gross self-employment income (if no T4A box 048)",
+    type: "MONEY", required: false, showIf: "t2=true",
+    hint: "Si vous avez un T4A case 048, uploadez-le — le montant sera extrait automatiquement.",
+  },
+  {
+    id: "r_aut_dep", section: "revenus", order: 22,
+    fr: "Total des dépenses d'entreprise déductibles",
+    en: "Total deductible business expenses",
+    type: "MONEY", required: false, showIf: "t2=true",
+    hint: "Publicité, fournitures, téléphone, sous-traitance, assurances... (T2125)",
+  },
+  {
+    id: "r_aut_vehicule", section: "revenus", order: 23,
+    fr: "Utilisez-vous un véhicule pour votre activité autonome ?",
+    en: "Do you use a vehicle for your self-employment activity?",
+    type: "BOOLEAN", required: false, showIf: "t2=true",
+  },
+  {
+    id: "r_aut_bureau", section: "revenus", order: 24,
+    fr: "Utilisez-vous une partie de votre domicile comme bureau ?",
+    en: "Do you use part of your home as an office?",
+    type: "BOOLEAN", required: false, showIf: "t2=true",
+  },
+  // ── Location ──────────────────────────────────────────────
+  {
+    id: "r_loc_adresse", section: "revenus", order: 30,
+    fr: "Adresse de l'immeuble ou logement loué",
+    en: "Address of the rental property",
+    type: "TEXT", required: false, showIf: "t3=true",
+    hint: "Formulaire T776 requis pour les revenus de location.",
+  },
+  {
+    id: "r_loc_brut", section: "revenus", order: 31,
+    fr: "Loyers bruts perçus en 2025",
+    en: "Gross rental income received in 2025",
+    type: "MONEY", required: true, showIf: "t3=true",
+    hint: "→ ligne 12600 T1. Si vous avez un T776, uploadez-le.",
+  },
+  {
+    id: "r_loc_dep", section: "revenus", order: 32,
+    fr: "Dépenses de location totales (assurances, intérêts, taxes, entretien)",
+    en: "Total rental expenses (insurance, interest, taxes, maintenance)",
+    type: "MONEY", required: false, showIf: "t3=true",
+  },
+  // ── Placements ────────────────────────────────────────────
+  {
+    id: "r_pla_etranger", section: "revenus", order: 40,
+    fr: "Avez-vous des revenus de source étrangère ou des biens étrangers > 100 000 $ ?",
+    en: "Do you have foreign source income or foreign property over $100,000?",
+    type: "BOOLEAN", required: false, showIf: "t4=true",
+    hint: "Biens étrangers > 100 000 $ CA → formulaire T1135 obligatoire.",
+  },
+  {
+    id: "r_pla_crypto", section: "revenus", order: 41,
+    fr: "Avez-vous effectué des transactions en cryptomonnaies en 2025 ?",
+    en: "Did you make cryptocurrency transactions in 2025?",
+    type: "BOOLEAN", required: false, showIf: "t4=true",
+    hint: "Traité comme gain en capital (50 % imposable) → annexe 3.",
+  },
+  {
+    id: "r_pla_vente", section: "revenus", order: 42,
+    fr: "Avez-vous vendu des actions, obligations ou immeubles en 2025 ?",
+    en: "Did you sell stocks, bonds or property in 2025?",
+    type: "BOOLEAN", required: false, showIf: "t4=true",
+    hint: "Gains ou pertes en capital → annexe 3. T5008 si courtier canadien.",
+  },
+  {
+    id: "r_pla_residence", section: "revenus", order: 43,
+    fr: "Avez-vous vendu votre résidence principale en 2025 ?",
+    en: "Did you sell your principal residence in 2025?",
+    type: "BOOLEAN", required: false, showIf: "t4=true",
+    hint: "Exonération possible → formulaire T2091 obligatoire.",
+  },
+  // ── Autres revenus ────────────────────────────────────────
+  {
+    id: "r_aut_pension_etrang", section: "revenus", order: 50,
+    fr: "Avez-vous reçu une pension d'un pays étranger ?",
+    en: "Did you receive a pension from a foreign country?",
+    type: "MONEY", required: false, showIf: "t5=true",
+    hint: "→ ligne 11500 T1. Crédit possible pour impôt étranger.",
+  },
+  {
+    id: "r_aut_aliment", section: "revenus", order: 51,
+    fr: "Avez-vous reçu des pensions alimentaires imposables en 2025 ?",
+    en: "Did you receive taxable alimony payments in 2025?",
+    type: "MONEY", required: false, showIf: "t5=true",
+    hint: "Pensions alimentaires pour ex-conjoint → ligne 12800 T1.",
+  },
+  {
+    id: "r_aut_autre", section: "revenus", order: 52,
+    fr: "Autres revenus non couverts par vos feuillets (précisez)",
+    en: "Other income not covered by your slips (specify)",
+    type: "TEXT", required: false, showIf: "t5=true",
+    hint: "→ ligne 13000 T1.",
+  },
+];
 
 export const ALL_INDIVIDUAL_QUESTIONS: Question[] = [
   ...TRIAGE,
   ...MODULE_PROFIL,
   ...MODULE_FAMILLE,
-  ...MODULE_EMPLOI,
-  ...MODULE_AUTONOME,
-  ...MODULE_LOCATION,
-  ...MODULE_PLACEMENTS,
-  ...MODULE_AUTRES_REVENUS,
+  ...MODULE_REVENUS,        // ← section unifiée revenus (complémentaires)
+  ...MODULE_EMPLOI,         // ← gardé pour compatibilité mais section="revenus" maintenant
+  ...MODULE_AUTONOME,       // ← idem
+  ...MODULE_LOCATION,       // ← idem
+  ...MODULE_PLACEMENTS,     // ← idem
+  ...MODULE_AUTRES_REVENUS, // ← idem
   ...MODULE_DEDUCTIONS,
   ...MODULE_CREDITS,
   ...MODULE_QUEBEC,
@@ -764,20 +914,17 @@ export const ALL_INDIVIDUAL_QUESTIONS: Question[] = [
 ];
 
 export const INDIVIDUAL_SECTIONS = [
-  // WORKFLOW: Triage → Documents (OCR) → Profil (valide OCR) → Famille → Emploi...
-  { code: "triage",          fr: "Triage",            en: "Triage",        icon: "🧭", alwaysShow: true  },
-  { code: "documents",       fr: "Documents",         en: "Documents",     icon: "📎", alwaysShow: true  }, // ← position 2: upload+OCR avant tout
-  { code: "profil",          fr: "Profil",            en: "Profile",       icon: "🪪", alwaysShow: true  }, // ← position 3: valide données OCR
-  { code: "famille",         fr: "Famille",           en: "Family",        icon: "👨‍👩‍👧", showIf: "t6=true" },
-  { code: "emploi",          fr: "Emploi",            en: "Employment",    icon: "💼", showIf: "t1=true" },
-  { code: "autonome",        fr: "Travail autonome",  en: "Self-employed", icon: "🧑‍💼", showIf: "t2=true" },
-  { code: "location",        fr: "Location",          en: "Rental",        icon: "🏠", showIf: "t3=true" },
-  { code: "placements",      fr: "Placements",        en: "Investments",   icon: "📈", showIf: "t4=true" },
-  { code: "autres_revenus",  fr: "Autres revenus",    en: "Other income",  icon: "💰", showIf: "t5=true" },
-  { code: "deductions",      fr: "Déductions",        en: "Deductions",    icon: "📉", alwaysShow: true  },
-  { code: "credits",         fr: "Crédits",           en: "Credits",       icon: "🎁", alwaysShow: true  },
-  { code: "ma_province",     fr: "Ma province",       en: "My province",   icon: "🏛️", alwaysShow: true  },
-  { code: "revision",        fr: "Révision",          en: "Review",        icon: "📋", alwaysShow: true  },
+  // ═══════════════════════════════════════════════════════════
+  // WORKFLOW A-Z — 8 étapes
+  // ═══════════════════════════════════════════════════════════
+  { code: "triage",      fr: "Triage",       en: "Triage",       icon: "🧭", alwaysShow: true },
+  { code: "profil",      fr: "Profil",       en: "Profile",      icon: "🪪", alwaysShow: true },
+  { code: "famille",     fr: "Famille",      en: "Family",       icon: "👨‍👩‍👧", showIf: "t6=true" },
+  { code: "revenus",     fr: "Revenus",      en: "Income",       icon: "💰", alwaysShow: true },
+  { code: "deductions",  fr: "Déductions",   en: "Deductions",   icon: "📉", alwaysShow: true },
+  { code: "credits",     fr: "Crédits",      en: "Credits",      icon: "🎁", alwaysShow: true },
+  { code: "ma_province", fr: "Ma province",  en: "My province",  icon: "🏛️", alwaysShow: true },
+  { code: "declaration", fr: "Déclaration",  en: "Tax return",   icon: "📋", alwaysShow: true },
 ];
 
 

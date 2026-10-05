@@ -819,40 +819,47 @@ export default function QuestionnairePage() {
           })}
         </div>
 
-        {/* ── SECTION DOCUMENTS: upload inline ─────────────────── */}
-        {triageDone && currentSection?.code === "documents" && (
+        {/* ── ÉTAPE 4: REVENUS — upload OCR inline ─────────────── */}
+        {triageDone && currentSection?.code === "revenus" && qIdx === 0 && (
           <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "20px 16px", marginBottom: 12, boxShadow: "0 1px 8px rgba(0,0,0,0.04)" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#9fd4cc", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>
-              📎 {lang === "en" ? "Tax slips & documents" : "Feuillets et documents fiscaux"}
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #dde8e5" }}>
+              <span style={{ fontSize: 24 }}>💰</span>
+              <div>
+                <div style={{ fontFamily: "Georgia,serif", fontSize: 16, fontWeight: 700, color: "#0f1f1e" }}>
+                  {lang === "en" ? "Step 4 — Income" : "Étape 4 — Revenus"}
+                </div>
+                <div style={{ fontSize: 11, color: "#7a9c97", marginTop: 2 }}>
+                  {lang === "en"
+                    ? "Upload your T4/RL-1/T5... slips. OCR extracts the amounts. Then answer the complementary questions."
+                    : "Uploadez vos feuillets T4/RL-1/T5... L'OCR extrait les montants. Répondez ensuite aux questions complémentaires."}
+                </div>
+              </div>
             </div>
+
+            {/* Upload + OCR */}
             <DocumentUploadSection
               lang={lang}
               ocrSlips={ocrSlips}
               onPipelineDone={(newAnswers) => {
                 setAnswers(prev => ({ ...newAnswers, ...prev }));
                 setOcrAnswers(prev => ({ ...prev, ...newAnswers }));
-                // Avancer à la section profil automatiquement
-                const profilIdx = visibleSections.findIndex(s => s.code === "profil");
-                if (profilIdx >= 0) { setSecIdx(profilIdx); setQIdx(0); }
               }}
             />
+
+            {/* Bouton passer aux questions complémentaires */}
             <button
-              onClick={() => {
-                const next = secIdx + 1;
-                if (next < visibleSections.length) { setSecIdx(next); setQIdx(0); }
-              }}
+              onClick={() => setQIdx(1)}
               style={{ width: "100%", marginTop: 14, padding: "12px 0", borderRadius: 9, fontSize: 14, fontWeight: 700, background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer" }}>
-              {(() => {
-                const hasRealSlips = ocrSlips.filter(s => s.typeCode !== "OTHER" && s.fields.some(f => f.value && f.value.trim() !== "" && f.value !== "—")).length > 0;
-                if (lang === "en") return hasRealSlips ? "Continue to profile →" : "Skip — continue to profile →";
-                return hasRealSlips ? "Continuer vers le profil →" : "Passer — continuer vers le profil →";
-              })()}
+              {ocrSlips.filter(s => s.typeCode !== "OTHER" && s.fields.some(f => f.value && f.value.trim() !== "" && f.value !== "—")).length > 0
+                ? (lang === "en" ? "Slips validated → answer complementary questions" : "Feuillets validés → répondre aux questions complémentaires")
+                : (lang === "en" ? "No slips → continue to questions" : "Sans feuillets → continuer aux questions")}
             </button>
           </div>
         )}
 
         {/* ── Carte question ───────────────────────────────────── */}
-        {(triageDone ? currentSection?.code !== "documents" : true) && currentQ ? (
+        {(triageDone ? (currentSection?.code !== "revenus" || qIdx > 0) : true) && currentQ ? (
           <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "22px 20px", boxShadow: "0 1px 8px rgba(0,0,0,0.04)", marginBottom: 12 }}>
 
             {/* Indicateur */}
@@ -964,7 +971,7 @@ export default function QuestionnairePage() {
             )}
           </div>
         ) : (
-          currentSection?.code !== "documents" ? (
+          currentSection?.code === "revenus" && !triageDone ? false : true ? (
             <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "28px 20px", textAlign: "center", marginBottom: 12 }}>
               <div style={{ fontSize: 20, color: "#9fd4cc", marginBottom: 8 }}>✓</div>
               <p style={{ color: "#526865", fontSize: 14 }}>{lang === "en" ? "Section complete or not applicable." : "Section complète ou non applicable."}</p>
