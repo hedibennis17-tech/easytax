@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadBucketCommand, CreateBucketCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadBucketCommand, HeadObjectCommand, CreateBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createHash, randomUUID } from "crypto";
 
@@ -124,6 +124,10 @@ export async function uploadDocument(params: {
       },
     })
   );
+  // Ne jamais créer une ligne SQL pointant vers une clé absente. Cette sonde
+  // transforme un stockage incohérent en erreur d’upload immédiate, plutôt
+  // qu’en échec OCR incompréhensible plus tard.
+  await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: params.storageKey }));
 }
 
 /**

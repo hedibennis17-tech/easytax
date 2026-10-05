@@ -10,10 +10,12 @@ import {
   documentExtractions,
   documentPages,
   documentParties,
+  documentRequests,
   documentTypes,
   extractionFields,
   fiscalDocuments,
   incomeEntries,
+  preparerMessages,
   taxYears,
 } from "@/db/schema";
 
@@ -110,6 +112,15 @@ export async function DELETE(
   if (storageCleanupWarning) console.error("[documents/delete] one or more storage objects could not be removed");
 
   await db.transaction(async (tx) => {
+    // Les demandes et messages restent dans l’historique du préparateur, mais
+    // ne peuvent plus garder une clé étrangère vers un feuillet supprimé.
+    await tx.update(documentRequests)
+      .set({ fulfilledDocumentId: null, fulfilledAt: null, status: "pending", updatedAt: new Date() })
+      .where(eq(documentRequests.fulfilledDocumentId, document.id));
+    await tx.update(preparerMessages)
+      .set({ relatedDocumentId: null })
+      .where(eq(preparerMessages.relatedDocumentId, document.id));
+
     const extractions = await tx.select({ id: documentExtractions.id })
       .from(documentExtractions)
       .where(eq(documentExtractions.fiscalDocumentId, document.id));

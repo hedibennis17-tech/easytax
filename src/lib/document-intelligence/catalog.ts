@@ -113,6 +113,22 @@ function hasDocumentCode(text: string, document: CatalogDocumentType): boolean {
   return Boolean(releve?.[1] && hasToken(text, `RELEVÉ ${releve[1]}`));
 }
 
+/**
+ * Google Form Parser peut extraire les cases d’un T4 sans restituer le titre
+ * du feuillet. La combinaison case 14 + case 16/18 est spécifique au T4 :
+ * elle ne suffit jamais à auto-classer un fichier, mais elle confirme de façon
+ * contrôlée le type T4 explicitement choisi par le client.
+ */
+function hasStructuredT4Evidence(text: string): boolean {
+  const hasBox = (box: number) => new RegExp(`(?:BOX|CASE|BO[IÎ]TE)\\s*${box}\\b`, "i").test(text);
+  const employmentIncome = /EMPLOYMENT\s+INCOME|REVENUS?\s+D['’]?EMPLOI/i.test(text);
+  const cppOrQpp = /CPP\s+CONTRIBUTIONS|COTISATIONS?\s+(?:AU\s+)?(?:RPC|RRQ)|QPP\s+CONTRIBUTIONS/i.test(text);
+  const ei = /EI\s+PREMIUMS|COTISATIONS?\s+(?:À|A)\s+(?:L['’])?AE|EMPLOYMENT\s+INSURANCE/i.test(text);
+
+  return (employmentIncome && (cppOrQpp || ei || hasBox(16) || hasBox(18)))
+    || (hasBox(14) && (hasBox(16) || hasBox(18)));
+}
+
 export function getCatalogDocumentType(code: string | null | undefined): CatalogDocumentType | null {
   if (!code) return null;
   const normalizedCode = normalize(code);
@@ -201,14 +217,17 @@ export function classifyTaxDocumentAs(ocrText: string, documentTypeCode: string)
     .filter(anchor => normalize(anchor) !== normalize(document.code))
     .filter(anchor => hasToken(text, anchor));
   const semanticHit = semanticHits.length > 0;
-  const confirmed = codeHit && semanticHit;
+  const structuredT4Evidence = document.code === "T4" && hasStructuredT4Evidence(text);
+  const confirmed = (codeHit && semanticHit) || structuredT4Evidence;
   const jurisdiction = document.jurisdictions.length === 1 ? document.jurisdictions[0] ?? null : "CA";
 
   return {
     documentTypeCode: document.code,
-    confidence: confirmed ? 100 : codeHit ? 91 : semanticHit ? 86 : 0,
+    confidence: confirmed ? (structuredT4Evidence && !(codeHit && semanticHit) ? 96 : 100) : codeHit ? 91 : semanticHit ? 86 : 0,
     reason: confirmed
-      ? `${document.code} prouvé dans ce PDF par le code du feuillet et l’ancrage « ${semanticHits[0]} » du catalogue v${DOCUMENT_CATALOG_VERSION}.`
+      ? structuredT4Evidence && !(codeHit && semanticHit)
+        ? "T4 confirmé par les libellés et cases structurés propres à la rémunération d’emploi (cases 14 et 16 ou 18) retournés par Google."
+        : `${document.code} prouvé dans ce PDF par le code du feuillet et l’ancrage « ${semanticHits[0]} » du catalogue v${DOCUMENT_CATALOG_VERSION}.`
       : `${document.code} n’a pas été prouvé par ses ancrages requis dans ce PDF.`,
     state: confirmed ? "confirmed" : codeHit || semanticHit ? "candidate" : "unknown",
     document,
