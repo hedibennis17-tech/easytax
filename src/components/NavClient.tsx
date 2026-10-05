@@ -15,6 +15,7 @@ const DEFAULT_NAV: NavItem[] = [
   { href: "/documents",     fr: "Documents",         en: "Documents",     iconName: "FileText"        },
   { href: "/questionnaire", fr: "Questionnaire",     en: "Questionnaire", iconName: "HelpCircle"      },
   { href: "/resume",        fr: "Résumé fiscal",     en: "Tax summary",   iconName: "BarChart3"       },
+  { href: "/declarations",  fr: "Déclarations",      en: "Returns",         iconName: "ClipboardList"   },
 ];
 
 export function NavClient() {

@@ -42,6 +42,33 @@ export async function GET() {
   return NextResponse.json(profile[0]);
 }
 
+export async function PATCH(req: NextRequest) {
+  const ctx = await getAuthContext();
+  if (!ctx) return unauthorized();
+
+  const body = await req.json();
+  const fiscalResidence = normalizeProvinceCode(body.fiscalResidence);
+  if (!fiscalResidence) {
+    return NextResponse.json({ error: "Province ou territoire invalide." }, { status: 422 });
+  }
+
+  const [updated] = await db
+    .update(taxProfiles)
+    .set({
+      fiscalResidence,
+      isQuebecResident: fiscalResidence === "QC",
+      updatedAt: new Date(),
+    })
+    .where(eq(taxProfiles.userId, ctx.clerkUserId))
+    .returning({ id: taxProfiles.id, fiscalResidence: taxProfiles.fiscalResidence });
+
+  if (!updated) {
+    return NextResponse.json({ error: "Profil non trouvé" }, { status: 404 });
+  }
+
+  return NextResponse.json(updated);
+}
+
 export async function POST(req: NextRequest) {
   const ctx = await getAuthContext();
   if (!ctx) return unauthorized();
