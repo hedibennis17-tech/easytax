@@ -237,6 +237,7 @@ export default function ExtractionPage() {
 
   const confirmed = fields.filter(field => field.validationStatus !== "unreviewed").length;
   const allConfirmed = fields.length > 0 && confirmed === fields.length;
+  const noExtractedValues = fields.length === 0 || fields.every(field => !(field.rawOcrValue ?? field.validatedValue)?.trim());
   const googleState = diagnostic?.google?.status ?? diagnostic?.google?.provider ?? null;
 
   return (
@@ -272,6 +273,19 @@ export default function ExtractionPage() {
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
               Confirmez ou corrigez chaque valeur. Rien ne sera ajouté aux revenus avant la validation finale.
             </div>
+
+            {noExtractedValues && (
+              <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950">
+                <h2 className="font-semibold">Le précédent traitement n’a trouvé aucun montant</h2>
+                <p className="mt-2 text-sm leading-6">Relancez l’analyse. Le nouveau moteur lit maintenant le texte, les champs de formulaire et les tableaux renvoyés par Google Document AI. Si Google ne renvoie réellement aucun texte, l’erreur indiquera clairement la configuration ou le fichier à corriger.</p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button onClick={retryOcr} disabled={busy} className="rounded-xl bg-teal-700 px-4 py-2 text-white disabled:opacity-50">
+                    {busy ? "Analyse en cours…" : "Relancer l’OCR maintenant"}
+                  </button>
+                  <button onClick={runDiagnostic} className="rounded-xl border border-teal-700 px-4 py-2 text-teal-800">Diagnostiquer l’OCR</button>
+                </div>
+              </section>
+            )}
 
             {fields.length === 0 ? (
               <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950">

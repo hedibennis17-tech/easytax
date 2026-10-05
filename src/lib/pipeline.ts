@@ -88,7 +88,13 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       }
     }
 
-    await writeAudit(documentId, userId, "document_ocr_completed", { provider: ocrResult.provider, pageCount: ocrResult.pages.length, confidence: ocrResult.overallConfidence });
+    await writeAudit(documentId, userId, "document_ocr_completed", {
+      provider: ocrResult.provider,
+      pageCount: ocrResult.pages.length,
+      pagesWithText: ocrResult.pages.filter(page => Boolean(page.text.trim())).length,
+      textLength: ocrResult.fullText.length,
+      confidence: ocrResult.overallConfidence,
+    });
 
     // Le type explicitement choisi par le client est prioritaire sur une classification OCR incertaine.
     const ocrClassification = classifyDocument(ocrResult.fullText);
