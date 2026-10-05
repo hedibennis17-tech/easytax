@@ -117,7 +117,7 @@ export default function ExtractionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId]);
 
-  const retryOcr = async () => {
+  const retryOcr = async (autoDetect = false) => {
     if (!documentId) return;
     setBusy(true);
     setError("");
@@ -125,7 +125,7 @@ export default function ExtractionPage() {
       const response = await fetch(`/api/documents/${documentId}/process`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taxYear: 2025 }),
+        body: JSON.stringify({ taxYear: 2025, autoDetect }),
       });
       const payload = await responseJson(response);
       if (!response.ok || payload.status === "failed") {
@@ -209,7 +209,7 @@ export default function ExtractionPage() {
         <p>{error}</p>
         <p className="mt-3 text-sm text-gray-500">Le document est conservé. Vous pouvez relancer son analyse sans le téléverser à nouveau.</p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <button onClick={retryOcr} disabled={busy} className="rounded-xl bg-teal-700 px-4 py-2 text-white disabled:opacity-50">
+          <button onClick={() => retryOcr()} disabled={busy} className="rounded-xl bg-teal-700 px-4 py-2 text-white disabled:opacity-50">
             {busy ? "Relance…" : "Relancer l’OCR"}
           </button>
           <button onClick={runDiagnostic} className="rounded-xl border border-teal-700 px-4 py-2 text-teal-800">
@@ -229,7 +229,7 @@ export default function ExtractionPage() {
           <h1 className="text-xl font-bold">Analyse de démonstration détectée</h1>
           <p className="mt-3 text-sm leading-6">Ce document a été traité avec le mode OCR mock. Les valeurs ne proviennent pas de votre fichier et ne peuvent pas être validées.</p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
-            <button onClick={retryOcr} disabled={busy} className="rounded-xl bg-teal-700 px-4 py-2 text-white disabled:opacity-50">
+            <button onClick={() => retryOcr()} disabled={busy} className="rounded-xl bg-teal-700 px-4 py-2 text-white disabled:opacity-50">
               {busy ? "Relance…" : "Relancer l’analyse réelle"}
             </button>
             <button onClick={runDiagnostic} className="rounded-xl border border-teal-700 px-4 py-2 text-teal-800">Diagnostiquer l’OCR</button>
@@ -241,11 +241,12 @@ export default function ExtractionPage() {
   }
 
   if (data?.documentStatus === "rejected") {
+    const isUnidentified = !data.detectedTypeCode;
     return (
       <main className="min-h-screen bg-gray-50 p-6">
         <section className="mx-auto mt-10 max-w-xl rounded-2xl border border-red-200 bg-white p-6 text-center">
           <p className="text-3xl">⚠️</p>
-          <h1 className="mt-3 text-xl font-bold text-red-800">Le type sélectionné ne correspond pas au feuillet analysé</h1>
+          <h1 className="mt-3 text-xl font-bold text-red-800">{isUnidentified ? "Le type du feuillet n’a pas encore été confirmé" : "Le type sélectionné ne correspond pas au feuillet analysé"}</h1>
           <p className="mt-3 text-sm leading-6 text-gray-700">
             Téléversement : <strong>{data.uploadedTypeLabelFr ?? data.uploadedTypeCode ?? "—"}</strong><br />
             Type prouvé par OCR : <strong>{data.detectedTypeLabelFr ?? data.detectedTypeCode ?? "non identifié"}</strong>
@@ -253,8 +254,11 @@ export default function ExtractionPage() {
           <p className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3 text-sm leading-6 text-red-800">
             {data.errorMessage ?? data.classificationReason ?? "Le document a été conservé, mais aucune donnée n’a été ajoutée à vos revenus ni au calcul."}
           </p>
-          <p className="mt-4 text-sm text-gray-500">Choisissez le type suggéré ou utilisez « Détection automatique » pour ajouter le document au bon emplacement.</p>
-          <Link href="/dossier" className="mt-5 inline-block rounded-xl bg-teal-700 px-4 py-2 font-semibold text-white">Retour au dossier</Link>
+          <p className="mt-4 text-sm text-gray-500">Vous n’avez pas à téléverser le fichier une deuxième fois : la détection automatique peut l’analyser à nouveau en utilisant le même document stocké.</p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <button onClick={() => retryOcr(true)} disabled={busy} className="rounded-xl bg-teal-700 px-4 py-2 font-semibold text-white disabled:opacity-50">{busy ? "Analyse en cours…" : "Analyser automatiquement ce document"}</button>
+            <Link href="/dossier" className="rounded-xl border border-teal-700 px-4 py-2 font-semibold text-teal-800">Retour au dossier</Link>
+          </div>
         </section>
       </main>
     );
@@ -314,7 +318,7 @@ export default function ExtractionPage() {
                 <h2 className="font-semibold">Le précédent traitement n’a trouvé aucun montant</h2>
                 <p className="mt-2 text-sm leading-6">Relancez l’analyse. Le nouveau moteur lit maintenant le texte, les champs de formulaire et les tableaux renvoyés par Google Document AI. Si Google ne renvoie réellement aucun texte, l’erreur indiquera clairement la configuration ou le fichier à corriger.</p>
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <button onClick={retryOcr} disabled={busy} className="rounded-xl bg-teal-700 px-4 py-2 text-white disabled:opacity-50">
+                  <button onClick={() => retryOcr()} disabled={busy} className="rounded-xl bg-teal-700 px-4 py-2 text-white disabled:opacity-50">
                     {busy ? "Analyse en cours…" : "Relancer l’OCR maintenant"}
                   </button>
                   <button onClick={runDiagnostic} className="rounded-xl border border-teal-700 px-4 py-2 text-teal-800">Diagnostiquer l’OCR</button>
@@ -327,7 +331,7 @@ export default function ExtractionPage() {
                 <h2 className="font-semibold">Aucun champ utilisable n’a été trouvé</h2>
                 <p className="mt-2 text-sm leading-6">Le document reste conservé. Relancez l’analyse : le type fiscal détecté avec forte confiance corrigera le choix initial si nécessaire, puis les cases pourront être confirmées ou corrigées manuellement.</p>
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <button onClick={retryOcr} disabled={busy} className="rounded-xl bg-teal-700 px-4 py-2 text-white disabled:opacity-50">
+                  <button onClick={() => retryOcr()} disabled={busy} className="rounded-xl bg-teal-700 px-4 py-2 text-white disabled:opacity-50">
                     {busy ? "Analyse en cours…" : "Relancer l’OCR avec vérification du type"}
                   </button>
                   <button onClick={runDiagnostic} className="rounded-xl border border-teal-700 px-4 py-2 text-teal-800">Diagnostiquer l’OCR</button>

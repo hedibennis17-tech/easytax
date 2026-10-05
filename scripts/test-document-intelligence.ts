@@ -1,6 +1,7 @@
 import {
   CATALOG_DOCUMENT_TYPES,
   classifyTaxDocument,
+  classifyTaxDocumentAs,
   guardSelectedDocumentType,
 } from "../src/lib/document-intelligence/catalog";
 import { extractVisibleUnknownFields } from "../src/lib/extractors/generic";
@@ -47,6 +48,17 @@ if (guardSelectedDocumentType("T4", unknown).accepted) {
 const generic = extractVisibleUnknownFields("T5 Statement of Investment Income\nBox 13 Interest from Canadian sources 1,234.56");
 if (generic.fields.length !== 1 || generic.fields[0]?.fieldCode !== "visible_box_13") {
   throw new Error(`Les cases visibles inconnues doivent être conservées: ${JSON.stringify(generic.fields)}`);
+}
+
+const rl5 = classifyTaxDocument("RELEVÉ 5\nPrestations et indemnités\nAnnée 2025");
+if (rl5.documentTypeCode !== "RL-5" || rl5.state !== "confirmed" || rl5.detectedTaxYear !== 2025) {
+  throw new Error(`Le Relevé 5 Québec doit être reconnu à partir de son intitulé officiel: ${JSON.stringify(rl5)}`);
+}
+
+const combinedBenefits = "RELEVÉ 5 Prestations et indemnités Année 2025 T5007 Statement of Benefits";
+const rl5InCombinedPdf = classifyTaxDocumentAs(combinedBenefits, "RL-5");
+if (rl5InCombinedPdf.documentTypeCode !== "RL-5" || rl5InCombinedPdf.state !== "confirmed") {
+  throw new Error(`Le choix RL-5 doit être prouvé dans un PDF contenant aussi un T5007: ${JSON.stringify(rl5InCombinedPdf)}`);
 }
 
 console.log("Document intelligence tests passed: 48 classes, 5 types prouvés, contradictions rejetées, cases inconnues préservées.");

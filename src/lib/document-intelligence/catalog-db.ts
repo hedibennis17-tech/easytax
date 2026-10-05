@@ -38,7 +38,18 @@ export async function ensureCatalogDocumentType(code: string): Promise<string | 
 
   const values = valuesFor(document.code, CATALOG_DOCUMENT_TYPES.findIndex(item => item.code === document.code) + 1);
   if (!values) return null;
-  await db.insert(documentTypes).values(values).onConflictDoNothing();
+  await db.insert(documentTypes).values(values).onConflictDoUpdate({
+    target: documentTypes.code,
+    set: {
+      labelFr: values.labelFr,
+      labelEn: values.labelEn,
+      category: values.category,
+      isFederal: values.isFederal,
+      isQuebec: values.isQuebec,
+      isActive: values.isActive,
+      sortOrder: values.sortOrder,
+    },
+  });
 
   const [created] = await db
     .select({ id: documentTypes.id })
@@ -52,6 +63,17 @@ export async function ensureCatalogDocumentType(code: string): Promise<string | 
 export async function ensureCatalogDocumentTypes(): Promise<void> {
   for (const [index, document] of CATALOG_DOCUMENT_TYPES.entries()) {
     const values = valuesFor(document.code, index + 1);
-    if (values) await db.insert(documentTypes).values(values).onConflictDoNothing();
+    if (values) await db.insert(documentTypes).values(values).onConflictDoUpdate({
+      target: documentTypes.code,
+      set: {
+        labelFr: values.labelFr,
+        labelEn: values.labelEn,
+        category: values.category,
+        isFederal: values.isFederal,
+        isQuebec: values.isQuebec,
+        isActive: values.isActive,
+        sortOrder: values.sortOrder,
+      },
+    });
   }
 }

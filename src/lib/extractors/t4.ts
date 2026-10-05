@@ -334,7 +334,68 @@ export class T4AExtractor implements DocumentExtractor {
   }
 }
 
-export const EXTRACTORS: DocumentExtractor[] = [new T4Extractor(), new T4AExtractor()];
+class BenefitSlipExtractor implements DocumentExtractor {
+  constructor(readonly documentTypeCode: "T5007" | "RL-5") {}
+
+  canHandle(ocrText: string): boolean {
+    return this.documentTypeCode === "T5007"
+      ? /\bT5007\b/i.test(ocrText) && /Statement of Benefits|État des prestations/i.test(ocrText)
+      : /\bRL\s*-?\s*5\b|\bRelev[ée]\s*5\b/i.test(ocrText) && /Prestations et indemnités/i.test(ocrText);
+  }
+
+  extract(ocrText: string, taxYear?: number): ExtractionResult {
+    const money = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2})|[0-9]+[.,][0-9]{2})";
+    const makeField = (fieldCode: string, fieldLabel: string, rawOcrValue: string | null): ExtractedField => ({
+      fieldCode,
+      fieldLabel,
+      rawOcrValue: rawOcrValue?.replace(/\s+/g, "").trim() ?? null,
+      confidence: rawOcrValue ? 88 : 0,
+      needsReview: true,
+      isRequired: false,
+      pageNumber: 1,
+    });
+    let fields: ExtractedField[];
+
+    if (this.documentTypeCode === "T5007") {
+      // Le formulaire officiel imprime l’étiquette de la case 10 sur la ligne
+      // du dessus et le montant sur la ligne suivante.
+      const amount = ocrText.match(new RegExp(`\\b10\\s+Workers'?\\s+compensation\\s+benefits[\\s\\S]{0,160}?\\n\\s*20\\d{2}\\s+${money}`, "i"))?.[1]
+        ?? ocrText.match(new RegExp(`Indemnités?\\s+pour\\s+accidents?\\s+du\\s+travail[\\s\\S]{0,160}?\\n\\s*20\\d{2}\\s+${money}`, "i"))?.[1]
+        ?? null;
+      fields = [makeField("box_10", "Case 10 — Indemnités pour accidents du travail / prestations", amount)];
+    } else {
+      // RL-5 : C et M apparaissent sur le même en-tête, puis leurs montants
+      // sont alignés sur la ligne suivante. La position est vérifiée avant
+      // toute proposition au client; aucune valeur n’est injectée automatiquement.
+      const topAmounts = ocrText.match(new RegExp(`C\\s*-\\s*CNESST[\\s\\S]{0,500}?\\n\\s*${money}\\s+${money}`, "i"));
+      const caseC = topAmounts?.[1] ?? null;
+      const caseM = topAmounts?.[2] ?? null;
+      const caseO = ocrText.match(new RegExp(`O\\s*-\\s*Redressement[\\s\\S]{0,260}?\\b20\\d{2}\\s+${money}`, "i"))?.[1] ?? null;
+      fields = [
+        makeField("case_c", "Case C — CNESST", caseC),
+        makeField("case_m", "Case M — Redressement pour indemnités reçues", caseM),
+        makeField("case_o", "Case O — Redressement pour années passées", caseO),
+      ];
+    }
+    const filled = fields.filter(field => field.rawOcrValue);
+    const detectedYear = extractYear(ocrText) ?? taxYear ?? null;
+    return {
+      fields,
+      overallConfidence: filled.length ? 85 : 0,
+      needsHumanReview: true,
+      yearMismatchWarning: detectedYear !== null && taxYear !== undefined && detectedYear !== taxYear,
+      detectedTaxYear: detectedYear,
+      detectedJurisdictionCode: this.documentTypeCode === "RL-5" ? "QC" : "CA",
+    };
+  }
+}
+
+export const EXTRACTORS: DocumentExtractor[] = [
+  new T4Extractor(),
+  new T4AExtractor(),
+  new BenefitSlipExtractor("T5007"),
+  new BenefitSlipExtractor("RL-5"),
+];
 
 export function getExtractor(documentTypeCode: string): DocumentExtractor | null {
   return EXTRACTORS.find((e) => e.documentTypeCode === documentTypeCode) ?? null;

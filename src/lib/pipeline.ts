@@ -9,6 +9,7 @@ import { getExtractor } from "@/lib/extractors/t4";
 import { extractVisibleUnknownFields } from "@/lib/extractors/generic";
 import {
   classifyTaxDocument,
+  classifyTaxDocumentAs,
   guardSelectedDocumentType,
   DOCUMENT_CATALOG_VERSION,
 } from "@/lib/document-intelligence/catalog";
@@ -43,8 +44,8 @@ async function writeAudit(documentId: string, userId: string, action: string, me
   }
 }
 
-export async function runOcrPipeline(params: { documentId: string; userId: string; taxYear?: number }): Promise<PipelineResult> {
-  const { documentId, userId, taxYear } = params;
+export async function runOcrPipeline(params: { documentId: string; userId: string; taxYear?: number; selectedTypeCode?: string }): Promise<PipelineResult> {
+  const { documentId, userId, taxYear, selectedTypeCode } = params;
   const docRows = await db.select({
     document: fiscalDocuments,
     uploadedTypeCode: documentTypes.code,
@@ -107,11 +108,18 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       confidence: ocrResult.overallConfidence,
     });
 
-    const classification = classifyTaxDocument(ocrResult.fullText);
-    const guard = guardSelectedDocumentType(uploadedTypeCode, classification);
+    const effectiveSelectedTypeCode = selectedTypeCode ?? uploadedTypeCode;
+    const selectionProof = effectiveSelectedTypeCode && effectiveSelectedTypeCode !== "AUTO" && effectiveSelectedTypeCode !== "OTHER"
+      ? classifyTaxDocumentAs(ocrResult.fullText, effectiveSelectedTypeCode)
+      : null;
+    const classification = selectionProof?.state === "confirmed"
+      ? selectionProof
+      : classifyTaxDocument(ocrResult.fullText);
+    const guard = guardSelectedDocumentType(effectiveSelectedTypeCode, classification);
     await writeAudit(documentId, userId, "document_classified", {
       catalogVersion: DOCUMENT_CATALOG_VERSION,
       uploadedTypeCode: uploadedTypeCode ?? null,
+      effectiveSelectedTypeCode: effectiveSelectedTypeCode ?? null,
       detectedTypeCode: classification.documentTypeCode,
       classificationState: classification.state,
       confidence: classification.confidence,

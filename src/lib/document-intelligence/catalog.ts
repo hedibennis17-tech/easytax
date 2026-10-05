@@ -65,11 +65,11 @@ const FRENCH_LABELS: Record<string, string> = {
   T4RIF: "Revenu d'un FERR",
   T4RSP: "Revenu d'un REER",
   T5: "Revenus de placements",
-  T5007: "Prestations",
   T5008: "Opérations sur titres",
   T2202: "Frais de scolarité et inscription",
   RRSP_RECEIPT: "Reçu de cotisation REER",
   PRPP_RECEIPT: "Reçu de cotisation RPAC",
+  T5007: "État des prestations",
 };
 
 function normalize(value: string): string {
@@ -93,12 +93,24 @@ function hasToken(text: string, token: string): boolean {
 }
 
 function extractTaxYear(text: string): number | null {
+  const contextual = text.match(/(?:ANN[ÉE]E|YEAR|ANNÉE FISCALE|TAX YEAR)[\s\S]{0,80}?\b(20(?:1[8-9]|2\d|30))\b/i);
+  if (contextual?.[1]) return Number(contextual[1]);
   const match = text.match(/\b(20(?:1[8-9]|2\d|30))\b/);
   return match ? Number(match[1]) : null;
 }
 
 function preferredFrenchLabel(document: CatalogDocumentType): string {
+  const releve = document.code.match(/^RL-(\d+)$/);
+  if (releve?.[1]) return `Relevé ${releve[1]} (Québec) — ${document.name}`;
   return FRENCH_LABELS[document.code] ?? document.name;
+}
+
+function hasDocumentCode(text: string, document: CatalogDocumentType): boolean {
+  if (hasToken(text, document.code)) return true;
+  // Document AI lit fréquemment « RELEVÉ 5 » sans le préfixe RL imprimé.
+  // Cette variante est un code officiel, pas une inférence sémantique.
+  const releve = document.code.match(/^RL-(\d+)$/);
+  return Boolean(releve?.[1] && hasToken(text, `RELEVÉ ${releve[1]}`));
 }
 
 export function getCatalogDocumentType(code: string | null | undefined): CatalogDocumentType | null {
@@ -132,7 +144,7 @@ export function classifyTaxDocument(ocrText: string): CatalogClassification {
   const candidates = CATALOG_DOCUMENT_TYPES
     .map(document => {
       const anchors = [...document.classification.anchors, ...(FRENCH_ANCHORS[document.code] ?? [])];
-      const codeHit = hasToken(text, document.code);
+      const codeHit = hasDocumentCode(text, document);
       const semanticHits = anchors
         .filter(anchor => normalize(anchor) !== normalize(document.code))
         .filter(anchor => hasToken(text, anchor));
@@ -172,6 +184,36 @@ export function classifyTaxDocument(ocrText: string): CatalogClassification {
     document: best.document,
     detectedJurisdictionCode: jurisdiction,
     detectedTaxYear,
+  };
+}
+
+/**
+ * Prouve le type explicitement choisi dans un PDF qui contient plusieurs
+ * feuillets, comme un RL-5 Québec et un T5007 fédéral dans la même enveloppe.
+ */
+export function classifyTaxDocumentAs(ocrText: string, documentTypeCode: string): CatalogClassification {
+  const document = getCatalogDocumentType(documentTypeCode);
+  if (!document) return classifyTaxDocument(ocrText);
+
+  const text = normalize(ocrText);
+  const codeHit = hasDocumentCode(text, document);
+  const semanticHits = [...document.classification.anchors, ...(FRENCH_ANCHORS[document.code] ?? [])]
+    .filter(anchor => normalize(anchor) !== normalize(document.code))
+    .filter(anchor => hasToken(text, anchor));
+  const semanticHit = semanticHits.length > 0;
+  const confirmed = codeHit && semanticHit;
+  const jurisdiction = document.jurisdictions.length === 1 ? document.jurisdictions[0] ?? null : "CA";
+
+  return {
+    documentTypeCode: document.code,
+    confidence: confirmed ? 100 : codeHit ? 91 : semanticHit ? 86 : 0,
+    reason: confirmed
+      ? `${document.code} prouvé dans ce PDF par le code du feuillet et l’ancrage « ${semanticHits[0]} » du catalogue v${DOCUMENT_CATALOG_VERSION}.`
+      : `${document.code} n’a pas été prouvé par ses ancrages requis dans ce PDF.`,
+    state: confirmed ? "confirmed" : codeHit || semanticHit ? "candidate" : "unknown",
+    document,
+    detectedJurisdictionCode: jurisdiction,
+    detectedTaxYear: extractTaxYear(text),
   };
 }
 

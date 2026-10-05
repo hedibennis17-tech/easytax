@@ -16,6 +16,9 @@ export async function POST(
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
     const taxYear: number | undefined = typeof body.taxYear === "number" ? body.taxYear : undefined;
+    const selectedTypeCode: string | undefined = body.autoDetect === true
+      ? "AUTO"
+      : typeof body.selectedTypeCode === "string" ? body.selectedTypeCode.trim().toUpperCase() : undefined;
 
     const doc = await db
       .select({ id: fiscalDocuments.id, status: fiscalDocuments.status, userId: fiscalDocuments.userId })
@@ -27,7 +30,7 @@ export async function POST(
     if (doc[0].userId !== ctx.clerkUserId) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     if (doc[0].status === "processing") return NextResponse.json({ error: "Traitement déjà en cours" }, { status: 409 });
 
-    const result = await runOcrPipeline({ documentId: id, userId: ctx.clerkUserId, taxYear });
+    const result = await runOcrPipeline({ documentId: id, userId: ctx.clerkUserId, taxYear, selectedTypeCode });
     if (result.status === "failed") {
       return NextResponse.json({ error: result.error ?? "Échec du traitement OCR", status: result.status }, { status: 500 });
     }
