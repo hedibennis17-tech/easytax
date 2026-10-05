@@ -1,0 +1,1623 @@
+{
+  "project": "EasyTax",
+  "specification": "PAN_CANADIAN_TAX_DOCUMENT_INTELLIGENCE",
+  "version": "2.0.0",
+  "tax_year_design": "version every document schema by tax_year; never hard-code box semantics permanently",
+  "important_scope_rule": "The 13 Canadian jurisdictions do NOT each have a separate family of income tax slips. The CRA information slips are Canada-wide; Quebec additionally has Revenu Québec RL slips. Provincial/territorial return forms and schedules are a separate document class and must not be falsely represented as provincial 'slips'.",
+  "jurisdictions": {
+    "AB": "Alberta",
+    "BC": "British Columbia",
+    "MB": "Manitoba",
+    "NB": "New Brunswick",
+    "NL": "Newfoundland and Labrador",
+    "NS": "Nova Scotia",
+    "NT": "Northwest Territories",
+    "NU": "Nunavut",
+    "ON": "Ontario",
+    "PE": "Prince Edward Island",
+    "SK": "Saskatchewan",
+    "YT": "Yukon",
+    "QC": "Quebec"
+  },
+  "authorities": {
+    "federal": "Canada Revenue Agency (CRA)",
+    "quebec": "Revenu Québec",
+    "provincial_territorial_tax_returns": "CRA provincial/territorial tax packages and the applicable provincial/territorial authority documentation"
+  },
+  "coverage": {
+    "all_canada_federal_slips": true,
+    "quebec_rl_slips": true,
+    "all_13_jurisdictions": true,
+    "provincial_territorial_return_forms_as_separate_class": true,
+    "non_tax_documents": true,
+    "unsupported_documents": true
+  },
+  "document_registry": [
+    {
+      "code": "T3",
+      "name": "Statement of Trust Income Allocations and Designations",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "trust",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T3",
+          "Statement of Trust Income Allocations and Designations"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T4",
+      "name": "Statement of Remuneration Paid",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "employment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T4",
+          "Statement of Remuneration Paid"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T4A",
+      "name": "Statement of Pension, Retirement, Annuity, and Other Income",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "other_income",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T4A",
+          "Statement of Pension, Retirement, Annuity, and Other Income"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T4A-NR",
+      "name": "Statement of Fees, Commissions, or Other Amounts Paid to Non-Residents for Services Rendered in Canada",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "nonresident_services",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T4A-NR",
+          "Statement of Fees, Commissions, or Other Amounts Paid to Non-Residents for Services Rendered in Canada"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T4A(OAS)",
+      "name": "Statement of Old Age Security",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "government_benefits",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T4A(OAS)",
+          "Statement of Old Age Security"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T4A(P)",
+      "name": "Statement of Canada Pension Plan Benefits",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "government_benefits",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T4A(P)",
+          "Statement of Canada Pension Plan Benefits"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T4E",
+      "name": "Statement of Employment Insurance and Other Benefits",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "government_benefits",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T4E",
+          "Statement of Employment Insurance and Other Benefits"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T4FHSA",
+      "name": "First Home Savings Account Statement",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "fhsa",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T4FHSA",
+          "First Home Savings Account Statement"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T4PS",
+      "name": "Statement of Employees Profit-Sharing Plan Allocations and Payments",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "employment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T4PS",
+          "Statement of Employees Profit-Sharing Plan Allocations and Payments"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T4RIF",
+      "name": "Statement of Income from a Registered Retirement Income Fund",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "retirement",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T4RIF",
+          "Statement of Income from a Registered Retirement Income Fund"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T4RSP",
+      "name": "Statement of RRSP Income",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "retirement",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T4RSP",
+          "Statement of RRSP Income"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T5",
+      "name": "Statement of Investment Income",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "investment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T5",
+          "Statement of Investment Income"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T5007",
+      "name": "Statement of Benefits",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "government_benefits",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T5007",
+          "Statement of Benefits"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T5008",
+      "name": "Statement of Securities Transactions",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "securities",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T5008",
+          "Statement of Securities Transactions"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T5013",
+      "name": "Statement of Partnership Income",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "partnership",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T5013",
+          "Statement of Partnership Income"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T5018",
+      "name": "Statement of Contract Payments",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "self_employment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T5018",
+          "Statement of Contract Payments"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T1204",
+      "name": "Government Service Contract Payments",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "self_employment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T1204",
+          "Government Service Contract Payments"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "T2202",
+      "name": "Tuition and Enrolment Certificate",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "education",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "T2202",
+          "Tuition and Enrolment Certificate"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "NR4",
+      "name": "Statement of Amounts Paid or Credited to Non-Residents of Canada",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "nonresident_income",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "NR4",
+          "Statement of Amounts Paid or Credited to Non-Residents of Canada"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RC62",
+      "name": "Universal Child Care Benefit Statement",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "government_benefits",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RC62",
+          "Universal Child Care Benefit Statement"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RC210",
+      "name": "Canada Workers Benefit Advance Payments Statement",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "government_benefits",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RC210",
+          "Canada Workers Benefit Advance Payments Statement"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RRSP_RECEIPT",
+      "name": "RRSP Contribution Receipt",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "registered_contributions",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RRSP_RECEIPT",
+          "RRSP Contribution Receipt"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "PRPP_RECEIPT",
+      "name": "Pooled Registered Pension Plan Contribution Receipt",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "registered_contributions",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "PRPP_RECEIPT",
+          "Pooled Registered Pension Plan Contribution Receipt"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "AGR-1",
+      "name": "Statement of Farm-Support Payments",
+      "authority": "CRA",
+      "jurisdictions": [
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "SK",
+        "YT",
+        "QC"
+      ],
+      "family": "agriculture",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "AGR-1",
+          "Statement of Farm-Support Payments"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-1",
+      "name": "Revenus d'emploi et revenus divers",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "employment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-1",
+          "Revenus d'emploi et revenus divers"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-2",
+      "name": "Revenus de retraite et rentes",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "retirement",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-2",
+          "Revenus de retraite et rentes"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-3",
+      "name": "Revenus de placement",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "investment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-3",
+          "Revenus de placement"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-5",
+      "name": "Prestations et indemnités",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "government_benefits",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-5",
+          "Prestations et indemnités"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-6",
+      "name": "Régime québécois d'assurance parentale",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "government_benefits",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-6",
+          "Régime québécois d'assurance parentale"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-7",
+      "name": "Placements dans un régime d'investissement",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "investment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-7",
+          "Placements dans un régime d'investissement"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-8",
+      "name": "Montant pour études postsecondaires",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "education",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-8",
+          "Montant pour études postsecondaires"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-10",
+      "name": "Crédit d'impôt relatif à un fonds de travailleurs",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "investment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-10",
+          "Crédit d'impôt relatif à un fonds de travailleurs"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-11",
+      "name": "Actions accréditives",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "investment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-11",
+          "Actions accréditives"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-13",
+      "name": "Certificat de propriété",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "investment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-13",
+          "Certificat de propriété"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-14",
+      "name": "Renseignements sur un abri fiscal",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "tax_shelter",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-14",
+          "Renseignements sur un abri fiscal"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-15",
+      "name": "Montants attribués aux membres d'une société de personnes",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "partnership",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-15",
+          "Montants attribués aux membres d'une société de personnes"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-16",
+      "name": "Revenus de fiducie",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "trust",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-16",
+          "Revenus de fiducie"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-18",
+      "name": "Transactions de titres",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "securities",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-18",
+          "Transactions de titres"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-19",
+      "name": "Versements anticipés de crédits d'impôt",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "tax_credits",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-19",
+          "Versements anticipés de crédits d'impôt"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-21",
+      "name": "Paiements de soutien agricole",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "agriculture",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-21",
+          "Paiements de soutien agricole"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-22",
+      "name": "Revenu d'emploi lié à un régime d'assurance interentreprises",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "employment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-22",
+          "Revenu d'emploi lié à un régime d'assurance interentreprises"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-24",
+      "name": "Frais de garde d'enfants",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "childcare",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-24",
+          "Frais de garde d'enfants"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-25",
+      "name": "Revenus provenant d'un régime d'intéressement",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "investment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-25",
+          "Revenus provenant d'un régime d'intéressement"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-26",
+      "name": "Capital régional et coopératif Desjardins",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "investment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-26",
+          "Capital régional et coopératif Desjardins"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-27",
+      "name": "Paiements du gouvernement",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "government_payments",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-27",
+          "Paiements du gouvernement"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-29",
+      "name": "Rétribution d'une ressource de type familial ou d'une ressource intermédiaire",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "self_employment",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-29",
+          "Rétribution d'une ressource de type familial ou d'une ressource intermédiaire"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-31",
+      "name": "Renseignements sur l'occupation d'un logement",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "housing",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-31",
+          "Renseignements sur l'occupation d'un logement"
+        ],
+        "hard_type_check": true
+      }
+    },
+    {
+      "code": "RL-32",
+      "name": "Compte d'épargne libre d'impôt pour l'achat d'une première propriété",
+      "authority": "Revenu Québec",
+      "jurisdictions": [
+        "QC"
+      ],
+      "family": "fhsa",
+      "is_information_slip": true,
+      "classification": {
+        "anchors": [
+          "RL-32",
+          "Compte d'épargne libre d'impôt pour l'achat d'une première propriété"
+        ],
+        "hard_type_check": true
+      }
+    }
+  ],
+  "document_counts": {
+    "federal_canada_wide_information_slip_classes": 24,
+    "quebec_rl_classes": 24,
+    "total_information_document_classes": 48,
+    "jurisdictions": 13
+  },
+  "document_classes": {
+    "INFORMATION_SLIP": "Official tax information slips/relevés issued by employers, payers, financial institutions, governments, trustees or other issuers.",
+    "TAX_RECEIPT": "Receipts supporting deductions/credits, such as RRSP/PRPP and other eligible receipts.",
+    "RETURN_FORM": "Federal/provincial/territorial tax return forms and schedules.",
+    "SUPPORTING_DOCUMENT": "Statements, invoices, broker statements, medical receipts, childcare receipts, etc.",
+    "NON_TAX_DOCUMENT": "Identity or unrelated document.",
+    "UNKNOWN": "Could not be classified reliably."
+  },
+  "ocr_engine": {
+    "provider": "Google OCR (current)",
+    "role": "OCR and geometry only",
+    "must_not": "decide tax meaning solely from OCR",
+    "required_outputs": [
+      "full_text",
+      "words",
+      "lines",
+      "blocks",
+      "bounding_boxes",
+      "page_number",
+      "language",
+      "numeric_candidates",
+      "dates",
+      "tables",
+      "document_image_quality"
+    ],
+    "preserve_raw_response": true
+  },
+  "expert_pipeline": [
+    {
+      "stage": "1_ingest",
+      "tasks": [
+        "secure upload",
+        "SHA-256",
+        "MIME validation",
+        "malware scan",
+        "immutable original",
+        "audit event"
+      ]
+    },
+    {
+      "stage": "2_quality",
+      "tasks": [
+        "orientation",
+        "deskew",
+        "crop detection",
+        "blur detection",
+        "resolution",
+        "glare/shadow",
+        "blank pages",
+        "page ordering",
+        "photo-vs-PDF detection"
+      ]
+    },
+    {
+      "stage": "3_ocr",
+      "tasks": [
+        "Google OCR",
+        "French/English",
+        "geometry",
+        "numeric extraction",
+        "raw OCR preservation"
+      ]
+    },
+    {
+      "stage": "4_layout",
+      "tasks": [
+        "header",
+        "issuer",
+        "recipient",
+        "tax year",
+        "document code",
+        "box grid",
+        "box labels",
+        "box values",
+        "footer",
+        "barcode/QR"
+      ]
+    },
+    {
+      "stage": "5_classification",
+      "tasks": [
+        "jurisdiction",
+        "authority",
+        "exact document code",
+        "tax year",
+        "issuer",
+        "layout fingerprint",
+        "box pattern",
+        "semantic anchors",
+        "language",
+        "top candidates"
+      ]
+    },
+    {
+      "stage": "6_expected_type_guard",
+      "tasks": [
+        "compare detected type to selected upload slot",
+        "hard reject mismatch",
+        "suggest correct slot",
+        "never silently reclassify into requested slot"
+      ]
+    },
+    {
+      "stage": "7_extraction",
+      "tasks": [
+        "extract every visible box",
+        "extract every label",
+        "extract every code",
+        "extract every amount",
+        "extract dates",
+        "extract identifiers",
+        "preserve unknown fields"
+      ]
+    },
+    {
+      "stage": "8_validation",
+      "tasks": [
+        "schema validation",
+        "numeric validation",
+        "date validation",
+        "issuer validation",
+        "recipient validation",
+        "cross-box validation",
+        "duplicate detection",
+        "cross-document reconciliation"
+      ]
+    },
+    {
+      "stage": "9_tax_mapping",
+      "tasks": [
+        "map only validated facts",
+        "attach source box/page",
+        "attach tax year",
+        "attach jurisdiction",
+        "attach confidence",
+        "prevent double counting"
+      ]
+    },
+    {
+      "stage": "10_user_result",
+      "tasks": [
+        "accept",
+        "warning",
+        "manual review",
+        "reject",
+        "correct-document suggestion"
+      ]
+    }
+  ],
+  "hard_rejection_policy": {
+    "enabled": true,
+    "principle": "A classification contradiction is never overridden by a high OCR confidence score.",
+    "examples": [
+      {
+        "expected": "T4",
+        "detected": "T5",
+        "action": "REJECT"
+      },
+      {
+        "expected": "T4",
+        "detected": "T2202",
+        "action": "REJECT"
+      },
+      {
+        "expected": "T4",
+        "detected": "RL-1",
+        "action": "REJECT"
+      },
+      {
+        "expected": "T5008",
+        "detected": "T5",
+        "action": "REJECT"
+      },
+      {
+        "expected": "RL-5",
+        "detected": "T5007",
+        "action": "REJECT"
+      },
+      {
+        "expected": "T5007",
+        "detected": "RL-5",
+        "action": "REJECT"
+      }
+    ]
+  },
+  "classification_confidence": {
+    "0.98_1.00": "auto_accept_if_all_validation_passes",
+    "0.95_0.979": "accept_with_warning_or_secondary_verification",
+    "0.85_0.949": "manual_confirmation",
+    "below_0.85": "reject_or_request_document_type",
+    "hard_contradiction": "always_reject"
+  },
+  "universal_extraction": {
+    "document_metadata": [
+      "document_id",
+      "code",
+      "name",
+      "tax_year",
+      "authority",
+      "jurisdiction",
+      "language",
+      "version",
+      "page_count"
+    ],
+    "recipient": [
+      "full_name",
+      "address",
+      "city",
+      "province",
+      "postal_code",
+      "identifier_type",
+      "masked_identifier",
+      "account_reference"
+    ],
+    "issuer": [
+      "name",
+      "address",
+      "city",
+      "province",
+      "postal_code",
+      "identifier",
+      "account_number"
+    ],
+    "all_boxes": [
+      "box_code",
+      "box_label",
+      "raw_value",
+      "normalized_value",
+      "value_type",
+      "negative",
+      "currency",
+      "page",
+      "bounding_box",
+      "ocr_confidence",
+      "semantic_confidence",
+      "validation_status"
+    ],
+    "unknown_data_policy": "Never discard an unknown printed field. Store raw label/value and flag for schema review.",
+    "numeric_policy": [
+      "blank != zero",
+      "never invent digits",
+      "preserve parentheses/negative values",
+      "preserve raw value",
+      "never move decimal",
+      "ambiguous number => manual review"
+    ]
+  },
+  "cross_document_reconciliation": {
+    "enabled": true,
+    "rules": [
+      "T4 and RL-1 may represent the same employment income for Quebec; prevent double counting.",
+      "T5 and RL-3 may represent related investment income; reconcile according to the tax-year rules.",
+      "T5008 and RL-18 may represent related securities transactions; reconcile transaction-level data.",
+      "T5007 and RL-5 can relate to the same benefit event; reconcile rather than double count.",
+      "T3/T5/T5013/T5008 can contribute capital-gain information; reconcile before Schedule 3 mapping."
+    ]
+  },
+  "all_canada_routing": {
+    "AB": "Federal slips + Alberta provincial/territorial return forms/schedules; no invented Alberta slip family.",
+    "BC": "Federal slips + British Columbia provincial/territorial return forms/schedules; no invented BC slip family.",
+    "MB": "Federal slips + Manitoba provincial/territorial return forms/schedules; no invented Manitoba slip family.",
+    "NB": "Federal slips + New Brunswick provincial/territorial return forms/schedules; no invented NB slip family.",
+    "NL": "Federal slips + Newfoundland and Labrador provincial/territorial return forms/schedules; no invented NL slip family.",
+    "NS": "Federal slips + Nova Scotia provincial/territorial return forms/schedules; no invented NS slip family.",
+    "NT": "Federal slips + Northwest Territories provincial/territorial return forms/schedules; no invented NT slip family.",
+    "NU": "Federal slips + Nunavut provincial/territorial return forms/schedules; no invented NU slip family.",
+    "ON": "Federal slips + Ontario provincial/territorial return forms/schedules; no invented Ontario slip family.",
+    "PE": "Federal slips + Prince Edward Island provincial/territorial return forms/schedules; no invented PEI slip family.",
+    "SK": "Federal slips + Saskatchewan provincial/territorial return forms/schedules; no invented Saskatchewan slip family.",
+    "YT": "Federal slips + Yukon provincial/territorial return forms/schedules; no invented Yukon slip family.",
+    "QC": "Federal slips + Revenu Québec RL slips + Québec provincial return forms/schedules."
+  },
+  "upload_ui": {
+    "mode": "typed_or_smart",
+    "typed_upload": {
+      "user_selects": "T4",
+      "system_detects": "T5",
+      "result": "HARD_REJECT",
+      "message": "Votre feuillet n'est pas un T4. EasyTax a détecté un T5 — État des revenus de placements. Vous pouvez l'ajouter à vos documents T5."
+    },
+    "smart_upload": {
+      "user_selects": "Détection automatique",
+      "system": "classify exact type first, then route to the correct category",
+      "ambiguous": "manual confirmation",
+      "unknown": "reject safely"
+    }
+  },
+  "training": {
+    "classes": [
+      "T3",
+      "T4",
+      "T4A",
+      "T4A-NR",
+      "T4A(OAS)",
+      "T4A(P)",
+      "T4E",
+      "T4FHSA",
+      "T4PS",
+      "T4RIF",
+      "T4RSP",
+      "T5",
+      "T5007",
+      "T5008",
+      "T5013",
+      "T5018",
+      "T1204",
+      "T2202",
+      "NR4",
+      "RC62",
+      "RC210",
+      "RRSP_RECEIPT",
+      "PRPP_RECEIPT",
+      "AGR-1",
+      "RL-1",
+      "RL-2",
+      "RL-3",
+      "RL-5",
+      "RL-6",
+      "RL-7",
+      "RL-8",
+      "RL-10",
+      "RL-11",
+      "RL-13",
+      "RL-14",
+      "RL-15",
+      "RL-16",
+      "RL-18",
+      "RL-19",
+      "RL-21",
+      "RL-22",
+      "RL-24",
+      "RL-25",
+      "RL-26",
+      "RL-27",
+      "RL-29",
+      "RL-31",
+      "RL-32",
+      "UNKNOWN_TAX_DOCUMENT",
+      "NON_TAX_DOCUMENT",
+      "DAMAGED_DOCUMENT"
+    ],
+    "hard_negative_pairs": [
+      [
+        "T4",
+        "T4A"
+      ],
+      [
+        "T4",
+        "T5"
+      ],
+      [
+        "T4A",
+        "T5007"
+      ],
+      [
+        "T5",
+        "T3"
+      ],
+      [
+        "T5",
+        "T5008"
+      ],
+      [
+        "T5008",
+        "T2202"
+      ],
+      [
+        "T5007",
+        "T4E"
+      ],
+      [
+        "RL-1",
+        "T4"
+      ],
+      [
+        "RL-3",
+        "T5"
+      ],
+      [
+        "RL-5",
+        "T5007"
+      ],
+      [
+        "RL-18",
+        "T5008"
+      ],
+      [
+        "RL-24",
+        "childcare_receipt"
+      ],
+      [
+        "RL-31",
+        "rent_receipt"
+      ]
+    ],
+    "metrics": [
+      "exact_type_accuracy",
+      "hard_rejection_accuracy",
+      "false_accept_rate",
+      "false_reject_rate",
+      "field_accuracy",
+      "numeric_accuracy",
+      "tax_year_accuracy",
+      "issuer_accuracy",
+      "recipient_accuracy"
+    ]
+  },
+  "security": {
+    "requirements": [
+      "encryption_at_rest",
+      "encryption_in_transit",
+      "least_privilege",
+      "masked_sensitive_identifiers",
+      "immutable_original",
+      "immutable_audit_log",
+      "full_tax_fact_provenance",
+      "no_sensitive_values_in_application_logs"
+    ]
+  },
+  "provenance": {
+    "every_tax_fact": [
+      "fact_id",
+      "canonical_field",
+      "value",
+      "tax_year",
+      "jurisdiction",
+      "source_document_id",
+      "source_document_code",
+      "source_box",
+      "source_page",
+      "source_bbox",
+      "raw_ocr_value",
+      "normalized_value",
+      "classification_confidence",
+      "ocr_confidence",
+      "validation_status",
+      "model_version",
+      "schema_version"
+    ]
+  },
+  "schema_governance": {
+    "source_of_truth": [
+      "CRA official tax slips and information-return specifications",
+      "CRA XML specifications for each applicable tax year",
+      "Revenu Québec official RL documentation",
+      "CRA provincial/territorial tax packages",
+      "official provincial/territorial tax documentation where applicable"
+    ],
+    "rule": "Never assume a box number or label has identical meaning across all years.",
+    "version_key": "jurisdiction + authority + document_code + tax_year + schema_version"
+  },
+  "implementation_order": [
+    "1. Replace current EasyTax Documents cards with this registry.",
+    "2. Build smart document classifier.",
+    "3. Build typed upload guard.",
+    "4. Integrate Google OCR.",
+    "5. Add layout/geometry analysis.",
+    "6. Add dynamic box extraction.",
+    "7. Add tax-year schemas.",
+    "8. Add validation and provenance.",
+    "9. Add cross-document reconciliation.",
+    "10. Add provincial/territorial return-form registry separately from information-slip registry.",
+    "11. Add continuous official-source schema updates."
+  ],
+  "acceptance_tests": [
+    "Every federal slip in registry must be classified correctly.",
+    "Every Quebec RL in registry must be classified correctly.",
+    "Every federal slip must be accepted for a taxpayer in any of the 13 jurisdictions when tax rules permit it.",
+    "A Quebec RL must be identified as Quebec/Revenu Québec, not misclassified as a federal T-slip.",
+    "A provincial return form must not be falsely classified as a tax information slip.",
+    "Wrong typed slot must hard-reject.",
+    "Unknown document must never be injected into Tax Engine.",
+    "Unknown printed box must be preserved.",
+    "Duplicate economic information must not be double-counted."
+  ],
+  "official_verification_note": "CRA's current individual tax-slip list includes T3, T4, T4A, T4A(OAS), T4A(P), T4E, T4FHSA, T4RIF, T4RSP, T5, T5007, T5008, T5013, T5018, T2202, T1204, RC62, RRSP and PRPP receipts; CRA's information-return specifications also include T4A-NR, T4PS, NR4 and AGR-1. Quebec has its separate RL system. The other provinces and territories generally do not create separate parallel provincial income-slip families; their provincial taxation is handled through provincial/territorial return forms and schedules alongside the Canada-wide federal slips."
+}

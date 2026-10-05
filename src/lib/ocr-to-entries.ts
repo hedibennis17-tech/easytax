@@ -37,6 +37,7 @@ import {
   documentExtractions, fiscalDocuments,
 } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { getExtractor } from "@/lib/extractors/t4";
 
 // ── Types ──────────────────────────────────────────────────────
 type IncomeCategory =
@@ -136,6 +137,11 @@ const DOCUMENT_FIELD_MAPS: Record<string, Record<string, FieldMapping>> = {
   "T4A":   T4A_FIELD_MAP,
   "T4E":   { box_14: { type: "income", category: "ei_benefits", labelFr: "Prestations AE (T4E)", labelEn: "EI benefits (T4E)" } },
 };
+
+export function hasTaxMappingForDocumentType(documentTypeCode: string): boolean {
+  return Boolean(getExtractor(documentTypeCode))
+    && Object.values(DOCUMENT_FIELD_MAPS[documentTypeCode] ?? {}).some(mapping => mapping.type !== "skip");
+}
 
 // ── Fonction principale ────────────────────────────────────────
 export async function syncOcrToEntries(params: {

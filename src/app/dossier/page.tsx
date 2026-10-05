@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { NavClient } from "@/components/NavClient";
+import { CATALOG_DOCUMENT_TYPES, catalogDocumentLabelFr } from "@/lib/document-intelligence/catalog";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type DocStatus = "empty" | "uploading" | "analyzing" | "done" | "error";
+type DocStatus = "empty" | "uploading" | "analyzing" | "done" | "rejected" | "error";
 
 interface DocSlot {
   id: string;
@@ -19,23 +20,15 @@ interface DocSlot {
 }
 
 // ─── Types de documents ────────────────────────────────────────────────────
-const DOC_TYPES = [
-  { code: "T4",           label: "T4 — Rémunération d'emploi",       desc: "Case 14, 16, 18, 22..." },
-  { code: "RL-1",         label: "Relevé 1 (RL-1)",                   desc: "Québec — emploi" },
-  { code: "T4A",          label: "T4A — Pension, retraite ou honoraires", desc: "Pension, rente, commissions ou honoraires" },
-  { code: "T4E",          label: "T4E — Assurance-emploi",            desc: "Prestations AE" },
-  { code: "T5",           label: "T5 — Revenus de placements",        desc: "Intérêts, dividendes" },
-  { code: "T3",           label: "T3 — Fiducie / fonds",              desc: "Fonds communs" },
-  { code: "T4RSP",        label: "T4RSP — Retrait REER",              desc: "Montant retiré" },
-  { code: "REER",         label: "Reçu cotisation REER",              desc: "Déduction REER 2025" },
-  { code: "T2202",        label: "T2202 — Frais de scolarité",        desc: "Université, cégep" },
-  { code: "RL-2",         label: "Relevé 2 — Retraite (QC)",          desc: "Revenus de retraite" },
-  { code: "T5008",        label: "T5008 — Gains en capital",          desc: "Vente de placements" },
-  { code: "T1135",        label: "T1135 — Biens étrangers",           desc: "> 100 000 $ CA" },
-  { code: "T2201",        label: "T2201 — Crédit handicap",           desc: "Certificat approuvé" },
-  { code: "DONATION",     label: "Reçu de dons",                      desc: "Organismes de bienfaisance" },
-  { code: "MEDICAL",      label: "Reçus médicaux",                    desc: "Ordonnances, dentiste..." },
-  { code: "OTHER",        label: "Autre document fiscal",             desc: "Classification par IA" },
+type PickerType = { code: string; label: string; desc: string };
+const DOC_TYPES: PickerType[] = [
+  { code: "AUTO", label: "Détection automatique", desc: "EasyTax prouve le type avant toute extraction" },
+  ...CATALOG_DOCUMENT_TYPES.map(document => ({
+    code: document.code,
+    label: catalogDocumentLabelFr(document.code),
+    desc: `${document.authority} · ${document.family.replaceAll("_", " ")}`,
+  })),
+  { code: "OTHER", label: "Autre document fiscal", desc: "À classer manuellement après analyse" },
 ];
 
 // ─── Composant bloc document ──────────────────────────────────────────────
@@ -50,9 +43,9 @@ function DocBlock({
 
   return (
     <div style={{
-      border: `1px solid ${slot.status === "done" ? "#b6ddd6" : slot.status === "error" ? "#fca5a5" : "#dde8e5"}`,
+      border: `1px solid ${slot.status === "done" ? "#b6ddd6" : slot.status === "error" || slot.status === "rejected" ? "#fca5a5" : "#dde8e5"}`,
       borderRadius: 12,
-      background: slot.status === "done" ? "#f0faf8" : slot.status === "error" ? "#fff5f5" : "#fff",
+      background: slot.status === "done" ? "#f0faf8" : slot.status === "error" || slot.status === "rejected" ? "#fff5f5" : "#fff",
       padding: "14px 16px",
       transition: "all 200ms",
     }}>
@@ -68,12 +61,12 @@ function DocBlock({
         {/* Icône statut */}
         <div style={{
           width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-          background: slot.status === "done" ? "#d1fae5" : slot.status === "error" ? "#fee2e2" : "#f0f4f3",
+          background: slot.status === "done" ? "#d1fae5" : slot.status === "error" || slot.status === "rejected" ? "#fee2e2" : "#f0f4f3",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 16,
         }}>
           {slot.status === "done" ? "✓" :
-           slot.status === "error" ? "✕" :
+           slot.status === "error" ? "✕" : slot.status === "rejected" ? "⚠" :
            slot.status === "uploading" || slot.status === "analyzing" ? "⋯" :
            "📄"}
         </div>
@@ -97,6 +90,9 @@ function DocBlock({
           )}
           {slot.status === "error" && (
             <div style={{ fontSize: 11, color: "#dc2626" }}>{slot.errorMessage ?? "Erreur — réessayer"}</div>
+          )}
+          {slot.status === "rejected" && (
+            <div style={{ fontSize: 11, color: "#b91c1c" }}>{slot.errorMessage ?? "Type rejeté — ouvrez le détail pour choisir le bon feuillet."}</div>
           )}
 
           {/* Barre de progression */}
@@ -144,6 +140,11 @@ function DocBlock({
               }}
             >
               Voir
+            </Link>
+          )}
+          {slot.status === "rejected" && slot.documentId && (
+            <Link href={`/documents/${slot.documentId}/extraction`} style={{ padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, background: "transparent", color: "#b91c1c", border: "1px solid #fca5a5" }}>
+              Voir le rejet
             </Link>
           )}
           <button
@@ -222,7 +223,7 @@ function DocGroup({
 }
 
 // ─── SÉLECTEUR DE TYPE ────────────────────────────────────────────────────
-function TypePicker({ onSelect }: { onSelect: (type: typeof DOC_TYPES[0]) => void }) {
+function TypePicker({ onSelect }: { onSelect: (type: PickerType) => void }) {
   const [query, setQuery] = useState("");
   const filtered = DOC_TYPES.filter(t =>
     t.code.toLowerCase().includes(query.toLowerCase()) ||
@@ -301,12 +302,7 @@ export default function DossierPage() {
     setTotalSlots(total);
   }, [groups]);
 
-  // Sync automatique au chargement: lier les données OCR existantes aux entries
-  useEffect(() => {
-    fetch("/api/resume/sync-from-docs", { method: "POST" }).catch(() => {});
-  }, []);
-
-  const addGroup = useCallback((type: typeof DOC_TYPES[0]) => {
+  const addGroup = useCallback((type: PickerType) => {
     setShowPicker(false);
     const slotId = `${type.code}-${Date.now()}`;
     setGroups(g => {
@@ -362,8 +358,12 @@ export default function DossierPage() {
       setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "analyzing" as DocStatus, progress: 60, documentId, fileName: file.name } : s) })));
       const processed = await fetch(`/api/documents/${documentId}/process`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taxYear: 2025 }) });
       const processText = await processed.text();
-      const processData = (processText ? JSON.parse(processText) : {}) as { status?: string; error?: string };
+      const processData = (processText ? JSON.parse(processText) : {}) as { status?: string; error?: string; detectedType?: string };
       if (!processed.ok || processData.status === "failed") throw new Error(processData.error || "Échec de l’analyse OCR");
+      if (processData.status === "rejected") {
+        setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "rejected" as DocStatus, progress: 100, documentId, fileName: file.name, errorMessage: `Type analysé : ${processData.detectedType ?? "inconnu"}. Aucun montant n’a été ajouté.` } : s) })));
+        return;
+      }
       setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "done" as DocStatus, progress: 100, documentId } : s) })));
     } catch (error) {
       setGroups(g => g.map(x => ({ ...x, slots: x.slots.map(s => s.id === id ? { ...s, status: "error" as DocStatus, progress: 0, errorMessage: error instanceof Error ? error.message : "Erreur inconnue" } : s) })));

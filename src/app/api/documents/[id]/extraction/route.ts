@@ -14,7 +14,7 @@ export async function GET(
   const { id } = await params;
 
   const doc = await db
-    .select({ id: fiscalDocuments.id, userId: fiscalDocuments.userId })
+    .select({ id: fiscalDocuments.id, userId: fiscalDocuments.userId, status: fiscalDocuments.status, uploadedDocumentTypeId: fiscalDocuments.documentTypeId })
     .from(fiscalDocuments)
     .where(and(eq(fiscalDocuments.id, id), isNull(fiscalDocuments.deletedAt)))
     .limit(1);
@@ -32,6 +32,7 @@ export async function GET(
       yearMismatchWarning: documentExtractions.yearMismatchWarning,
       detectedTaxYear: documentExtractions.detectedTaxYear,
       ocrProvider: documentExtractions.ocrProvider,
+      errorMessage: documentExtractions.errorMessage,
       extractedAt: documentExtractions.extractedAt,
       reviewedAt: documentExtractions.reviewedAt,
       validatedAt: documentExtractions.validatedAt,
@@ -47,6 +48,11 @@ export async function GET(
     .limit(1);
 
   if (!extraction[0]) return NextResponse.json({ error: "Aucune extraction. Lancez d'abord le traitement." }, { status: 404 });
+
+  const [uploadedType] = await db.select({ code: documentTypes.code, labelFr: documentTypes.labelFr })
+    .from(documentTypes)
+    .where(eq(documentTypes.id, doc[0].uploadedDocumentTypeId))
+    .limit(1);
 
   const fields = await db
     .select({
@@ -77,7 +83,15 @@ export async function GET(
     console.warn("[documents/extraction] Audit log skipped", error);
   }
 
-  return NextResponse.json({ extraction: extraction[0], fields });
+  return NextResponse.json({
+    extraction: {
+      ...extraction[0],
+      documentStatus: doc[0].status,
+      uploadedTypeCode: uploadedType?.code ?? null,
+      uploadedTypeLabelFr: uploadedType?.labelFr ?? null,
+    },
+    fields,
+  });
 }
 
 export async function PATCH(

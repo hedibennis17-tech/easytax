@@ -302,8 +302,10 @@ function DocumentUploadSection({
   const [lastFile, setLastFile] = useState<string>("");
   const [entries, setEntries] = useState(0);
   const [error, setError] = useState("");
+  const [reviewUrl, setReviewUrl] = useState("");
 
   const DOC_QUICK = [
+    { code: "AUTO", label: T("Auto", "Auto"), desc: T("Détection automatique", "Automatic detection") },
     { code: "T4",   label: "T4",   desc: T("Rémunération d'emploi","Employment income") },
     { code: "RL-1", label: "RL-1", desc: T("Relevé 1 (Québec)","RL-1 (Quebec)") },
     { code: "T4A",  label: "T4A",  desc: T("Pension, retraite ou honoraires","Pension, retirement or fees") },
@@ -341,24 +343,20 @@ function DocumentUploadSection({
         body: JSON.stringify({ taxYear: 2025 }),
       });
       const processText = await processRes.text();
-      const processData = (processText ? JSON.parse(processText) : {}) as { status?: string; error?: string };
+      const processData = (processText ? JSON.parse(processText) : {}) as { status?: string; error?: string; detectedType?: string };
       if (!processRes.ok || processData.status === "failed") {
         throw new Error(processData.error ?? "Échec du traitement OCR");
       }
-
-      // Sync + prefill
-      await fetch("/api/resume/sync-from-docs", { method: "POST" }).catch(() => {});
-
-      const prefill = await fetch("/api/ocr-prefill").then(r => r.ok ? r.json() : null) as { answers?: Record<string, unknown>; totals?: { totalEmploymentCents?: number; t4Count?: number } } | null;
+      if (processData.status === "rejected") {
+        setReviewUrl(`/documents/${documentId}/extraction`);
+        setStep("error");
+        setError(T(`Le document a été rejeté : le type prouvé est ${processData.detectedType ?? "inconnu"}. Aucun montant n’a été ajouté.`, `Document rejected: the proven type is ${processData.detectedType ?? "unknown"}. No amount was added.`));
+        return;
+      }
 
       setStep("done");
-      const count = prefill?.totals?.t4Count ?? 0;
-      setEntries(count);
-
-      // Passer les nouvelles réponses au questionnaire
-      if (prefill?.answers) {
-        onPipelineDone(prefill.answers);
-      }
+      setEntries(0);
+      setReviewUrl(`/documents/${documentId}/extraction`);
 
     } catch (err) {
       setStep("error");
@@ -442,13 +440,15 @@ function DocumentUploadSection({
 
       {step === "done" && (
         <div style={{ background: "rgba(5,150,105,0.06)", border: "1px solid rgba(5,150,105,0.25)", borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#059669", fontWeight: 600 }}>
-          ✓ {lastFile} — {T("données extraites et intégrées dans votre profil","data extracted and integrated into your profile")}
+          ✓ {lastFile} — {T("analyse terminée. Confirmez les valeurs avant toute intégration au calcul.","analysis complete. Confirm values before anything is added to the calculation.")}
+          {reviewUrl && <a href={reviewUrl} style={{ display: "inline-block", marginLeft: 8, color: "#0b6b67", textDecoration: "underline", fontWeight: 700 }}>{T("Vérifier maintenant →","Review now →")}</a>}
         </div>
       )}
 
       {step === "error" && (
         <div style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#dc2626" }}>
           ⚠ {error}
+          {reviewUrl && <a href={reviewUrl} style={{ display: "inline-block", marginLeft: 8, color: "#b91c1c", textDecoration: "underline", fontWeight: 700 }}>{T("Voir le détail →", "View details →")}</a>}
         </div>
       )}
 
@@ -466,8 +466,8 @@ function DocumentUploadSection({
       </div>
 
       <p style={{ fontSize: 11, color: "#a0b4b0", textAlign: "center", marginTop: 10 }}>
-        {T("PDF, JPG, PNG · Les données extraites par OCR seront intégrées dans les sections suivantes.",
-           "PDF, JPG, PNG · OCR-extracted data will be pre-filled in subsequent sections.")}
+        {T("PDF, JPG, PNG · Les données OCR ne seront ajoutées qu’après votre validation.",
+           "PDF, JPG, PNG · OCR data is added only after your validation.")}
       </p>
     </div>
   );

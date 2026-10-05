@@ -43,11 +43,13 @@ export async function GET() {
     status: fiscalDocuments.status,
   }).from(fiscalDocuments)
     .innerJoin(documentExtractions, eq(documentExtractions.fiscalDocumentId, fiscalDocuments.id))
-    .leftJoin(documentTypes, eq(fiscalDocuments.documentTypeId, documentTypes.id))
+    .leftJoin(documentTypes, eq(documentExtractions.detectedDocumentTypeId, documentTypes.id))
     .where(and(
       eq(fiscalDocuments.userId, clerkUserId),
       eq(fiscalDocuments.taxReturnId, taxReturn.id),
-      isNotNull(documentExtractions.extractedAt),
+      eq(fiscalDocuments.status, "ready_for_tax_return"),
+      eq(documentExtractions.status, "validated"),
+      isNotNull(documentExtractions.validatedAt),
     ));
 
   // Construire les réponses pré-remplies
@@ -79,7 +81,7 @@ export async function GET() {
     const fields = await db.select({
       code: extractionFields.fieldCode,
       label: extractionFields.fieldLabel,
-      value: extractionFields.validatedValue ?? extractionFields.rawOcrValue,
+      value: extractionFields.validatedValue,
     }).from(extractionFields)
       .where(eq(extractionFields.extractionId, doc.extractionId));
 

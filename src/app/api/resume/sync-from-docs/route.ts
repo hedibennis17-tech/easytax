@@ -1,7 +1,7 @@
 /**
  * POST /api/resume/sync-from-docs
- * Re-synchronise les données OCR déjà extraites vers incomeEntries/deductionEntries.
- * Utile quand des documents ont été traités AVANT l'ajout de ocr-to-entries.
+ * Re-synchronise uniquement les données OCR déjà validées vers incomeEntries/deductionEntries.
+ * Utile pour reprendre une validation déjà confirmée par le client.
  * Idempotent — ne crée pas de doublons.
  */
 import { NextResponse } from "next/server";
@@ -12,7 +12,7 @@ import {
   documentTypes, taxReturns,
 } from "@/db/schema";
 import { eq, and, isNotNull, desc } from "drizzle-orm";
-import { syncOcrToEntries } from "@/lib/ocr-to-entries";
+import { hasTaxMappingForDocumentType, syncOcrToEntries } from "@/lib/ocr-to-entries";
 
 export async function POST() {
   const { userId: clerkUserId } = await auth();
@@ -29,7 +29,8 @@ export async function POST() {
 
   if (!taxReturn) return NextResponse.json({ error: "Aucun dossier fiscal", created: 0 });
 
-  // Tous les documents avec une extraction complète (même sans taxReturnId sur le doc)
+  // Uniquement les documents explicitement validés : aucune valeur OCR brute
+  // ne peut atteindre le Tax Engine via cette route de reprise.
   const { taxYears: taxYearsTable } = await import("@/db/schema");
   const [year2025] = await db.select({ id: taxYearsTable.id })
     .from(taxYearsTable).where(eq(taxYearsTable.year, 2025)).limit(1);
@@ -44,7 +45,9 @@ export async function POST() {
     .innerJoin(documentExtractions, eq(documentExtractions.fiscalDocumentId, fiscalDocuments.id))
     .where(and(
       eq(fiscalDocuments.userId, clerkUserId),
-      isNotNull(documentExtractions.extractedAt),
+      eq(fiscalDocuments.status, "ready_for_tax_return"),
+      eq(documentExtractions.status, "validated"),
+      isNotNull(documentExtractions.validatedAt),
     ));
 
   // Lier le taxReturnId manquant aux documents orphelins
@@ -66,7 +69,7 @@ export async function POST() {
     const [effectiveDocumentType] = effectiveDocumentTypeId
       ? await db.select({ code: documentTypes.code }).from(documentTypes).where(eq(documentTypes.id, effectiveDocumentTypeId)).limit(1)
       : [];
-    if (!effectiveDocumentType?.code) continue;
+    if (!effectiveDocumentType?.code || !hasTaxMappingForDocumentType(effectiveDocumentType.code)) continue;
 
     // Récupérer le texte OCR depuis les pages
     const { documentPages } = await import("@/db/schema");

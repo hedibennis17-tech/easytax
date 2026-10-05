@@ -4,16 +4,7 @@ import { NavClient } from "@/components/NavClient";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 
-const DOCUMENT_TYPES = [
-  { code: "T4", labelFr: "T4", category: "employment" },
-  { code: "RL-1", labelFr: "RL-1", category: "employment" },
-  { code: "T4A", labelFr: "T4A", category: "employment" },
-  { code: "T5", labelFr: "T5", category: "investment" },
-  { code: "RL-2", labelFr: "RL-2", category: "investment" },
-  { code: "MEDICAL", labelFr: "Médical", category: "medical" },
-  { code: "DONATION", labelFr: "Dons", category: "donations" },
-  { code: "OTHER", labelFr: "Autre", category: "other" },
-];
+type DocumentType = { id: string; code: string; labelFr: string; category: string };
 
 const CATEGORY_LABELS: Record<string, string> = {
   employment: "Revenus d'emploi",
@@ -33,6 +24,7 @@ const STATUS_DISPLAY: Record<string, { icon: string; label: string; color: strin
   ocr_completed:        { icon: "🔍", label: "OCR fait",      color: "text-blue-600" },
   extracted:            { icon: "📊", label: "Extrait",       color: "text-purple-600" },
   ready_for_tax_return: { icon: "✅", label: "Validé",        color: "text-green-700" },
+  rejected:             { icon: "⚠️", label: "Type rejeté",   color: "text-red-700" },
   archived:             { icon: "📦", label: "Archivé",       color: "text-gray-400" },
   processing_failed:    { icon: "❌", label: "Erreur",        color: "text-red-600" },
   uploaded:             { icon: "⬆️", label: "Téléversé",    color: "text-blue-500" },
@@ -80,6 +72,7 @@ export default function DocumentsPage() {
   const [uploadError, setUploadError] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [taxYearId, setTaxYearId] = useState<string | null>(null);
+  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
 
   const loadDocs = useCallback(async () => {
     setLoading(true);
@@ -96,6 +89,10 @@ export default function DocumentsPage() {
   useEffect(() => {
     loadDocs();
     getTaxYearId().then(setTaxYearId);
+    fetch("/api/documents/types")
+      .then(response => response.ok ? response.json() : null)
+      .then(data => setDocumentTypes(Array.isArray(data?.types) ? data.types : []))
+      .catch(() => setDocumentTypes([]));
   }, [loadDocs]);
 
   const filteredDocs = filterType === "all" ? docs : docs.filter(d => d.typeCode === filterType);
@@ -139,6 +136,23 @@ export default function DocumentsPage() {
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error ?? "Erreur upload");
+
+      if (data.id) {
+        const processResponse = await fetch(`/api/documents/${data.id}/process`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taxYear: 2025 }),
+        });
+        const processData = await processResponse.json().catch(() => ({}));
+        if (!processResponse.ok || processData.status === "failed") {
+          throw new Error(processData.error ?? "Document téléversé, mais analyse OCR impossible");
+        }
+        if (processData.status === "rejected") {
+          setUploadError(`Document ajouté mais type rejeté (${processData.detectedType ?? "inconnu"}). Ouvrez-le dans la liste pour choisir le bon type.`);
+          await loadDocs();
+          return;
+        }
+      }
 
       setUploadDone(true);
       setTimeout(() => {
@@ -185,7 +199,7 @@ export default function DocumentsPage() {
             className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${filterType === "all" ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-600"}`}>
             Tous ({docs.length})
           </button>
-          {DOCUMENT_TYPES.map(t => (
+          {documentTypes.filter(t => t.code !== "AUTO").slice(0, 12).map(t => (
             <button key={t.code} onClick={() => setFilterType(t.code)}
               className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${filterType === t.code ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-600"}`}>
               {t.code}
@@ -310,7 +324,7 @@ export default function DocumentsPage() {
                   <select value={selectedType} onChange={e => setSelectedType(e.target.value)}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white">
                     <option value="">Sélectionner...</option>
-                    {DOCUMENT_TYPES.map(t => <option key={t.code} value={t.code}>{t.code} — {t.labelFr}</option>)}
+                    {documentTypes.map(t => <option key={t.code} value={t.code}>{t.code} — {t.labelFr}</option>)}
                   </select>
                 </div>
 

@@ -1,15 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { documentTypes } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { getAuthContext, unauthorized } from "@/lib/auth-helpers";
+import { ensureCatalogDocumentTypes } from "@/lib/document-intelligence/catalog-db";
 
-// GET /api/documents/types — types de documents actifs (public, utilisé pour le formulaire upload)
-export async function GET(req: NextRequest) {
-  const auth = req.headers.get("x-user-id");
-  if (!auth) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
+// GET /api/documents/types — les 48 classes fiscales sont synchronisées avant lecture.
+export async function GET() {
+  const ctx = await getAuthContext();
+  if (!ctx) return unauthorized();
 
+  await ensureCatalogDocumentTypes();
   const types = await db
     .select({
       id: documentTypes.id,
@@ -24,5 +25,18 @@ export async function GET(req: NextRequest) {
     .where(eq(documentTypes.isActive, true))
     .orderBy(documentTypes.sortOrder);
 
-  return NextResponse.json({ types });
+  return NextResponse.json({
+    types: [
+      {
+        id: "AUTO",
+        code: "AUTO",
+        labelFr: "Détection automatique — laisser EasyTax reconnaître le feuillet",
+        labelEn: "Automatic detection — let EasyTax identify the slip",
+        category: "smart",
+        isFederal: true,
+        isQuebec: true,
+      },
+      ...types,
+    ],
+  });
 }

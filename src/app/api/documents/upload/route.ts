@@ -8,6 +8,8 @@ import { validateFile, buildStorageKey, computeSHA256, uploadDocument, randomUUI
 import { eq, and, isNull } from "drizzle-orm";
 import { getAuthContext, unauthorized } from "@/lib/auth-helpers";
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { ensureCatalogDocumentType } from "@/lib/document-intelligence/catalog-db";
+import { isCatalogDocumentType } from "@/lib/document-intelligence/catalog";
 
 /**
  * Auto-provisionne le profil fiscal + l'année 2025 si absents.
@@ -89,14 +91,17 @@ export async function POST(req: NextRequest) {
   catch { return NextResponse.json({ error: "Données invalides" }, { status: 400 }); }
 
   const file             = formData.get("file")             as File   | null;
-  const documentTypeCode = formData.get("documentTypeCode") as string | null;
+  const requestedDocumentTypeCode = formData.get("documentTypeCode") as string | null;
   const taxReturnId      = formData.get("taxReturnId")      as string | null;
   // taxYearId est optionnel — on utilise 2025 par défaut
   const taxYearIdParam   = formData.get("taxYearId")        as string | null;
 
-  if (!file || !documentTypeCode) {
+  if (!file || !requestedDocumentTypeCode) {
     return NextResponse.json({ error: "file et documentTypeCode requis" }, { status: 400 });
   }
+  const documentTypeCode = requestedDocumentTypeCode.trim().toUpperCase();
+  const automaticDetection = documentTypeCode === "AUTO" || documentTypeCode === "SMART";
+  const persistedTypeCode = automaticDetection ? "OTHER" : documentTypeCode;
 
   const validation = validateFile({ mimeType: file.type, sizeBytes: file.size, filename: file.name });
   if (!validation.valid) return NextResponse.json({ error: validation.error }, { status: 400 });
@@ -112,9 +117,12 @@ export async function POST(req: NextRequest) {
   const effectiveTaxReturnId = taxReturnId ?? ensuredTaxReturnId;
 
   // ── Type de document ──────────────────────────────────────────────────────
+  if (!automaticDetection && isCatalogDocumentType(documentTypeCode)) {
+    await ensureCatalogDocumentType(documentTypeCode);
+  }
   const docType = await db.select({ id: documentTypes.id })
     .from(documentTypes)
-    .where(and(eq(documentTypes.code, documentTypeCode), eq(documentTypes.isActive, true)))
+    .where(and(eq(documentTypes.code, persistedTypeCode), eq(documentTypes.isActive, true)))
     .limit(1);
 
   if (docType.length === 0) {
@@ -181,7 +189,7 @@ export async function POST(req: NextRequest) {
     documentId: created.id,
     userId: clerkUserId,
     action: "document_uploaded",
-    metadata: JSON.stringify({ documentTypeCode, mimeType: file.type, fileSizeBytes: file.size }),
+    metadata: JSON.stringify({ requestedDocumentTypeCode: documentTypeCode, automaticDetection, mimeType: file.type, fileSizeBytes: file.size }),
   });
 
   return NextResponse.json({

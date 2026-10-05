@@ -18,6 +18,9 @@ type Field = {
 };
 
 type Extraction = {
+  documentStatus: string;
+  uploadedTypeCode: string | null;
+  uploadedTypeLabelFr: string | null;
   detectedTypeCode: string | null;
   detectedTypeLabelFr: string | null;
   classificationConfidence: number | null;
@@ -27,6 +30,7 @@ type Extraction = {
   detectedJurisdictionCode: string | null;
   ocrProvider: string | null;
   needsHumanReview: boolean;
+  errorMessage: string | null;
 };
 
 type Diagnostic = {
@@ -236,6 +240,26 @@ export default function ExtractionPage() {
     );
   }
 
+  if (data?.documentStatus === "rejected") {
+    return (
+      <main className="min-h-screen bg-gray-50 p-6">
+        <section className="mx-auto mt-10 max-w-xl rounded-2xl border border-red-200 bg-white p-6 text-center">
+          <p className="text-3xl">⚠️</p>
+          <h1 className="mt-3 text-xl font-bold text-red-800">Le type sélectionné ne correspond pas au feuillet analysé</h1>
+          <p className="mt-3 text-sm leading-6 text-gray-700">
+            Téléversement : <strong>{data.uploadedTypeLabelFr ?? data.uploadedTypeCode ?? "—"}</strong><br />
+            Type prouvé par OCR : <strong>{data.detectedTypeLabelFr ?? data.detectedTypeCode ?? "non identifié"}</strong>
+          </p>
+          <p className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3 text-sm leading-6 text-red-800">
+            {data.errorMessage ?? data.classificationReason ?? "Le document a été conservé, mais aucune donnée n’a été ajoutée à vos revenus ni au calcul."}
+          </p>
+          <p className="mt-4 text-sm text-gray-500">Choisissez le type suggéré ou utilisez « Détection automatique » pour ajouter le document au bon emplacement.</p>
+          <Link href="/dossier" className="mt-5 inline-block rounded-xl bg-teal-700 px-4 py-2 font-semibold text-white">Retour au dossier</Link>
+        </section>
+      </main>
+    );
+  }
+
   const confirmed = fields.filter(field => field.validationStatus !== "unreviewed").length;
   const allConfirmed = fields.length > 0 && confirmed === fields.length;
   const noExtractedValues = fields.length === 0 || fields.every(field => !(field.rawOcrValue ?? field.validatedValue)?.trim());
@@ -269,9 +293,14 @@ export default function ExtractionPage() {
                 <span className="rounded-full border px-2 py-1">{data?.detectedTaxYear ?? "—"} · {data?.detectedJurisdictionCode ?? "Canada"}</span>
                 <span className="rounded-full border px-2 py-1">OCR {data?.ocrProvider ?? "—"}</span>
               </div>
-              {data?.classificationReason?.startsWith("Type corrigé automatiquement") && (
+              {data?.classificationReason && (
                 <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                   {data.classificationReason}
+                </p>
+              )}
+              {data?.errorMessage && (
+                <p className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                  {data.errorMessage}
                 </p>
               )}
             </section>

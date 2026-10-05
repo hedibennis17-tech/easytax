@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { fiscalDocuments, documentExtractions, extractionFields, documentAuditLogs, documentTypes, documentPages } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { getAuthContext, unauthorized } from "@/lib/auth-helpers";
-import { syncOcrToEntries } from "@/lib/ocr-to-entries";
+import { hasTaxMappingForDocumentType, syncOcrToEntries } from "@/lib/ocr-to-entries";
 
 export async function POST(
   req: NextRequest,
@@ -27,6 +27,9 @@ export async function POST(
     .limit(1);
 
   if (!doc[0] || doc[0].userId !== ctx.clerkUserId) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  if (doc[0].status === "rejected") {
+    return NextResponse.json({ error: "Ce document a été rejeté car son type sélectionné ne correspond pas au type prouvé par OCR. Aucune donnée ne peut être ajoutée au calcul." }, { status: 409 });
+  }
 
   const extraction = await db
     .select({ id: documentExtractions.id, detectedDocumentTypeId: documentExtractions.detectedDocumentTypeId })
@@ -35,6 +38,14 @@ export async function POST(
     .limit(1);
 
   if (!extraction[0]) return NextResponse.json({ error: "Aucune extraction à valider" }, { status: 404 });
+
+  const effectiveDocumentTypeId = extraction[0].detectedDocumentTypeId ?? doc[0].uploadedDocumentTypeId;
+  const [effectiveDocumentType] = effectiveDocumentTypeId
+    ? await db.select({ code: documentTypes.code }).from(documentTypes).where(eq(documentTypes.id, effectiveDocumentTypeId)).limit(1)
+    : [];
+  if (!effectiveDocumentType?.code || !hasTaxMappingForDocumentType(effectiveDocumentType.code)) {
+    return NextResponse.json({ error: "Ce type de document est bien conservé et classifié, mais son mapping fiscal détaillé n’est pas encore activé. Aucune donnée ne sera injectée au calcul." }, { status: 409 });
+  }
 
   const pendingFields = await db.select({ id: extractionFields.id })
     .from(extractionFields)
@@ -51,10 +62,6 @@ export async function POST(
     .set({ status: "ready_for_tax_return", updatedAt: new Date() })
     .where(eq(fiscalDocuments.id, id));
 
-  const effectiveDocumentTypeId = extraction[0].detectedDocumentTypeId ?? doc[0].uploadedDocumentTypeId;
-  const [effectiveDocumentType] = effectiveDocumentTypeId
-    ? await db.select({ code: documentTypes.code }).from(documentTypes).where(eq(documentTypes.id, effectiveDocumentTypeId)).limit(1)
-    : [];
   let entriesCreated = 0;
   if (doc[0].taxReturnId && effectiveDocumentType?.code) {
     const [page] = await db.select({ ocrText: documentPages.ocrText })
