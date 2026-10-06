@@ -74,17 +74,17 @@ export async function GET(req: NextRequest) {
     diag.fieldsCount = fields.length;
     diag.fields = fields.slice(0, 10);
 
-    // Extraire les métadonnées du feuillet
-    const { extractSlipMetadata } = await import("@/lib/ocr/dictionnaire");
-    const meta = extractSlipMetadata(fullText);
-    diag.metadata = meta;
-
     // Tester extractAllBoxes depuis le texte OCR
     const fullText = pages.map(p => p.ocrText ?? "").join("\n");
     const slipCode = doc.typeCode ?? "T4";
     const slipDef = getSlipDict(slipCode);
     diag.slipInDict = !!slipDef;
     diag.slipBoxesCount = slipDef?.boxes.length ?? 0;
+
+    // Extraire les métadonnées du feuillet
+    const { extractSlipMetadata } = await import("@/lib/ocr/dictionnaire");
+    const meta = extractSlipMetadata(fullText);
+    diag.metadata = meta;
 
     if (fullText.length > 0) {
       const boxes = extractAllBoxes(fullText, slipCode);
