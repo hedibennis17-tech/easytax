@@ -1,184 +1,210 @@
-/**
- * GET /api/declaration
- * Agrège TOUTES les données pour pré-remplir la déclaration T1 + TP-1
- * Sources: taxProfile + incomeEntries + deductionEntries + creditEntries + taxCalculations
- */
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import {
-  taxProfiles, taxReturns, taxYears,
-  incomeEntries, deductionEntries, creditEntries, taxCalculations,
-} from "@/db/schema";
+import { taxProfiles, taxReturns, incomeEntries, deductionEntries, creditEntries, taxCalculations } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { getLineMapping, T1_LINES, TP1_LINES, SLIP_LINE_MAPS } from "@/lib/slip-line-map";
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const _dict = require("@/lib/ocr/dictionnaire-fiscal-complet-2025.json") as {
+  t1_lines: Record<string, { label_fr: string; label_en?: string; section: string }>;
+  tp1_lines: Record<string, { label_fr: string; section: string }>;
+};
 
 function cents(v: number | null | undefined) { return v ?? 0; }
-function fmt(c: number) {
-  return (c / 100).toLocaleString("fr-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " $";
-}
+
+// Mapping catégorie incomeEntries → ligne T1
+const CAT_T1: Record<string, string> = {
+  employment: "10100", oas: "11300", cpp_benefits: "11400", pension: "11500",
+  ei_benefits: "11900", interest: "12100", rental: "12600", capital_gains: "12700",
+  rrsp_withdrawal: "12900", scholarships: "13010", self_employment: "13500",
+  workers_comp: "14400", other_income: "13000", dividends_eligible: "12000",
+  dividends_ineligible: "12000", gis: "14600",
+};
+const CAT_TP1: Record<string, string> = {
+  employment: "101", pension: "122", cpp_benefits: "119", oas: "114",
+  ei_benefits: "111", interest: "130", dividends_eligible: "128",
+  dividends_ineligible: "128", workers_comp: "148", other_income: "154",
+  self_employment: "164", rental: "136", capital_gains: "139",
+};
+const CAT_DED_T1: Record<string, string> = {
+  rrsp: "20800", union_dues: "21200", childcare: "21400",
+  moving_expenses: "21900", employment_expenses: "22900", other_deductions: "23200",
+};
+const CAT_DED_TP1: Record<string, string> = {
+  rrsp: "214", union_dues: "210", childcare: "214", other_deductions: "250",
+};
+const CAT_CREDIT_T1: Record<string, string> = {
+  cpp_employee: "30800", ei_employee: "31200", tuition: "32300", donations: "34900",
+  disability: "31600", medical: "33099",
+};
 
 export async function GET() {
-  const { userId: clerkUserId } = await auth();
-  if (!clerkUserId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
-  const [profile] = await db.select().from(taxProfiles)
-    .where(eq(taxProfiles.userId, clerkUserId)).limit(1);
+  const [profile] = await db.select().from(taxProfiles).where(eq(taxProfiles.userId, userId)).limit(1);
   if (!profile) return NextResponse.json({ error: "Profil introuvable" }, { status: 404 });
 
-  const [taxReturn] = await db.select({ id: taxReturns.id, taxYearId: taxReturns.taxYearId })
+  const [taxReturn] = await db.select({ id: taxReturns.id })
     .from(taxReturns).where(eq(taxReturns.profileId, profile.id))
     .orderBy(desc(taxReturns.updatedAt)).limit(1);
 
   const province = (profile.fiscalResidence ?? profile.province ?? "QC") as string;
   const isQC = province === "QC";
 
-  // Revenus, déductions, crédits
-  const incomes    = taxReturn ? await db.select().from(incomeEntries)   .where(and(eq(incomeEntries.userId,    clerkUserId), eq(incomeEntries.taxReturnId,    taxReturn.id))) : [];
-  const deductions = taxReturn ? await db.select().from(deductionEntries).where(and(eq(deductionEntries.userId, clerkUserId), eq(deductionEntries.taxReturnId, taxReturn.id))) : [];
-  const credits    = taxReturn ? await db.select().from(creditEntries)   .where(and(eq(creditEntries.userId,    clerkUserId), eq(creditEntries.taxReturnId,    taxReturn.id))) : [];
-  const [calc]     = taxReturn ? await db.select().from(taxCalculations) .where(and(eq(taxCalculations.userId,  clerkUserId), eq(taxCalculations.taxReturnId,  taxReturn.id))).orderBy(desc(taxCalculations.calculatedAt)).limit(1) : [undefined];
+  // Données DB
+  const incomes    = taxReturn ? await db.select().from(incomeEntries).where(and(eq(incomeEntries.userId, userId), eq(incomeEntries.taxReturnId, taxReturn.id))) : [];
+  const deductions = taxReturn ? await db.select().from(deductionEntries).where(and(eq(deductionEntries.userId, userId), eq(deductionEntries.taxReturnId, taxReturn.id))) : [];
+  const creds      = taxReturn ? await db.select().from(creditEntries).where(and(eq(creditEntries.userId, userId), eq(creditEntries.taxReturnId, taxReturn.id))) : [];
+  const [calc]     = taxReturn ? await db.select().from(taxCalculations).where(and(eq(taxCalculations.userId, userId), eq(taxCalculations.taxReturnId, taxReturn.id))).orderBy(desc(taxCalculations.calculatedAt)).limit(1) : [undefined];
 
-  // ── Construire les lignes T1 ────────────────────────────────────────────
-  const t1: Record<string, number> = {};   // ligne → cents
-  const tp1: Record<string, number> = {};  // ligne → cents
+  // Construire les montants par ligne
+  const t1Amounts: Record<string, { cents: number; source: string }> = {};
+  const tp1Amounts: Record<string, { cents: number; source: string }> = {};
 
-  // Depuis incomeEntries (chaque entry a une catégorie)
+  const addT1 = (line: string, c: number, src: string) => {
+    if (!line || c === 0) return;
+    t1Amounts[line] = { cents: (t1Amounts[line]?.cents ?? 0) + c, source: src };
+  };
+  const addTp1 = (line: string, c: number, src: string) => {
+    if (!line || c === 0 || !isQC) return;
+    tp1Amounts[line] = { cents: (tp1Amounts[line]?.cents ?? 0) + c, source: src };
+  };
+
+  // Revenus
   for (const inc of incomes) {
-    // Mapper catégorie → ligne T1
-    type LineRef = { t1: string; tp1?: string };
-  const catLineMap: Record<string, LineRef> = {
-      employment:          { t1: "10100", tp1: "101" },
-      self_employment:     { t1: "13500", tp1: "164" },
-      rental:              { t1: "12600" },
-      interest:            { t1: "12100", tp1: "130" },
-      dividends_eligible:  { t1: "12000", tp1: "128" },
-      dividends_ineligible:{ t1: "12000", tp1: "128" },
-      capital_gains:       { t1: "12700", tp1: "139" },
-      pension:             { t1: "11500", tp1: "111" },
-      cpp_benefits:        { t1: "11400", tp1: "114" },
-      oas:                 { t1: "11300", tp1: "114" },
-      ei_benefits:         { t1: "11900", tp1: "154" },
-      rrsp_withdrawal:     { t1: "12900", tp1: "122" },
-      workers_comp:        { t1: "14400", tp1: "148" },
-      scholarships:        { t1: "13010", tp1: "154" },
-      other_income:        { t1: "13000", tp1: "154" },
-    };
-    const mapping = catLineMap[inc.category ?? "other_income"];
-    if (mapping) {
-      t1[mapping.t1] = (t1[mapping.t1] ?? 0) + cents(inc.amountCents);
-      if (mapping.tp1 && isQC) tp1[mapping.tp1] = (tp1[mapping.tp1] ?? 0) + cents(inc.amountCents);
-    }
+    const t1l = CAT_T1[inc.category ?? "other_income"];
+    const tp1l = CAT_TP1[inc.category ?? "other_income"];
+    if (t1l) addT1(t1l, cents(inc.amountCents), "ocr");
+    if (tp1l) addTp1(tp1l, cents(inc.amountCents), "ocr");
   }
 
   // Déductions
-  const dedLineMap: Record<string, { t1: string; tp1?: string }> = {
-    rrsp:           { t1: "20800", tp1: "208" },
-    union_dues:     { t1: "21200", tp1: "210" },
-    childcare:      { t1: "21400", tp1: "214" },
-    moving_expenses:{ t1: "21900" },
-    employment_expenses: { t1: "22900" },
-    other_deductions: { t1: "23200", tp1: "207" },
-  };
   for (const ded of deductions) {
-    const mapping = dedLineMap[ded.category ?? "other_deductions"];
-    if (mapping) {
-      t1[mapping.t1] = (t1[mapping.t1] ?? 0) + cents(ded.amountCents);
-      if (mapping.tp1 && isQC) tp1[mapping.tp1] = (tp1[mapping.tp1] ?? 0) + cents(ded.amountCents);
-    }
-  }
-
-  // Retenues (withheld)
-  for (const ded of deductions) {
+    // Retenues fédérales
     if (ded.description?.includes("Impôt fédéral") || ded.description?.includes("federal tax withheld")) {
-      t1["43700"] = (t1["43700"] ?? 0) + cents(ded.amountCents);
+      addT1("43700", cents(ded.amountCents), "ocr"); continue;
     }
-    if (isQC && (ded.description?.includes("Impôt du Québec") || ded.description?.includes("provincial tax withheld"))) {
-      tp1["451"] = (tp1["451"] ?? 0) + cents(ded.amountCents);
+    if (ded.description?.includes("Impôt du Québec") || ded.description?.includes("provincial tax withheld")) {
+      addTp1("451", cents(ded.amountCents), "ocr"); continue;
     }
+    const t1l  = CAT_DED_T1[ded.category ?? "other_deductions"];
+    const tp1l = CAT_DED_TP1[ded.category ?? "other_deductions"];
+    if (t1l) addT1(t1l, cents(ded.amountCents), "ocr");
+    if (tp1l) addTp1(tp1l, cents(ded.amountCents), "ocr");
   }
 
-  // ── Totaux calculés ─────────────────────────────────────────────────────
-  const totalRevenu = Object.entries(t1)
-    .filter(([k]) => parseInt(k) >= 10000 && parseInt(k) <= 14999)
-    .reduce((s, [, v]) => s + v, 0);
+  // Crédits non remboursables
+  for (const cr of creds) {
+    const t1l = CAT_CREDIT_T1[cr.category ?? "other_credits"];
+    if (t1l) addT1(t1l, cents(cr.claimedAmountCents), "ocr");
+  }
 
-  const totalDeductions = Object.entries(t1)
-    .filter(([k]) => parseInt(k) >= 20000 && parseInt(k) <= 25999)
-    .reduce((s, [, v]) => s + v, 0);
+  // Montant personnel de base (automatique)
+  addT1("30000", 1612900, "calculated"); // 16 129 $ × 100
+  if (isQC) addTp1("350", 1857100, "calculated"); // 18 571 $ × 100
 
-  const revenuNet = Math.max(0, totalRevenu - totalDeductions);
-  const revenuImposable = revenuNet; // simplifié
+  // Depuis le moteur fiscal (si disponible)
+  if (calc) {
+    if (cents(calc.federalTaxPayableCents) > 0)   addT1("40500",  0, "calculated");
+    if (cents(calc.provincialTaxPayableCents) > 0 && isQC) addTp1("430", cents(calc.provincialTaxPayableCents), "calculated");
+  }
 
-  // Impôt fédéral estimé depuis le moteur fiscal
-  const fedTax       = cents(calc?.federalTaxPayableCents);
-  const fedWithheld  = t1["43700"] ?? 0;
-  const fedBalance   = fedTax - fedWithheld;
-  const provTax      = cents(calc?.provincialTaxPayableCents);
-  const provWithheld = tp1["451"] ?? 0;
-  const provBalance  = provTax - provWithheld;
+  // Totaux calculés
+  const totalRevenu = Object.entries(t1Amounts)
+    .filter(([l]) => parseInt(l) >= 10000 && parseInt(l) <= 14999)
+    .reduce((s, [, v]) => s + v.cents, 0);
+  const totalDed = Object.entries(t1Amounts)
+    .filter(([l]) => parseInt(l) >= 20600 && parseInt(l) <= 25999)
+    .reduce((s, [, v]) => s + v.cents, 0);
+  const revenuNet = Math.max(0, totalRevenu - totalDed);
+  const revenuImposable = revenuNet;
 
-  // ── Profil ──────────────────────────────────────────────────────────────
-  const PROVINCE_NAMES: Record<string, { fr: string; form: string; agency: string }> = {
-    QC: { fr: "Québec",                   form: "T1 + TP-1", agency: "Revenu Québec" },
-    ON: { fr: "Ontario",                  form: "T1 + ON428", agency: "ARC" },
-    AB: { fr: "Alberta",                  form: "T1 + AT1",   agency: "ARC" },
-    BC: { fr: "Colombie-Britannique",     form: "T1 + BC428", agency: "ARC" },
-    SK: { fr: "Saskatchewan",             form: "T1 + SK428", agency: "ARC" },
-    MB: { fr: "Manitoba",                 form: "T1 + MB428", agency: "ARC" },
-    NB: { fr: "Nouveau-Brunswick",        form: "T1 + NB428", agency: "ARC" },
-    NS: { fr: "Nouvelle-Écosse",          form: "T1 + NS428", agency: "ARC" },
-    PE: { fr: "Île-du-Prince-Édouard",    form: "T1 + PE428", agency: "ARC" },
-    NL: { fr: "Terre-Neuve-et-Labrador",  form: "T1 + NL428", agency: "ARC" },
-    NT: { fr: "Territoires du Nord-Ouest",form: "T1 + NT428", agency: "ARC" },
-    NU: { fr: "Nunavut",                  form: "T1 + NU428", agency: "ARC" },
-    YT: { fr: "Yukon",                    form: "T1 + YT428", agency: "ARC" },
+  if (totalRevenu > 0)     addT1("15000", totalRevenu, "calculated");
+  if (revenuNet > 0)       addT1("23600", revenuNet, "calculated");
+  if (revenuImposable > 0) addT1("26000", revenuImposable, "calculated");
+
+  // TP-1 totaux
+  if (isQC) {
+    const tp1Revenu = Object.entries(tp1Amounts)
+      .filter(([l]) => parseInt(l) >= 100 && parseInt(l) <= 199)
+      .reduce((s, [, v]) => s + v.cents, 0);
+    if (tp1Revenu > 0) addTp1("199", tp1Revenu, "calculated");
+    const tp1Ded = Object.entries(tp1Amounts)
+      .filter(([l]) => parseInt(l) >= 200 && parseInt(l) <= 299 && parseInt(l) !== 275 && parseInt(l) !== 299)
+      .reduce((s, [, v]) => s + v.cents, 0);
+    const tp1Net = Math.max(0, tp1Revenu - tp1Ded);
+    if (tp1Net > 0)        addTp1("275", tp1Net, "calculated");
+    if (tp1Net > 0)        addTp1("299", tp1Net, "calculated");
+  }
+
+  // Solde fédéral
+  const fedWithheld = t1Amounts["43700"]?.cents ?? 0;
+  const fedTax = cents(calc?.federalTaxPayableCents);
+  const fedBalance = fedTax - fedWithheld;
+
+  // Solde QC
+  const provWithheld = tp1Amounts["451"]?.cents ?? 0;
+  const provTax = cents(calc?.provincialTaxPayableCents);
+  const provBalance = provTax - provWithheld;
+
+  // Construire les tableaux de lignes complets (toutes les lignes du dictionnaire)
+  const buildLines = (
+    dict: Record<string, { label_fr: string; label_en?: string; section: string }>,
+    amounts: Record<string, { cents: number; source: string }>,
+    form: "t1" | "tp1"
+  ) => Object.entries(dict).map(([line, info]) => {
+    const a = amounts[line];
+    const isTotal = ["15000","23600","26000","199","275","299"].includes(line);
+    const isSolde = ["48400","48500","474","475"].includes(line);
+    return {
+      line,
+      label_fr: info.label_fr,
+      label_en: (info as { label_fr: string; label_en?: string; section: string }).label_en ?? info.label_fr,
+      section: info.section,
+      amountCents: a?.cents ?? 0,
+      isEditable: !isTotal,
+      source: (a?.source ?? "empty") as "ocr" | "manual" | "calculated" | "empty",
+      bold: isTotal || isSolde,
+      isTotal,
+    };
+  }).sort((a, b) => parseInt(a.line) - parseInt(b.line));
+
+  const t1Lines  = buildLines(_dict.t1_lines, t1Amounts, "t1");
+  const tp1Lines = isQC ? buildLines(
+    _dict.tp1_lines as Record<string, { label_fr: string; label_en?: string; section: string }>,
+    tp1Amounts,
+    "tp1"
+  ) : [];
+
+  // Provinces
+  const PROV_NAMES: Record<string, string> = {
+    QC:"Québec",ON:"Ontario",AB:"Alberta",BC:"Colombie-Britannique",SK:"Saskatchewan",
+    MB:"Manitoba",NB:"Nouveau-Brunswick",NS:"Nouvelle-Écosse",PE:"Île-du-Prince-Édouard",
+    NL:"Terre-Neuve-et-Labrador",NT:"Territoires du Nord-Ouest",NU:"Nunavut",YT:"Yukon",
   };
 
   return NextResponse.json({
     meta: {
       taxYear: 2025,
       province,
-      provinceName: PROVINCE_NAMES[province]?.fr ?? province,
-      form: PROVINCE_NAMES[province]?.form ?? "T1",
-      agency: PROVINCE_NAMES[province]?.agency ?? "ARC",
+      provinceName: PROV_NAMES[province] ?? province,
+      form: isQC ? "T1 + TP-1" : `T1 + ${province}428`,
       isQC,
-      profileName: `${profile.firstName} ${profile.lastName}`,
+      profileName: `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim() || "—",
       sinLastFour: profile.sinLastFour,
-      maritalStatus: profile.maritalStatus,
       address: [profile.address, profile.city, province, profile.postalCode].filter(Boolean).join(", "),
       isPreliminary: true,
-      hasCalculation: !!calc,
     },
-    // Lignes T1 pré-remplies
-    t1Lines: Object.entries(T1_LINES).map(([line, info]) => ({
-      line,
-      ...info,
-      amountCents: t1[line] ?? 0,
-      amount: fmt(t1[line] ?? 0),
-      hasValue: (t1[line] ?? 0) > 0,
-      source: "ocr" as const,
-    })),
-    // Lignes TP-1 (QC seulement)
-    tp1Lines: isQC ? Object.entries(TP1_LINES).map(([line, info]) => ({
-      line,
-      ...info,
-      amountCents: tp1[line] ?? 0,
-      amount: fmt(tp1[line] ?? 0),
-      hasValue: (tp1[line] ?? 0) > 0,
-    })) : [],
-    // Résumé
+    t1: t1Lines,
+    tp1: tp1Lines,
     summary: {
-      totalRevenu: fmt(totalRevenu),
       totalRevenuCents: totalRevenu,
-      totalDeductions: fmt(totalDeductions),
-      revenuNet: fmt(revenuNet),
       revenuNetCents: revenuNet,
-      revenuImposable: fmt(revenuImposable),
-      federal: { taxPayable: fmt(fedTax), withheld: fmt(fedWithheld), balance: fmt(fedBalance), balanceCents: fedBalance, isRefund: fedBalance < 0 },
-      provincial: { taxPayable: fmt(provTax), withheld: fmt(provWithheld), balance: fmt(provBalance), balanceCents: provBalance, isRefund: provBalance < 0 },
-      totalBalance: fmt(fedBalance + provBalance),
-      totalBalanceCents: fedBalance + provBalance,
+      revenuImposableCents: revenuImposable,
+      federal:   { taxPayable: fedTax,  withheld: fedWithheld,  balance: fedBalance,  isRefund: fedBalance < 0  },
+      provincial:{ taxPayable: provTax, withheld: provWithheld, balance: provBalance, isRefund: provBalance < 0 },
+      totalBalance: fedBalance + provBalance,
       isRefund: (fedBalance + provBalance) < 0,
     },
   });
