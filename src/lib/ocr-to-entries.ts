@@ -31,7 +31,7 @@
  */
 
 import { db } from "@/lib/db";
-import { getLineMapping } from "@/lib/slip-line-map";
+import { getSlipDict, findBoxValueInText, parseMontantOCR, SLIP_DICT } from "@/lib/ocr/dictionnaire";
 import {
   incomeEntries, deductionEntries, creditEntries,
   taxReturns, taxYears, taxProfiles, extractionFields,

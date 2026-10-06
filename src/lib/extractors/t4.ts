@@ -1,4 +1,5 @@
 import type { DocumentExtractor, ExtractionResult, ExtractedField } from "./base";
+import { getSlipDict, findBoxValueInText, parseMontantOCR } from "@/lib/ocr/dictionnaire";
 import { extractYear } from "./base";
 
 /**

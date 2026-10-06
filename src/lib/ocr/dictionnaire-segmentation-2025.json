@@ -1,0 +1,1496 @@
+{
+  "meta": {
+    "title": "Dictionnaire de segmentation OCR — feuillets et lignes fiscales canadiennes",
+    "version": "2025.1.0",
+    "tax_year": 2025,
+    "created": "2026-10-05",
+    "source": "declaration-pancanadienne-2025.html + extracteurs EasyTax (t4.ts)",
+    "purpose": "Segmentation OCR : identifier le feuillet en cours de traitement, localiser ses cases dans le texte extrait, et mapper chaque case vers les lignes T1/TP-1. À croiser avec le catalogue de classification pan-canadien v2 (qui dit QUEL document c'est ; ce dictionnaire dit CE QU'IL CONTIENT et OÙ ÇA VA).",
+    "usage": [
+      "1. Classifier le document avec le catalogue v2 (anchors).",
+      "2. Charger l'entrée 'slips' correspondante de ce dictionnaire.",
+      "3. Pour chaque case : chercher keywords_fr/keywords_en + code dans le texte OCR.",
+      "4. Extraire le montant adjacent (pattern money du dictionnaire).",
+      "5. Mapper vers t1_line / tp1_line pour alimenter le calcul."
+    ]
+  },
+  "money_patterns": {
+    "fr": "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2})(?!\\d)|[0-9]+[.,][0-9]{2}(?!\\d))",
+    "note": "Montant FR « 7 201,32 » ou EN « 7,201.32 ». Le (?!\\d) empêche d'absorber un chiffre de la colonne suivante (ex. « 024 048 » → pas de montant).",
+    "table_row": "\\b20\\d{2}\\s*\\|\\s*{money}",
+    "table_row_note": "Document AI rend les tableaux « année | montant | NAS | code » : ex. « 2025 | 7 201,32 | 314 003 062 | 0 ».",
+    "normalize": "Supprimer les espaces, convertir la virgule décimale en point si aucun point présent : « 7 201,32 » → « 7201.32 »."
+  },
+  "slips": [
+    {
+      "code": "T4",
+      "name_fr": "État de la rémunération payée",
+      "name_en": "Statement of Remuneration Paid",
+      "authority": "federal",
+      "anchors": [
+        "T4",
+        "Statement of Remuneration Paid",
+        "État de la rémunération payée"
+      ],
+      "boxes": [
+        {
+          "code": "14",
+          "label_fr": "Revenus d'emploi",
+          "label_en": "Employment income",
+          "t1_line": "10100",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "revenus d'emploi",
+            "emploi"
+          ],
+          "keywords_en": [
+            "employment income"
+          ],
+          "notes": "Case principale du T4",
+          "source": "html"
+        },
+        {
+          "code": "16",
+          "label_fr": "Cotisations de l'employé au RPC/RRQ",
+          "label_en": "Employee's CPP/QPP contributions",
+          "t1_line": "30800",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "cotisations",
+            "rpc",
+            "rrq"
+          ],
+          "keywords_en": [
+            "CPP",
+            "QPP",
+            "contributions"
+          ],
+          "source": "extractor"
+        },
+        {
+          "code": "18",
+          "label_fr": "Cotisations de l'employé à l'AE",
+          "label_en": "Employee's EI premiums",
+          "t1_line": "31200",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "assurance-emploi",
+            "cotisations"
+          ],
+          "keywords_en": [
+            "EI",
+            "premiums"
+          ],
+          "source": "extractor"
+        },
+        {
+          "code": "22",
+          "label_fr": "Impôt sur le revenu retenu",
+          "label_en": "Income tax deducted",
+          "t1_line": "43700",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "impôt retenu",
+            "retenu"
+          ],
+          "keywords_en": [
+            "income tax deducted",
+            "tax deducted"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "24",
+          "label_fr": "Gains assurables d'AE",
+          "label_en": "EI insurable earnings",
+          "t1_line": null,
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "gains assurables"
+          ],
+          "keywords_en": [
+            "insurable earnings"
+          ],
+          "source": "extractor"
+        },
+        {
+          "code": "26",
+          "label_fr": "Gains ouvrant droit à pension RPC/RRQ",
+          "label_en": "CPP/QPP pensionable earnings",
+          "t1_line": null,
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "gains",
+            "pension"
+          ],
+          "keywords_en": [
+            "pensionable earnings"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "40",
+          "label_fr": "Autres avantages imposables",
+          "label_en": "Other taxable benefits",
+          "t1_line": "10400",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "avantages imposables"
+          ],
+          "keywords_en": [
+            "taxable benefits"
+          ],
+          "source": "extractor"
+        },
+        {
+          "code": "44",
+          "label_fr": "Cotisations syndicales",
+          "label_en": "Union dues",
+          "t1_line": "21200",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "syndicales",
+            "cotisations"
+          ],
+          "keywords_en": [
+            "union dues"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "46",
+          "label_fr": "Dons de bienfaisance",
+          "label_en": "Charitable donations",
+          "t1_line": "34900",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "dons"
+          ],
+          "keywords_en": [
+            "donations"
+          ],
+          "source": "extractor"
+        }
+      ],
+      "family": "employment"
+    },
+    {
+      "code": "T4A",
+      "name_fr": "État du revenu de pension, de retraite, de rente ou d'autres sources",
+      "name_en": "Statement of Pension, Retirement, Annuity, and Other Income",
+      "authority": "federal",
+      "anchors": [
+        "T4A",
+        "Statement of Pension, Retirement, Annuity"
+      ],
+      "boxes": [
+        {
+          "code": "016",
+          "label_fr": "Prestations de pension ou de retraite",
+          "label_en": "Pension or superannuation",
+          "t1_line": "11500",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "pension",
+            "retraite",
+            "rente"
+          ],
+          "keywords_en": [
+            "pension",
+            "superannuation"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "018",
+          "label_fr": "Paiements forfaitaires",
+          "label_en": "Lump-sum payments",
+          "t1_line": "13000",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "forfaitaire",
+            "montant forfaitaire"
+          ],
+          "keywords_en": [
+            "lump-sum"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "020",
+          "label_fr": "Commissions d'un travail indépendant",
+          "label_en": "Self-employed commissions",
+          "t1_line": "13900",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "commissions"
+          ],
+          "keywords_en": [
+            "commissions"
+          ],
+          "notes": "Confirmer la ligne exacte au verso du feuillet (13900)",
+          "source": "html"
+        },
+        {
+          "code": "022",
+          "label_fr": "Impôt sur le revenu retenu",
+          "label_en": "Income tax deducted",
+          "t1_line": "43700",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "impôt retenu"
+          ],
+          "keywords_en": [
+            "income tax deducted"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "024",
+          "label_fr": "Rentes",
+          "label_en": "Annuities",
+          "t1_line": "13000",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "rentes",
+            "rente"
+          ],
+          "keywords_en": [
+            "annuities",
+            "annuity"
+          ],
+          "notes": "Confirmer la ligne exacte au verso du feuillet",
+          "source": "html"
+        },
+        {
+          "code": "048",
+          "label_fr": "Honoraires ou autres sommes pour services",
+          "label_en": "Fees or other amounts for services",
+          "t1_line": "13500",
+          "tp1_line": "164",
+          "data_type": "money",
+          "keywords_fr": [
+            "honoraires",
+            "services"
+          ],
+          "keywords_en": [
+            "fees",
+            "services"
+          ],
+          "notes": "L'ARC demande de déclarer comme revenu d'entreprise (T2125 → 13500/13700), sauf si coché autrement",
+          "source": "html"
+        },
+        {
+          "code": "105",
+          "label_fr": "Bourses d'études",
+          "label_en": "Scholarships",
+          "t1_line": "13010",
+          "tp1_line": "154",
+          "data_type": "money",
+          "keywords_fr": [
+            "bourses",
+            "études"
+          ],
+          "keywords_en": [
+            "scholarships"
+          ],
+          "notes": "Partie imposable seulement",
+          "source": "html"
+        }
+      ],
+      "family": "pension_other",
+      "notes": "Le T4A imprime parfois les cents dans une cellule adjacente (« 7,212 90 » = un seul montant)."
+    },
+    {
+      "code": "T4A(OAS)",
+      "name_fr": "État de la pension de la Sécurité de la vieillesse",
+      "name_en": "Statement of Old Age Security",
+      "authority": "federal",
+      "anchors": [
+        "T4A(OAS)",
+        "T4A-SV",
+        "Old Age Security",
+        "Sécurité de la vieillesse"
+      ],
+      "boxes": [
+        {
+          "code": "18",
+          "label_fr": "Pension de la Sécurité de la vieillesse",
+          "label_en": "Old Age Security pension",
+          "t1_line": "11300",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "sécurité de la vieillesse",
+            "vieillesse"
+          ],
+          "keywords_en": [
+            "old age security"
+          ],
+          "source": "html"
+        }
+      ],
+      "family": "benefits"
+    },
+    {
+      "code": "T4A(P)",
+      "name_fr": "État des prestations du RPC/RRQ",
+      "name_en": "Statement of Canada Pension Plan Benefits",
+      "authority": "federal",
+      "anchors": [
+        "T4A(P)",
+        "Canada Pension Plan",
+        "Régime de pensions du Canada"
+      ],
+      "boxes": [
+        {
+          "code": "20",
+          "label_fr": "Prestations du RPC/RRQ",
+          "label_en": "CPP/QPP benefits",
+          "t1_line": "11400",
+          "tp1_line": "111",
+          "data_type": "money",
+          "keywords_fr": [
+            "rpc",
+            "rrq",
+            "régime de pensions"
+          ],
+          "keywords_en": [
+            "CPP",
+            "QPP"
+          ],
+          "notes": "Relevé 2 case A au Québec",
+          "source": "html"
+        }
+      ],
+      "family": "benefits"
+    },
+    {
+      "code": "T4E",
+      "name_fr": "État des prestations d'assurance-emploi",
+      "name_en": "Statement of Employment Insurance Benefits",
+      "authority": "federal",
+      "anchors": [
+        "T4E",
+        "Employment Insurance",
+        "assurance-emploi"
+      ],
+      "boxes": [
+        {
+          "code": "14",
+          "label_fr": "Prestations d'assurance-emploi",
+          "label_en": "EI benefits",
+          "t1_line": "11900",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "assurance-emploi",
+            "prestations"
+          ],
+          "keywords_en": [
+            "EI",
+            "benefits"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "22",
+          "label_fr": "Impôt retenu",
+          "label_en": "Tax deducted",
+          "t1_line": "43700",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "impôt retenu"
+          ],
+          "keywords_en": [
+            "tax deducted"
+          ],
+          "source": "html"
+        }
+      ],
+      "family": "benefits"
+    },
+    {
+      "code": "T5",
+      "name_fr": "État des revenus de placements",
+      "name_en": "Statement of Investment Income",
+      "authority": "federal",
+      "anchors": [
+        "T5",
+        "Statement of Investment Income",
+        "revenus de placements"
+      ],
+      "boxes": [
+        {
+          "code": "13",
+          "label_fr": "Intérêts",
+          "label_en": "Interest",
+          "t1_line": "12100",
+          "tp1_line": "128",
+          "data_type": "money",
+          "keywords_fr": [
+            "intérêts"
+          ],
+          "keywords_en": [
+            "interest"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "24",
+          "label_fr": "Dividendes réels — montant imposable",
+          "label_en": "Actual dividends — taxable amount",
+          "t1_line": "12100",
+          "tp1_line": "128",
+          "data_type": "money",
+          "keywords_fr": [
+            "dividendes"
+          ],
+          "keywords_en": [
+            "dividends"
+          ],
+          "source": "cra_standard"
+        },
+        {
+          "code": "25",
+          "label_fr": "Dividendes — crédit d'impôt",
+          "label_en": "Dividends — tax credit",
+          "t1_line": null,
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "crédit d'impôt",
+            "dividendes"
+          ],
+          "keywords_en": [
+            "dividend tax credit"
+          ],
+          "source": "cra_standard"
+        }
+      ],
+      "family": "investment"
+    },
+    {
+      "code": "T3",
+      "name_fr": "État des revenus de fiducie",
+      "name_en": "Statement of Trust Income Allocations",
+      "authority": "federal",
+      "anchors": [
+        "T3",
+        "Trust Income",
+        "fiducie"
+      ],
+      "boxes": [
+        {
+          "code": "INT",
+          "label_fr": "Revenus de fiducie (intérêts, dividendes)",
+          "label_en": "Trust income",
+          "t1_line": "12100",
+          "tp1_line": "128",
+          "data_type": "money",
+          "keywords_fr": [
+            "fiducie"
+          ],
+          "keywords_en": [
+            "trust"
+          ],
+          "source": "html"
+        }
+      ],
+      "family": "investment"
+    },
+    {
+      "code": "T5007",
+      "name_fr": "État des prestations",
+      "name_en": "Statement of Benefits",
+      "authority": "federal",
+      "anchors": [
+        "T5007",
+        "Statement of Benefits",
+        "État des prestations"
+      ],
+      "boxes": [
+        {
+          "code": "10",
+          "label_fr": "Indemnités pour accidents du travail / prestations",
+          "label_en": "Workers' compensation benefits",
+          "t1_line": "14400",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "indemnités",
+            "accidents du travail",
+            "prestations"
+          ],
+          "keywords_en": [
+            "workers' compensation",
+            "benefits"
+          ],
+          "notes": "Inclus au revenu (14400) puis déduit intégralement à la ligne 25000 — aucun impôt. Document AI rend les tableaux « 2025 | 7 201,32 | NAS | code ».",
+          "source": "html"
+        }
+      ],
+      "family": "benefits",
+      "notes": "Case 10 → aussi déduction automatique ligne 25000."
+    },
+    {
+      "code": "RL-1",
+      "name_fr": "Relevé 1 — Revenus d'emploi et revenus divers",
+      "name_en": "Employment and Miscellaneous Income",
+      "authority": "provincial",
+      "anchors": [
+        "RL-1",
+        "Relevé 1",
+        "Employment and Miscellaneous Income"
+      ],
+      "boxes": [
+        {
+          "code": "A",
+          "label_fr": "Salaires, traitements",
+          "label_en": "Employment income",
+          "t1_line": null,
+          "tp1_line": "101",
+          "data_type": "money",
+          "keywords_fr": [
+            "salaires",
+            "traitements"
+          ],
+          "keywords_en": [
+            "salaries",
+            "wages"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "B",
+          "label_fr": "Cotisation RRQ de l'employé",
+          "label_en": "QPP contribution",
+          "t1_line": null,
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "rrq",
+            "cotisation"
+          ],
+          "keywords_en": [
+            "QPP"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "E",
+          "label_fr": "Impôt du Québec retenu",
+          "label_en": "Quebec tax withheld",
+          "t1_line": null,
+          "tp1_line": "451",
+          "data_type": "money",
+          "keywords_fr": [
+            "impôt retenu",
+            "québec"
+          ],
+          "keywords_en": [
+            "quebec tax withheld"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "G",
+          "label_fr": "Salaire admissible au RRQ",
+          "label_en": "QPP pensionable earnings",
+          "t1_line": null,
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "salaire admissible"
+          ],
+          "keywords_en": [
+            "pensionable"
+          ],
+          "source": "html"
+        }
+      ],
+      "family": "employment"
+    },
+    {
+      "code": "RL-2",
+      "name_fr": "Relevé 2 — Revenus de retraite et rentes",
+      "name_en": "Retirement and Annuity Income",
+      "authority": "provincial",
+      "anchors": [
+        "RL-2",
+        "Relevé 2"
+      ],
+      "boxes": [
+        {
+          "code": "A",
+          "label_fr": "Prestations de retraite",
+          "label_en": "Retirement benefits",
+          "t1_line": null,
+          "tp1_line": "111",
+          "data_type": "money",
+          "keywords_fr": [
+            "retraite",
+            "prestations"
+          ],
+          "keywords_en": [
+            "retirement"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "C",
+          "label_fr": "Impôt du Québec retenu",
+          "label_en": "Quebec tax withheld",
+          "t1_line": null,
+          "tp1_line": "451",
+          "data_type": "money",
+          "keywords_fr": [
+            "impôt retenu"
+          ],
+          "keywords_en": [
+            "tax withheld"
+          ],
+          "source": "html"
+        }
+      ],
+      "family": "pension_other"
+    },
+    {
+      "code": "RL-3",
+      "name_fr": "Relevé 3 — Revenus de placements",
+      "name_en": "Investment Income",
+      "authority": "provincial",
+      "anchors": [
+        "RL-3",
+        "Relevé 3"
+      ],
+      "boxes": [
+        {
+          "code": "BCD",
+          "label_fr": "Revenus de placements (cases B, C, D…)",
+          "label_en": "Investment income",
+          "t1_line": null,
+          "tp1_line": "128",
+          "data_type": "money",
+          "keywords_fr": [
+            "placements"
+          ],
+          "keywords_en": [
+            "investment"
+          ],
+          "notes": "Montant imposable",
+          "source": "html"
+        }
+      ],
+      "family": "investment"
+    },
+    {
+      "code": "RL-5",
+      "name_fr": "Relevé 5 — Prestations et indemnités",
+      "name_en": "Benefits and Indemnities",
+      "authority": "provincial",
+      "anchors": [
+        "RL-5",
+        "Relevé 5",
+        "Prestations et indemnités",
+        "CNESST"
+      ],
+      "boxes": [
+        {
+          "code": "C",
+          "label_fr": "Indemnités reçues (CNESST…)",
+          "label_en": "Indemnities received",
+          "t1_line": null,
+          "tp1_line": "148",
+          "data_type": "money",
+          "keywords_fr": [
+            "indemnités reçues",
+            "cnesst"
+          ],
+          "keywords_en": [
+            "indemnities"
+          ],
+          "notes": "→ aussi déduction ligne 295 (automatique)",
+          "source": "html"
+        },
+        {
+          "code": "E",
+          "label_fr": "Indemnités — acte de civisme",
+          "label_en": "Civic act indemnities",
+          "t1_line": null,
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "civisme"
+          ],
+          "keywords_en": [
+            "civic"
+          ],
+          "notes": "Vérifier sur le document papier",
+          "source": "html"
+        },
+        {
+          "code": "M",
+          "label_fr": "Redressement pour indemnités reçues (année)",
+          "label_en": "Adjustment (year)",
+          "t1_line": null,
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "redressement"
+          ],
+          "keywords_en": [
+            "adjustment"
+          ],
+          "source": "html"
+        },
+        {
+          "code": "O",
+          "label_fr": "Redressement pour années passées",
+          "label_en": "Prior years adjustment",
+          "t1_line": null,
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "années passées",
+            "redressement"
+          ],
+          "keywords_en": [
+            "prior years"
+          ],
+          "notes": "L'année du redressement est imprimée à côté (ex. 2024)",
+          "source": "html"
+        },
+        {
+          "code": "P",
+          "label_fr": "Remboursement d'indemnités",
+          "label_en": "Repayment",
+          "t1_line": null,
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "remboursement"
+          ],
+          "keywords_en": [
+            "repayment"
+          ],
+          "source": "html"
+        }
+      ],
+      "family": "benefits"
+    },
+    {
+      "code": "RL-16",
+      "name_fr": "Relevé 16 — Gains en capital",
+      "name_en": "Capital Gains",
+      "authority": "provincial",
+      "anchors": [
+        "RL-16",
+        "Relevé 16",
+        "Gains en capital"
+      ],
+      "boxes": [
+        {
+          "code": "CG",
+          "label_fr": "Gains en capital (50 % du gain net)",
+          "label_en": "Capital gains",
+          "t1_line": "12700",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "gains en capital"
+          ],
+          "keywords_en": [
+            "capital gains"
+          ],
+          "notes": "Inscrit aussi au 12700 fédéral",
+          "source": "html"
+        }
+      ],
+      "family": "investment"
+    },
+    {
+      "code": "RL-31",
+      "name_fr": "Relevé 31 — Renseignements sur l'occupation d'un logement",
+      "name_en": "Information About a Leased Dwelling",
+      "authority": "provincial",
+      "anchors": [
+        "RL-31",
+        "Relevé 31",
+        "Logement"
+      ],
+      "boxes": [
+        {
+          "code": "NUM",
+          "label_fr": "Numéro du relevé 31",
+          "label_en": "RL-31 number",
+          "t1_line": null,
+          "tp1_line": null,
+          "data_type": "text",
+          "keywords_fr": [
+            "relevé 31",
+            "logement"
+          ],
+          "keywords_en": [
+            "dwelling"
+          ],
+          "notes": "Ouvre droit au crédit d'impôt solidarité (annexe D)",
+          "source": "html"
+        }
+      ],
+      "family": "credits"
+    }
+  ],
+  "t1_lines": {
+    "10100": {
+      "label_fr": "Revenus d'emploi (T4-14)",
+      "section": "revenus"
+    },
+    "10400": {
+      "label_fr": "Autres revenus d'emploi",
+      "section": "revenus"
+    },
+    "11300": {
+      "label_fr": "Sécurité de la vieillesse (T4A-SV)",
+      "section": "revenus"
+    },
+    "11400": {
+      "label_fr": "RPC/RRQ (T4A-P)",
+      "section": "revenus"
+    },
+    "11500": {
+      "label_fr": "Pensions et rentes (T4A-016)",
+      "section": "revenus"
+    },
+    "11900": {
+      "label_fr": "Assurance-emploi (T4E)",
+      "section": "revenus"
+    },
+    "12100": {
+      "label_fr": "Intérêts et dividendes (T5/T3)",
+      "section": "revenus"
+    },
+    "12600": {
+      "label_fr": "Revenus de location nets (T776)",
+      "section": "revenus"
+    },
+    "12700": {
+      "label_fr": "Gains en capital imposables — 50 % (annexe 3)",
+      "section": "revenus"
+    },
+    "12800": {
+      "label_fr": "Pension alimentaire reçue",
+      "section": "revenus"
+    },
+    "13000": {
+      "label_fr": "Autres revenus (T4A-018/024…)",
+      "section": "revenus"
+    },
+    "13010": {
+      "label_fr": "Bourses d'études — partie imposable (T4A-105)",
+      "section": "revenus"
+    },
+    "13500": {
+      "label_fr": "Revenu net d'entreprise (T2125)",
+      "section": "revenus"
+    },
+    "13700": {
+      "label_fr": "Revenu net de profession (T2125)",
+      "section": "revenus"
+    },
+    "13900": {
+      "label_fr": "Commissions (T4A-020)",
+      "section": "revenus"
+    },
+    "14400": {
+      "label_fr": "Indemnités T5007-10 (inclusion)",
+      "section": "revenus"
+    },
+    "15000": {
+      "label_fr": "Revenu total",
+      "section": "totaux"
+    },
+    "20800": {
+      "label_fr": "Cotisation REER",
+      "section": "deductions"
+    },
+    "21200": {
+      "label_fr": "Cotisations syndicales (T4-44)",
+      "section": "deductions"
+    },
+    "21400": {
+      "label_fr": "Frais de garde d'enfants",
+      "section": "deductions"
+    },
+    "21900": {
+      "label_fr": "Frais de déménagement",
+      "section": "deductions"
+    },
+    "22000": {
+      "label_fr": "Pension alimentaire payée",
+      "section": "deductions"
+    },
+    "22100": {
+      "label_fr": "Frais financiers / intérêts",
+      "section": "deductions"
+    },
+    "22200": {
+      "label_fr": "Cotisation RRQ employé — partie déductible",
+      "section": "deductions"
+    },
+    "22900": {
+      "label_fr": "Dépenses d'emploi (T2200)",
+      "section": "deductions"
+    },
+    "23200": {
+      "label_fr": "Autres déductions",
+      "section": "deductions"
+    },
+    "23600": {
+      "label_fr": "Revenu net",
+      "section": "totaux"
+    },
+    "25000": {
+      "label_fr": "Déduction indemnités T5007 (automatique)",
+      "section": "deductions"
+    },
+    "25500": {
+      "label_fr": "Pertes d'autres années",
+      "section": "deductions"
+    },
+    "26000": {
+      "label_fr": "Revenu imposable",
+      "section": "totaux"
+    },
+    "30000": {
+      "label_fr": "Montant personnel de base",
+      "section": "credits"
+    },
+    "30100": {
+      "label_fr": "Montant en raison de l'âge",
+      "section": "credits"
+    },
+    "30300": {
+      "label_fr": "Montant pour époux/conjoint",
+      "section": "credits"
+    },
+    "30400": {
+      "label_fr": "Personne à charge admissible",
+      "section": "credits"
+    },
+    "30800": {
+      "label_fr": "Cotisations RPC/RRQ de base — emploi",
+      "section": "credits"
+    },
+    "31000": {
+      "label_fr": "Cotisations RPC/RRQ — travail indépendant",
+      "section": "credits"
+    },
+    "31200": {
+      "label_fr": "Cotisations AE (employé)",
+      "section": "credits"
+    },
+    "31260": {
+      "label_fr": "Montant canadien pour emploi",
+      "section": "credits"
+    },
+    "31400": {
+      "label_fr": "Montant pour revenu de pension",
+      "section": "credits"
+    },
+    "31600": {
+      "label_fr": "Personnes handicapées",
+      "section": "credits"
+    },
+    "31900": {
+      "label_fr": "Intérêts prêts étudiants",
+      "section": "credits"
+    },
+    "32300": {
+      "label_fr": "Frais de scolarité (T2202)",
+      "section": "credits"
+    },
+    "33099": {
+      "label_fr": "Frais médicaux — dépenses nettes",
+      "section": "credits"
+    },
+    "34900": {
+      "label_fr": "Dons de bienfaisance",
+      "section": "credits"
+    },
+    "43700": {
+      "label_fr": "Impôt total retenu",
+      "section": "retenues"
+    },
+    "44800": {
+      "label_fr": "RPC à payer — travail indépendant (annexe 8)",
+      "section": "retenues"
+    },
+    "47600": {
+      "label_fr": "Acomptes provisionnels",
+      "section": "retenues"
+    },
+    "47900": {
+      "label_fr": "Crédits remboursables",
+      "section": "retenues"
+    }
+  },
+  "tp1_lines": {
+    "101": {
+      "label_fr": "Salaires (RL-1 A)",
+      "section": "revenus"
+    },
+    "111": {
+      "label_fr": "Prestations de retraite (RL-2 A)",
+      "section": "revenus"
+    },
+    "128": {
+      "label_fr": "Revenus de placements (RL-3)",
+      "section": "revenus"
+    },
+    "148": {
+      "label_fr": "Indemnités RL-5 case C (inclusion)",
+      "section": "revenus"
+    },
+    "154": {
+      "label_fr": "Autres revenus (bourses…)",
+      "section": "revenus"
+    },
+    "164": {
+      "label_fr": "Revenu net d'entreprise (annexe L)",
+      "section": "revenus"
+    },
+    "199": {
+      "label_fr": "Revenu total",
+      "section": "totaux"
+    },
+    "206": {
+      "label_fr": "Cotisation RRQ employé — partie déductible",
+      "section": "deductions"
+    },
+    "207": {
+      "label_fr": "Autres déductions",
+      "section": "deductions"
+    },
+    "208": {
+      "label_fr": "Cotisation REER",
+      "section": "deductions"
+    },
+    "214": {
+      "label_fr": "Frais de garde",
+      "section": "deductions"
+    },
+    "225": {
+      "label_fr": "Pension alimentaire payée",
+      "section": "deductions"
+    },
+    "231": {
+      "label_fr": "Frais financiers",
+      "section": "deductions"
+    },
+    "246": {
+      "label_fr": "Remboursement de sommes",
+      "section": "deductions"
+    },
+    "248": {
+      "label_fr": "Revenu net",
+      "section": "totaux"
+    },
+    "295": {
+      "label_fr": "Déduction indemnités RL-5 (automatique)",
+      "section": "deductions"
+    },
+    "299": {
+      "label_fr": "Revenu imposable",
+      "section": "totaux"
+    },
+    "350": {
+      "label_fr": "Montant personnel de base (TP-1.D)",
+      "section": "credits"
+    },
+    "361": {
+      "label_fr": "Montant en raison de l'âge",
+      "section": "credits"
+    },
+    "381": {
+      "label_fr": "Frais médicaux — dépenses nettes",
+      "section": "credits"
+    },
+    "395": {
+      "label_fr": "Dons / crédits remboursables (solidarité…)",
+      "section": "credits"
+    },
+    "430": {
+      "label_fr": "RRQ à payer — travail indépendant (annexe U)",
+      "section": "retenues"
+    },
+    "442": {
+      "label_fr": "RQAP à payer — travail indépendant (annexe R)",
+      "section": "retenues"
+    },
+    "451": {
+      "label_fr": "Impôt du Québec retenu",
+      "section": "retenues"
+    },
+    "460": {
+      "label_fr": "Acomptes provisionnels — Québec",
+      "section": "retenues"
+    }
+  },
+  "provinces": [
+    {
+      "code": "QC",
+      "name_fr": "Québec",
+      "form": "TP-1",
+      "bpa_2025": 18571,
+      "brackets": [
+        {
+          "up_to": 53255,
+          "rate": 0.14
+        },
+        {
+          "up_to": 106495,
+          "rate": 0.19
+        },
+        {
+          "up_to": 129590,
+          "rate": 0.24
+        }
+      ],
+      "top_rate": 0.2575,
+      "notes": "Pas de surtaxe provinciale. Abattement fédéral de 16,5 %. Montant personnel de base 2025 : 18 571 $ (formulaire TP-1.D). Volet TP-1 complet dans la section C."
+    },
+    {
+      "code": "ON",
+      "name_fr": "Ontario",
+      "form": "ON428",
+      "bpa_2025": 11865,
+      "brackets": [
+        {
+          "up_to": 52886,
+          "rate": 0.0505
+        },
+        {
+          "up_to": 105775,
+          "rate": 0.0915
+        },
+        {
+          "up_to": 150000,
+          "rate": 0.1116
+        },
+        {
+          "up_to": 220000,
+          "rate": 0.1216
+        }
+      ],
+      "top_rate": 0.1316,
+      "notes": "Surtaxe provinciale pour les revenus élevés (calculée sur l'impôt de base — non incluse dans l'estimation). Contribution-santé de l'Ontario de 0 $ à 750 $ selon le revenu imposable — calculée automatiquement dans le résumé."
+    },
+    {
+      "code": "AB",
+      "name_fr": "Alberta",
+      "form": "AB428",
+      "bpa_2025": 22323,
+      "brackets": [
+        {
+          "up_to": 60000,
+          "rate": 0.08
+        },
+        {
+          "up_to": 151234,
+          "rate": 0.1
+        },
+        {
+          "up_to": 181481,
+          "rate": 0.12
+        },
+        {
+          "up_to": 241974,
+          "rate": 0.13
+        },
+        {
+          "up_to": 362961,
+          "rate": 0.14
+        }
+      ],
+      "top_rate": 0.15,
+      "notes": "Crédit pour dons : 60 % sur les premiers 200 $ et 21 % sur l'excédent (spécificité albertaine). Montant personnel de base 2025 : 22 323 $ (ARC)."
+    },
+    {
+      "code": "BC",
+      "name_fr": "Colombie-Britannique",
+      "form": "BC428",
+      "bpa_2025": 12193,
+      "brackets": [
+        {
+          "up_to": 49279,
+          "rate": 0.0506
+        },
+        {
+          "up_to": 98560,
+          "rate": 0.077
+        },
+        {
+          "up_to": 113158,
+          "rate": 0.105
+        },
+        {
+          "up_to": 137407,
+          "rate": 0.1229
+        },
+        {
+          "up_to": 186306,
+          "rate": 0.147
+        },
+        {
+          "up_to": 259829,
+          "rate": 0.168
+        }
+      ],
+      "top_rate": 0.205,
+      "notes": "7 paliers d'imposition. La taxe-santé des employeurs (EHT) ne concerne que les employeurs."
+    },
+    {
+      "code": "MB",
+      "name_fr": "Manitoba",
+      "form": "MB428",
+      "bpa_2025": 15780,
+      "brackets": [
+        {
+          "up_to": 47564,
+          "rate": 0.108
+        },
+        {
+          "up_to": 101200,
+          "rate": 0.1275
+        }
+      ],
+      "top_rate": 0.174,
+      "notes": "3 paliers d'imposition."
+    },
+    {
+      "code": "SK",
+      "name_fr": "Saskatchewan",
+      "form": "SK428",
+      "bpa_2025": 18491,
+      "brackets": [
+        {
+          "up_to": 53463,
+          "rate": 0.105
+        },
+        {
+          "up_to": 152750,
+          "rate": 0.125
+        }
+      ],
+      "top_rate": 0.145,
+      "notes": "3 paliers d'imposition."
+    },
+    {
+      "code": "NB",
+      "name_fr": "Nouveau-Brunswick",
+      "form": "NB428",
+      "bpa_2025": 13396,
+      "brackets": [
+        {
+          "up_to": 51305,
+          "rate": 0.094
+        },
+        {
+          "up_to": 102614,
+          "rate": 0.14
+        },
+        {
+          "up_to": 190060,
+          "rate": 0.16
+        }
+      ],
+      "top_rate": 0.195,
+      "notes": "4 paliers d'imposition."
+    },
+    {
+      "code": "NS",
+      "name_fr": "Nouvelle-Écosse",
+      "form": "NS428",
+      "bpa_2025": 11744,
+      "brackets": [
+        {
+          "up_to": 30507,
+          "rate": 0.0879
+        },
+        {
+          "up_to": 61015,
+          "rate": 0.1495
+        },
+        {
+          "up_to": 95883,
+          "rate": 0.1667
+        },
+        {
+          "up_to": 154650,
+          "rate": 0.175
+        }
+      ],
+      "top_rate": 0.21,
+      "notes": "5 paliers d'imposition."
+    },
+    {
+      "code": "PE",
+      "name_fr": "Île-du-Prince-Édouard",
+      "form": "PE428",
+      "bpa_2025": 14650,
+      "brackets": [
+        {
+          "up_to": 33328,
+          "rate": 0.095
+        },
+        {
+          "up_to": 64656,
+          "rate": 0.1347
+        },
+        {
+          "up_to": 105000,
+          "rate": 0.166
+        },
+        {
+          "up_to": 140000,
+          "rate": 0.1762
+        }
+      ],
+      "top_rate": 0.19,
+      "notes": "Surtaxe provinciale pour les revenus élevés (calculée sur l'impôt de base — non incluse dans l'estimation)."
+    },
+    {
+      "code": "NL",
+      "name_fr": "Terre-Neuve-et-Labrador",
+      "form": "NL428",
+      "bpa_2025": 11067,
+      "brackets": [
+        {
+          "up_to": 44192,
+          "rate": 0.087
+        },
+        {
+          "up_to": 88382,
+          "rate": 0.145
+        },
+        {
+          "up_to": 157792,
+          "rate": 0.158
+        },
+        {
+          "up_to": 220910,
+          "rate": 0.178
+        },
+        {
+          "up_to": 282214,
+          "rate": 0.198
+        },
+        {
+          "up_to": 564429,
+          "rate": 0.208
+        },
+        {
+          "up_to": 1128858,
+          "rate": 0.213
+        }
+      ],
+      "top_rate": 0.218,
+      "notes": "8 paliers d'imposition."
+    },
+    {
+      "code": "YT",
+      "name_fr": "Yukon",
+      "form": "YT428",
+      "bpa_2025": 16129,
+      "brackets": [
+        {
+          "up_to": 57375,
+          "rate": 0.064
+        },
+        {
+          "up_to": 114750,
+          "rate": 0.09
+        },
+        {
+          "up_to": 177882,
+          "rate": 0.109
+        },
+        {
+          "up_to": 500000,
+          "rate": 0.128
+        }
+      ],
+      "top_rate": 0.15,
+      "notes": "5 paliers d'imposition."
+    },
+    {
+      "code": "NT",
+      "name_fr": "Territoires du Nord-Ouest",
+      "form": "NT428",
+      "bpa_2025": 16129,
+      "brackets": [
+        {
+          "up_to": 51964,
+          "rate": 0.059
+        },
+        {
+          "up_to": 103930,
+          "rate": 0.086
+        },
+        {
+          "up_to": 168967,
+          "rate": 0.122
+        }
+      ],
+      "top_rate": 0.1405,
+      "notes": "4 paliers d'imposition."
+    },
+    {
+      "code": "NU",
+      "name_fr": "Nunavut",
+      "form": "NU428",
+      "bpa_2025": 16129,
+      "brackets": [
+        {
+          "up_to": 54707,
+          "rate": 0.04
+        },
+        {
+          "up_to": 109413,
+          "rate": 0.07
+        },
+        {
+          "up_to": 177881,
+          "rate": 0.09
+        }
+      ],
+      "top_rate": 0.115,
+      "notes": "4 paliers d'imposition."
+    }
+  ],
+  "segmentation_rules": [
+    "Ne jamais interpréter un numéro de case comme un montant (ex. « 024 048 » n'est pas 024,04 $).",
+    "Une case vide ne peut jamais absorber le montant d'une autre case : la recherche s'arrête au prochain repère de case.",
+    "L'année fiscale = l'année la plus fréquente sur le feuillet, pas la première (les redressements mentionnent d'autres années).",
+    "Les cents peuvent être imprimés dans une cellule adjacente (« 7,212 90 » = 7212.90 $, un seul montant).",
+    "Un feuillet combiné (ex. T5007 + relevé 5 dans le même PDF) se traite page par page : chaque page = un slip du dictionnaire.",
+    "T5007 case 10 → inclusion 14400 PUIS déduction 25000 (automatique). RL-5 case C → inclusion 148 PUIS déduction 295 (automatique).",
+    "T4A case 048 (honoraires) → revenu d'entreprise T2125 (13500), sauf indication contraire → 13000."
+  ]
+}
