@@ -6,6 +6,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import { getOcrProvider } from "@/lib/ocr/provider";
 import { getExtractor } from "@/lib/extractors/t4";
+import { syncOcrToEntries } from "@/lib/ocr-to-entries";
 import { extractVisibleUnknownFields } from "@/lib/extractors/generic";
 import {
   classifyTaxDocument,
@@ -227,6 +228,32 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       mappingEnabled: Boolean(extractor),
     });
 
+    // ── Sync OCR → incomeEntries / deductionEntries / creditEntries ──────────
+    // Utilise le dictionnaire (28 feuillets, 368 cases) pour mapper
+    // chaque case extraite vers la bonne entrée fiscale
+    let entriesCreated = 0;
+    if (extractionResult && extractionResult.fields.length > 0 && doc.taxReturnId) {
+      try {
+        const syncResult = await syncOcrToEntries({
+          extractionId: extraction.id,
+          documentId,
+          userId,
+          taxReturnId: doc.taxReturnId,
+          documentTypeCode: classification.documentTypeCode ?? uploadedTypeCode ?? "T4",
+          ocrText: ocrResult.fullText,
+        });
+        entriesCreated = syncResult.created;
+        if (syncResult.errors.length > 0) {
+          await writeAudit(documentId, userId, "document_sync_warnings", {
+            errors: syncResult.errors.slice(0, 5),
+          });
+        }
+      } catch (syncErr) {
+        // Le sync n'interrompt jamais le pipeline principal
+        console.warn("[pipeline] syncOcrToEntries failed:", syncErr);
+      }
+    }
+
     return {
       status: !guard.accepted ? "rejected" : needsHumanReview ? "needs_review" : "completed",
       extractionId: extraction.id,
@@ -234,7 +261,7 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       needsHumanReview,
       detectedType: classification.documentTypeCode ?? undefined,
       detectedYear: classification.detectedTaxYear,
-      entriesCreated: 0,
+      entriesCreated,
     };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : "Erreur inconnue";

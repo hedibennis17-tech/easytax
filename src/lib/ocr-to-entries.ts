@@ -219,7 +219,7 @@ export async function syncOcrToEntries(params: {
   }
 
   // Extraire toutes les cases via le dictionnaire (anti-double-comptage intégré)
-  const { extractAllBoxes } = await import("@/lib/ocr/dictionnaire");
+  // extractAllBoxes est importé statiquement en haut du fichier
   const boxes = extractAllBoxes(fullText, documentTypeCode);
 
   // Mapping case → catégorie EasyTax
