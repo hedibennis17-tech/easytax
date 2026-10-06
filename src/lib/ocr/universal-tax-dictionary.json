@@ -1,0 +1,1020 @@
+{
+  "dictionary": {
+    "id": "CA-TAX-OCR-UNIVERSAL",
+    "version": "2.0.0",
+    "country": "CA",
+    "scope": "pan_canadian",
+    "taxYear": 2025,
+    "supportedLanguages": ["fr", "en"],
+    "supportedJurisdictions": ["CA","AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"]
+  },
+
+  "taxConcepts": {
+    "employment_income":           { "category": "income",     "t1": ["10100"], "tp1": ["101"] },
+    "pension_income":              { "category": "income",     "t1": ["11500"], "tp1": ["111"] },
+    "cpp_oas_benefits":            { "category": "income",     "t1": ["11400"], "tp1": ["114"] },
+    "ei_benefits":                 { "category": "income",     "t1": ["11900"], "tp1": ["154"] },
+    "rrsp_income":                 { "category": "income",     "t1": ["12900"], "tp1": ["122"] },
+    "rrif_income":                 { "category": "income",     "t1": ["11500"], "tp1": ["111"] },
+    "dividends_eligible":          { "category": "income",     "t1": ["12000"], "tp1": ["128"] },
+    "dividends_ineligible":        { "category": "income",     "t1": ["12010"], "tp1": ["128"] },
+    "interest_income":             { "category": "income",     "t1": ["12100"], "tp1": ["130"] },
+    "capital_gains":               { "category": "income",     "t1": ["13200"], "tp1": ["139"] },
+    "self_employment":             { "category": "income",     "t1": ["13500"], "tp1": ["164"] },
+    "rental_income":               { "category": "income",     "t1": ["12600"], "tp1": ["168"] },
+    "workers_comp":                { "category": "income",     "t1": ["14400"], "tp1": ["148"] },
+    "social_assistance":           { "category": "income",     "t1": ["14500"], "tp1": ["147"] },
+    "scholarships":                { "category": "income",     "t1": ["13010"], "tp1": ["154"] },
+    "research_grants":             { "category": "income",     "t1": ["10400"], "tp1": ["154"] },
+    "other_income":                { "category": "income",     "t1": ["13000"], "tp1": ["154"] },
+    "fees_for_services":           { "category": "income",     "t1": ["13000"], "tp1": ["154"] },
+    "taxable_benefits":            { "category": "income",     "t1": ["10100"], "tp1": ["101"], "note": "included_in employment_income" },
+    "cpp_employee":                { "category": "deduction",  "t1": ["30800"], "tp1": ["206"] },
+    "ei_employee":                 { "category": "deduction",  "t1": ["31200"], "tp1": ["307"] },
+    "rrq_employee":                { "category": "deduction",  "t1": ["30800"], "tp1": ["206"] },
+    "rqap_employee":               { "category": "deduction",  "t1": ["31205"], "tp1": ["375"] },
+    "union_dues":                  { "category": "deduction",  "t1": ["21200"], "tp1": ["207"] },
+    "rrsp_contribution":           { "category": "deduction",  "t1": ["20800"], "tp1": ["214"] },
+    "childcare":                   { "category": "deduction",  "t1": ["21400"], "tp1": ["381"] },
+    "moving_expenses":             { "category": "deduction",  "t1": ["21900"], "tp1": ["228"] },
+    "student_loan_interest":       { "category": "deduction",  "t1": ["31900"], "tp1": ["385"] },
+    "tuition":                     { "category": "deduction",  "t1": ["32300"], "tp1": ["398"] },
+    "adjustment_workers_comp":     { "category": "deduction",  "t1": ["25000"], "tp1": ["358"] },
+    "federal_tax_withheld":        { "category": "withheld",   "t1": ["43700"], "tp1": [] },
+    "provincial_tax_withheld":     { "category": "withheld",   "t1": [],        "tp1": ["451"] },
+    "cpp_credit":                  { "category": "credit",     "t1": ["30800"], "tp1": ["206"] },
+    "ei_credit":                   { "category": "credit",     "t1": ["31200"], "tp1": ["307"] },
+    "dividend_tax_credit":         { "category": "credit",     "t1": ["40425"], "tp1": ["415"] },
+    "foreign_tax_credit":          { "category": "credit",     "t1": ["40500"], "tp1": ["409"] },
+    "disability_credit":           { "category": "credit",     "t1": ["31800"], "tp1": ["376"] },
+    "donations_credit":            { "category": "credit",     "t1": ["34900"], "tp1": ["395"] },
+    "work_premium_credit":         { "category": "credit",     "t1": [],        "tp1": ["456"] }
+  },
+
+  "documents": {
+
+    "T4": {
+      "code": "T4",
+      "nameFr": "État de la rémunération payée",
+      "nameEn": "Statement of Remuneration Paid",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "employment_slip",
+      "taxYears": [2023, 2024, 2025],
+      "anchors": ["T4", "Statement of Remuneration Paid", "État de la rémunération payée", "Revenus d'emploi", "Employment income"],
+      "identityFields": ["employerName", "employerBN", "recipientName", "recipientSIN"],
+      "fields": [
+        "CA.FED.T4.14","CA.FED.T4.16","CA.FED.T4.17","CA.FED.T4.18","CA.FED.T4.20",
+        "CA.FED.T4.22","CA.FED.T4.24","CA.FED.T4.26","CA.FED.T4.28","CA.FED.T4.30",
+        "CA.FED.T4.32","CA.FED.T4.34","CA.FED.T4.36","CA.FED.T4.38","CA.FED.T4.40",
+        "CA.FED.T4.42","CA.FED.T4.44","CA.FED.T4.46","CA.FED.T4.50","CA.FED.T4.52",
+        "CA.FED.T4.54","CA.FED.T4.55","CA.FED.T4.56","CA.FED.T4.57","CA.FED.T4.58",
+        "CA.FED.T4.59","CA.FED.T4.60","CA.FED.T4.61","CA.FED.T4.62","CA.FED.T4.71","CA.FED.T4.72"
+      ]
+    },
+
+    "T4A": {
+      "code": "T4A",
+      "nameFr": "État du revenu de pension, de retraite, de rentes et d'autres sources",
+      "nameEn": "Statement of Pension, Retirement, Annuity, and Other Income",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "pension_slip",
+      "taxYears": [2023, 2024, 2025],
+      "anchors": ["T4A", "Statement of Pension, Retirement, Annuity", "État du revenu de pension"],
+      "identityFields": ["payerName", "payerPAN", "recipientName", "recipientSIN"],
+      "fields": [
+        "CA.FED.T4A.016","CA.FED.T4A.018","CA.FED.T4A.020","CA.FED.T4A.022","CA.FED.T4A.024",
+        "CA.FED.T4A.028","CA.FED.T4A.030","CA.FED.T4A.032","CA.FED.T4A.034","CA.FED.T4A.040",
+        "CA.FED.T4A.042","CA.FED.T4A.046","CA.FED.T4A.048","CA.FED.T4A.104","CA.FED.T4A.105",
+        "CA.FED.T4A.106","CA.FED.T4A.107","CA.FED.T4A.109","CA.FED.T4A.117","CA.FED.T4A.118",
+        "CA.FED.T4A.119","CA.FED.T4A.127","CA.FED.T4A.131","CA.FED.T4A.133","CA.FED.T4A.134",
+        "CA.FED.T4A.135","CA.FED.T4A.150","CA.FED.T4A.154","CA.FED.T4A.210"
+      ]
+    },
+
+    "T4A_OAS": {
+      "code": "T4A(OAS)",
+      "nameFr": "État des prestations de la Sécurité de la vieillesse",
+      "nameEn": "Statement of Old Age Security",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "government_benefits",
+      "anchors": ["T4A(OAS)", "Old Age Security", "Sécurité de la vieillesse", "OAS"],
+      "fields": ["CA.FED.T4AOAS.018","CA.FED.T4AOAS.022","CA.FED.T4AOAS.024"]
+    },
+
+    "T4A_P": {
+      "code": "T4A(P)",
+      "nameFr": "État des prestations du Régime de pensions du Canada",
+      "nameEn": "Statement of Canada Pension Plan Benefits",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "government_benefits",
+      "anchors": ["T4A(P)", "Canada Pension Plan", "Régime de pensions du Canada", "CPP", "RPC"],
+      "fields": ["CA.FED.T4AP.016","CA.FED.T4AP.018","CA.FED.T4AP.020","CA.FED.T4AP.022"]
+    },
+
+    "T4E": {
+      "code": "T4E",
+      "nameFr": "État des prestations d'assurance-emploi et autres prestations",
+      "nameEn": "Statement of Employment Insurance and Other Benefits",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "government_benefits",
+      "anchors": ["T4E", "Employment Insurance", "Assurance-emploi", "EI benefits"],
+      "fields": ["CA.FED.T4E.014","CA.FED.T4E.015","CA.FED.T4E.016","CA.FED.T4E.017","CA.FED.T4E.020","CA.FED.T4E.021","CA.FED.T4E.022"]
+    },
+
+    "T4RSP": {
+      "code": "T4RSP",
+      "nameFr": "État du revenu d'un régime enregistré d'épargne-retraite",
+      "nameEn": "Statement of RRSP Income",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "retirement_slip",
+      "anchors": ["T4RSP", "RRSP Income", "REER", "régime enregistré d'épargne-retraite"],
+      "fields": ["CA.FED.T4RSP.016","CA.FED.T4RSP.018","CA.FED.T4RSP.020","CA.FED.T4RSP.022","CA.FED.T4RSP.024","CA.FED.T4RSP.026","CA.FED.T4RSP.028","CA.FED.T4RSP.030","CA.FED.T4RSP.032","CA.FED.T4RSP.034"]
+    },
+
+    "T4RIF": {
+      "code": "T4RIF",
+      "nameFr": "État du revenu d'un fonds enregistré de revenu de retraite",
+      "nameEn": "Statement of Income from a Registered Retirement Income Fund",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "retirement_slip",
+      "anchors": ["T4RIF", "RRIF", "FERR", "fonds enregistré de revenu de retraite"],
+      "fields": ["CA.FED.T4RIF.016","CA.FED.T4RIF.018","CA.FED.T4RIF.020","CA.FED.T4RIF.022","CA.FED.T4RIF.024","CA.FED.T4RIF.026"]
+    },
+
+    "T5": {
+      "code": "T5",
+      "nameFr": "État des revenus de placements",
+      "nameEn": "Statement of Investment Income",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "investment_slip",
+      "anchors": ["T5", "Statement of Investment Income", "revenus de placements", "investment income"],
+      "fields": ["CA.FED.T5.010","CA.FED.T5.011","CA.FED.T5.012","CA.FED.T5.013","CA.FED.T5.014","CA.FED.T5.015","CA.FED.T5.016","CA.FED.T5.017","CA.FED.T5.018","CA.FED.T5.024","CA.FED.T5.025","CA.FED.T5.026"]
+    },
+
+    "T3": {
+      "code": "T3",
+      "nameFr": "État des revenus de fiducie répartis ou attribués à un bénéficiaire",
+      "nameEn": "Statement of Trust Income Allocations and Designations",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "trust_slip",
+      "anchors": ["T3", "Trust Income", "revenu de fiducie", "Statement of Trust"],
+      "fields": ["CA.FED.T3.020","CA.FED.T3.021","CA.FED.T3.023","CA.FED.T3.026","CA.FED.T3.030","CA.FED.T3.032","CA.FED.T3.033","CA.FED.T3.039","CA.FED.T3.049","CA.FED.T3.052"]
+    },
+
+    "T5007": {
+      "code": "T5007",
+      "nameFr": "État des prestations",
+      "nameEn": "Statement of Benefits",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "government_benefits",
+      "anchors": ["T5007", "Statement of Benefits", "État des prestations", "workers compensation", "indemnités"],
+      "fields": ["CA.FED.T5007.010","CA.FED.T5007.011"]
+    },
+
+    "T5008": {
+      "code": "T5008",
+      "nameFr": "État des opérations sur titres",
+      "nameEn": "Statement of Securities Transactions",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "capital_gains_slip",
+      "anchors": ["T5008", "Securities Transactions", "opérations sur titres"],
+      "fields": ["CA.FED.T5008.020","CA.FED.T5008.021","CA.FED.T5008.022","CA.FED.T5008.023","CA.FED.T5008.024"]
+    },
+
+    "T5013": {
+      "code": "T5013",
+      "nameFr": "État des revenus d'une société de personnes",
+      "nameEn": "Statement of Partnership Income",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "partnership_slip",
+      "anchors": ["T5013", "Partnership Income", "société de personnes"],
+      "fields": ["CA.FED.T5013.010","CA.FED.T5013.020","CA.FED.T5013.030"]
+    },
+
+    "T2202": {
+      "code": "T2202",
+      "nameFr": "Certificat pour frais de scolarité et d'inscription",
+      "nameEn": "Tuition and Enrolment Certificate",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "education_slip",
+      "anchors": ["T2202", "Tuition", "frais de scolarité", "Enrolment Certificate"],
+      "fields": ["CA.FED.T2202.260","CA.FED.T2202.261","CA.FED.T2202.262","CA.FED.T2202.263"]
+    },
+
+    "RECU_REER": {
+      "code": "RECU-REER",
+      "nameFr": "Reçu de cotisation REER",
+      "nameEn": "RRSP Contribution Receipt",
+      "authority": "CRA",
+      "government": "federal",
+      "jurisdiction": "CA",
+      "category": "rrsp_receipt",
+      "anchors": ["RRSP", "REER", "contribution receipt", "reçu de cotisation", "registered retirement savings"],
+      "fields": ["CA.FED.REER.amount","CA.FED.REER.period"]
+    },
+
+    "RL_1": {
+      "code": "RL-1",
+      "nameFr": "Revenus d'emploi et revenus divers",
+      "nameEn": "Employment and Other Income",
+      "authority": "Revenu Québec",
+      "government": "provincial",
+      "jurisdiction": "QC",
+      "category": "employment_slip",
+      "anchors": ["RL-1", "Relevé 1", "revenus d'emploi", "Revenu Québec", "RL 1"],
+      "fields": ["CA.QC.RL1.A","CA.QC.RL1.B","CA.QC.RL1.C","CA.QC.RL1.D","CA.QC.RL1.E","CA.QC.RL1.F","CA.QC.RL1.G","CA.QC.RL1.H","CA.QC.RL1.I","CA.QC.RL1.J","CA.QC.RL1.K","CA.QC.RL1.L","CA.QC.RL1.M","CA.QC.RL1.N","CA.QC.RL1.O","CA.QC.RL1.P","CA.QC.RL1.Q","CA.QC.RL1.R","CA.QC.RL1.S","CA.QC.RL1.T","CA.QC.RL1.U","CA.QC.RL1.V","CA.QC.RL1.W"]
+    },
+
+    "RL_2": {
+      "code": "RL-2",
+      "nameFr": "Revenus de retraite et rentes",
+      "nameEn": "Retirement and Annuity Income",
+      "authority": "Revenu Québec",
+      "government": "provincial",
+      "jurisdiction": "QC",
+      "category": "pension_slip",
+      "anchors": ["RL-2", "Relevé 2", "revenus de retraite", "retraite et rentes"],
+      "fields": ["CA.QC.RL2.A","CA.QC.RL2.B","CA.QC.RL2.C","CA.QC.RL2.D","CA.QC.RL2.E","CA.QC.RL2.F","CA.QC.RL2.G","CA.QC.RL2.H"]
+    },
+
+    "RL_3": {
+      "code": "RL-3",
+      "nameFr": "Revenus de placements",
+      "nameEn": "Investment Income",
+      "authority": "Revenu Québec",
+      "government": "provincial",
+      "jurisdiction": "QC",
+      "category": "investment_slip",
+      "anchors": ["RL-3", "Relevé 3", "revenus de placements", "intérêts"],
+      "fields": ["CA.QC.RL3.A","CA.QC.RL3.B","CA.QC.RL3.C","CA.QC.RL3.D","CA.QC.RL3.E","CA.QC.RL3.F","CA.QC.RL3.G"]
+    },
+
+    "RL_5": {
+      "code": "RL-5",
+      "nameFr": "Prestations et indemnités",
+      "nameEn": "Benefits and Indemnities",
+      "authority": "Revenu Québec",
+      "government": "provincial",
+      "jurisdiction": "QC",
+      "category": "government_benefits",
+      "anchors": ["RL-5","Relevé 5","Prestations et indemnités","CNESST","SAAQ","Commission des normes","Redressement pour indemnités","Commission des normes de l'équité"],
+      "fields": ["CA.QC.RL5.A","CA.QC.RL5.B","CA.QC.RL5.C","CA.QC.RL5.D","CA.QC.RL5.E","CA.QC.RL5.H","CA.QC.RL5.I","CA.QC.RL5.J","CA.QC.RL5.K","CA.QC.RL5.M","CA.QC.RL5.O","CA.QC.RL5.P","CA.QC.RL5.R","CA.QC.RL5.S"]
+    },
+
+    "RL_6": {
+      "code": "RL-6",
+      "nameFr": "Régime québécois d'assurance parentale",
+      "nameEn": "Québec Parental Insurance Plan",
+      "authority": "Revenu Québec",
+      "government": "provincial",
+      "jurisdiction": "QC",
+      "category": "government_benefits",
+      "anchors": ["RL-6","Relevé 6","RQAP","assurance parentale","parental insurance"],
+      "fields": ["CA.QC.RL6.A","CA.QC.RL6.B","CA.QC.RL6.C"]
+    },
+
+    "RL_8": {
+      "code": "RL-8",
+      "nameFr": "Frais de scolarité et d'examen",
+      "nameEn": "Tuition and Examination Fees",
+      "authority": "Revenu Québec",
+      "government": "provincial",
+      "jurisdiction": "QC",
+      "category": "education_slip",
+      "anchors": ["RL-8","Relevé 8","frais de scolarité","frais d'examen"],
+      "fields": ["CA.QC.RL8.A","CA.QC.RL8.B","CA.QC.RL8.C"]
+    },
+
+    "RL_15": {
+      "code": "RL-15",
+      "nameFr": "Revenus d'une société de personnes",
+      "nameEn": "Partnership Income",
+      "authority": "Revenu Québec",
+      "government": "provincial",
+      "jurisdiction": "QC",
+      "category": "partnership_slip",
+      "anchors": ["RL-15","Relevé 15","société de personnes"],
+      "fields": ["CA.QC.RL15.A","CA.QC.RL15.B","CA.QC.RL15.C"]
+    },
+
+    "RL_16": {
+      "code": "RL-16",
+      "nameFr": "Revenus de fiducie",
+      "nameEn": "Trust Income",
+      "authority": "Revenu Québec",
+      "government": "provincial",
+      "jurisdiction": "QC",
+      "category": "trust_slip",
+      "anchors": ["RL-16","Relevé 16","revenus de fiducie","trust"],
+      "fields": ["CA.QC.RL16.A","CA.QC.RL16.B","CA.QC.RL16.C","CA.QC.RL16.D","CA.QC.RL16.E"]
+    },
+
+    "RL_22": {
+      "code": "RL-22",
+      "nameFr": "Gains en capital imposables résultant de l'aliénation de biens",
+      "nameEn": "Taxable Capital Gains from Property Disposition",
+      "authority": "Revenu Québec",
+      "government": "provincial",
+      "jurisdiction": "QC",
+      "category": "capital_gains_slip",
+      "anchors": ["RL-22","Relevé 22","gains en capital","aliénation"],
+      "fields": ["CA.QC.RL22.A","CA.QC.RL22.B"]
+    },
+
+    "RL_24": {
+      "code": "RL-24",
+      "nameFr": "Frais de garde d'enfants",
+      "nameEn": "Childcare Expenses",
+      "authority": "Revenu Québec",
+      "government": "provincial",
+      "jurisdiction": "QC",
+      "category": "childcare_slip",
+      "anchors": ["RL-24","Relevé 24","frais de garde","garderie","childcare"],
+      "fields": ["CA.QC.RL24.A","CA.QC.RL24.B","CA.QC.RL24.C"]
+    },
+
+    "RL_25": {
+      "code": "RL-25",
+      "nameFr": "Revenus et dépenses de location d'immeubles",
+      "nameEn": "Rental Income and Expenses",
+      "authority": "Revenu Québec",
+      "government": "provincial",
+      "jurisdiction": "QC",
+      "category": "rental_slip",
+      "anchors": ["RL-25","Relevé 25","revenus de location","location d'immeubles"],
+      "fields": ["CA.QC.RL25.A","CA.QC.RL25.B","CA.QC.RL25.C","CA.QC.RL25.D"]
+    },
+
+    "RL_31": {
+      "code": "RL-31",
+      "nameFr": "Renseignements sur l'occupation d'un logement",
+      "nameEn": "Information About Occupancy of a Dwelling",
+      "authority": "Revenu Québec",
+      "government": "provincial",
+      "jurisdiction": "QC",
+      "category": "housing_slip",
+      "anchors": ["RL-31","Relevé 31","occupation d'un logement","loyer","logement"],
+      "fields": ["CA.QC.RL31.A","CA.QC.RL31.B","CA.QC.RL31.C"]
+    }
+  },
+
+  "fields": {
+
+    "CA.FED.T4.14": {
+      "fieldId": "CA.FED.T4.14",
+      "document": "T4",
+      "box": "14",
+      "type": "money",
+      "labelFr": "Revenus d'emploi",
+      "labelEn": "Employment income",
+      "keywordsFr": ["revenus d'emploi","revenu d'emploi","rémunération","emploi","case 14"],
+      "keywordsEn": ["employment income","employment","remuneration","box 14"],
+      "ocrAliases": ["14","I4","l4","1 4","box 14","case 14","box14","case14"],
+      "semanticConcept": "employment_income",
+      "taxMapping": { "t1": ["10100"], "tp1": ["101"] },
+      "includedIn": [],
+      "relatedFields": ["CA.FED.T4.40","CA.FED.T4.36"],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T4.16": {
+      "fieldId": "CA.FED.T4.16",
+      "document": "T4",
+      "box": "16",
+      "type": "money",
+      "labelFr": "Cotisations de l'employé au RPC",
+      "labelEn": "Employee's CPP contributions",
+      "keywordsFr": ["cotisations","rpc","régime de pensions","case 16"],
+      "keywordsEn": ["cpp contributions","employee contributions","box 16"],
+      "ocrAliases": ["16","box 16","case 16"],
+      "semanticConcept": "cpp_employee",
+      "taxMapping": { "t1": ["30800"], "tp1": [] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T4.17": {
+      "fieldId": "CA.FED.T4.17",
+      "document": "T4",
+      "box": "17",
+      "type": "money",
+      "labelFr": "Cotisations de l'employé au RPC — deuxième tranche",
+      "labelEn": "Employee's CPP2 contributions",
+      "keywordsFr": ["cotisations rpc 2","deuxième tranche","case 17"],
+      "keywordsEn": ["cpp2 contributions","box 17"],
+      "ocrAliases": ["17","box 17","case 17"],
+      "semanticConcept": "cpp_employee",
+      "taxMapping": { "t1": ["30801"], "tp1": [] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T4.18": {
+      "fieldId": "CA.FED.T4.18",
+      "document": "T4",
+      "box": "18",
+      "type": "money",
+      "labelFr": "Cotisations de l'employé à l'AE",
+      "labelEn": "Employee's EI premiums",
+      "keywordsFr": ["assurance-emploi","cotisations ae","primes ae","case 18"],
+      "keywordsEn": ["ei premiums","employment insurance","box 18"],
+      "ocrAliases": ["18","box 18","case 18"],
+      "semanticConcept": "ei_employee",
+      "taxMapping": { "t1": ["31200"], "tp1": [] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T4.22": {
+      "fieldId": "CA.FED.T4.22",
+      "document": "T4",
+      "box": "22",
+      "type": "money",
+      "labelFr": "Impôt sur le revenu retenu",
+      "labelEn": "Income tax deducted",
+      "keywordsFr": ["impôt retenu","impôt sur le revenu retenu","retenu à la source","case 22"],
+      "keywordsEn": ["income tax deducted","tax withheld","box 22"],
+      "ocrAliases": ["22","box 22","case 22"],
+      "semanticConcept": "federal_tax_withheld",
+      "taxMapping": { "t1": ["43700"], "tp1": [] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T4.24": {
+      "fieldId": "CA.FED.T4.24",
+      "document": "T4",
+      "box": "24",
+      "type": "money",
+      "labelFr": "Gains assurables d'AE",
+      "labelEn": "EI insurable earnings",
+      "keywordsFr": ["gains assurables","case 24"],
+      "keywordsEn": ["ei insurable","insurable earnings","box 24"],
+      "ocrAliases": ["24","box 24","case 24"],
+      "semanticConcept": "other_income",
+      "taxMapping": { "t1": [], "tp1": [] },
+      "includedIn": ["CA.FED.T4.14"],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "info_only",
+      "confidenceRequired": 0.80
+    },
+
+    "CA.FED.T4.40": {
+      "fieldId": "CA.FED.T4.40",
+      "document": "T4",
+      "box": "40",
+      "type": "money",
+      "labelFr": "Autres avantages imposables",
+      "labelEn": "Other taxable allowances and benefits",
+      "keywordsFr": ["avantages imposables","autres avantages","case 40"],
+      "keywordsEn": ["taxable benefits","other benefits","box 40"],
+      "ocrAliases": ["40","box 40","case 40"],
+      "semanticConcept": "taxable_benefits",
+      "taxMapping": { "t1": ["10100"], "tp1": ["101"] },
+      "includedIn": ["CA.FED.T4.14"],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "skip_if_included",
+      "confidenceRequired": 0.80
+    },
+
+    "CA.FED.T4.44": {
+      "fieldId": "CA.FED.T4.44",
+      "document": "T4",
+      "box": "44",
+      "type": "money",
+      "labelFr": "Cotisations syndicales",
+      "labelEn": "Union dues",
+      "keywordsFr": ["cotisations syndicales","syndicat","case 44"],
+      "keywordsEn": ["union dues","union fees","box 44"],
+      "ocrAliases": ["44","box 44","case 44"],
+      "semanticConcept": "union_dues",
+      "taxMapping": { "t1": ["21200"], "tp1": ["207"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T4.46": {
+      "fieldId": "CA.FED.T4.46",
+      "document": "T4",
+      "box": "46",
+      "type": "money",
+      "labelFr": "Dons de bienfaisance",
+      "labelEn": "Charitable donations",
+      "keywordsFr": ["dons de bienfaisance","charité","case 46"],
+      "keywordsEn": ["charitable donations","charity","box 46"],
+      "ocrAliases": ["46","box 46","case 46"],
+      "semanticConcept": "donations_credit",
+      "taxMapping": { "t1": ["34900"], "tp1": ["395"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.80
+    },
+
+    "CA.FED.T4.52": {
+      "fieldId": "CA.FED.T4.52",
+      "document": "T4",
+      "box": "52",
+      "type": "money",
+      "labelFr": "Facteur d'équivalence",
+      "labelEn": "Pension adjustment",
+      "keywordsFr": ["facteur d'équivalence","case 52"],
+      "keywordsEn": ["pension adjustment","box 52"],
+      "ocrAliases": ["52","box 52","case 52"],
+      "semanticConcept": "other_income",
+      "taxMapping": { "t1": ["52"], "tp1": [] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "info_only",
+      "confidenceRequired": 0.80
+    },
+
+    "CA.FED.T4A.016": {
+      "fieldId": "CA.FED.T4A.016",
+      "document": "T4A",
+      "box": "016",
+      "type": "money",
+      "labelFr": "Prestations de retraite ou autres pensions",
+      "labelEn": "Pension or superannuation",
+      "keywordsFr": ["016","pension retraite","pension ou rente","prestations de retraite"],
+      "keywordsEn": ["016","pension superannuation","016 pension","pension or superannuation"],
+      "ocrAliases": ["016","16","box 016","case 016"],
+      "semanticConcept": "pension_income",
+      "taxMapping": { "t1": ["11500"], "tp1": ["111"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T4A.022": {
+      "fieldId": "CA.FED.T4A.022",
+      "document": "T4A",
+      "box": "022",
+      "type": "money",
+      "labelFr": "Impôt sur le revenu retenu",
+      "labelEn": "Income tax deducted",
+      "keywordsFr": ["022","impôt retenu","impôt sur le revenu"],
+      "keywordsEn": ["022","income tax deducted","tax withheld"],
+      "ocrAliases": ["022","22","box 022","case 022"],
+      "semanticConcept": "federal_tax_withheld",
+      "taxMapping": { "t1": ["43700"], "tp1": [] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T4A.048": {
+      "fieldId": "CA.FED.T4A.048",
+      "document": "T4A",
+      "box": "048",
+      "type": "money",
+      "labelFr": "Honoraires ou autres sommes pour services rendus",
+      "labelEn": "Fees for services",
+      "keywordsFr": ["048","honoraires","sommes pour services","services rendus"],
+      "keywordsEn": ["048","fees for services","048 fees","other amounts for services"],
+      "ocrAliases": ["048","48","box 048","case 048"],
+      "semanticConcept": "fees_for_services",
+      "taxMapping": { "t1": ["13000"], "tp1": ["154"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T4A.105": {
+      "fieldId": "CA.FED.T4A.105",
+      "document": "T4A",
+      "box": "105",
+      "type": "money",
+      "labelFr": "Bourses d'études, de perfectionnement et d'entretien",
+      "labelEn": "Scholarships, fellowships, bursaries, and prizes",
+      "keywordsFr": ["105","bourses études","bourses perfectionnement","fellowships"],
+      "keywordsEn": ["105","scholarships","fellowships","bursaries","105 scholarship"],
+      "ocrAliases": ["105","box 105","case 105"],
+      "semanticConcept": "scholarships",
+      "taxMapping": { "t1": ["13010"], "tp1": ["154"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T5.011": {
+      "fieldId": "CA.FED.T5.011",
+      "document": "T5",
+      "box": "11",
+      "type": "money",
+      "labelFr": "Dividendes déterminés imposables",
+      "labelEn": "Taxable amount of eligible dividends",
+      "keywordsFr": ["dividendes déterminés","dividendes imposables","case 11"],
+      "keywordsEn": ["eligible dividends","taxable dividends","box 11"],
+      "ocrAliases": ["11","box 11","case 11"],
+      "semanticConcept": "dividends_eligible",
+      "taxMapping": { "t1": ["12000"], "tp1": ["128"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T5.013": {
+      "fieldId": "CA.FED.T5.013",
+      "document": "T5",
+      "box": "13",
+      "type": "money",
+      "labelFr": "Intérêts de source canadienne",
+      "labelEn": "Interest from Canadian sources",
+      "keywordsFr": ["intérêts","source canadienne","case 13"],
+      "keywordsEn": ["interest","canadian sources","box 13"],
+      "ocrAliases": ["13","box 13","case 13"],
+      "semanticConcept": "interest_income",
+      "taxMapping": { "t1": ["12100"], "tp1": ["130"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T5007.010": {
+      "fieldId": "CA.FED.T5007.010",
+      "document": "T5007",
+      "box": "10",
+      "type": "money",
+      "labelFr": "Indemnités pour accident du travail",
+      "labelEn": "Workers' compensation benefits",
+      "keywordsFr": ["indemnités accident","accident du travail","case 10","workers comp"],
+      "keywordsEn": ["workers compensation","work injury","box 10"],
+      "ocrAliases": ["10","box 10","case 10"],
+      "semanticConcept": "workers_comp",
+      "taxMapping": { "t1": ["14400","25000"], "tp1": ["148","358"] },
+      "includedIn": [],
+      "autoDeduction": "25000",
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.FED.T2202.260": {
+      "fieldId": "CA.FED.T2202.260",
+      "document": "T2202",
+      "box": "260",
+      "type": "money",
+      "labelFr": "Total des frais de scolarité admissibles — temps plein",
+      "labelEn": "Total eligible tuition fees — full-time",
+      "keywordsFr": ["frais de scolarité","temps plein","case 260"],
+      "keywordsEn": ["tuition fees","full-time","box 260"],
+      "ocrAliases": ["260","box 260","case 260"],
+      "semanticConcept": "tuition",
+      "taxMapping": { "t1": ["32300"], "tp1": ["398"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.QC.RL1.A": {
+      "fieldId": "CA.QC.RL1.A",
+      "document": "RL-1",
+      "box": "A",
+      "type": "money",
+      "labelFr": "Revenus d'emploi",
+      "labelEn": "Employment income",
+      "keywordsFr": ["case a","revenus d'emploi","revenu d'emploi","case A"],
+      "keywordsEn": ["box a","employment income","box A"],
+      "ocrAliases": ["A","case A","box A"],
+      "semanticConcept": "employment_income",
+      "taxMapping": { "t1": [], "tp1": ["101"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "use_federal_if_t4_present",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.QC.RL1.B": {
+      "fieldId": "CA.QC.RL1.B",
+      "document": "RL-1",
+      "box": "B",
+      "type": "money",
+      "labelFr": "Cotisations au RRQ",
+      "labelEn": "QPP contributions",
+      "keywordsFr": ["cotisations rrq","rrq","case b","case B"],
+      "keywordsEn": ["qpp contributions","box B","box b"],
+      "ocrAliases": ["B","case B","box B"],
+      "semanticConcept": "rrq_employee",
+      "taxMapping": { "t1": [], "tp1": ["206"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.QC.RL1.C": {
+      "fieldId": "CA.QC.RL1.C",
+      "document": "RL-1",
+      "box": "C",
+      "type": "money",
+      "labelFr": "Cotisations au RQAP",
+      "labelEn": "QPIP contributions",
+      "keywordsFr": ["cotisations rqap","rqap","assurance parentale","case c","case C"],
+      "keywordsEn": ["qpip contributions","parental insurance","box C"],
+      "ocrAliases": ["C","case C","box C"],
+      "semanticConcept": "rqap_employee",
+      "taxMapping": { "t1": [], "tp1": ["375"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.QC.RL1.E": {
+      "fieldId": "CA.QC.RL1.E",
+      "document": "RL-1",
+      "box": "E",
+      "type": "money",
+      "labelFr": "Impôt du Québec retenu",
+      "labelEn": "Québec income tax withheld",
+      "keywordsFr": ["impôt québec retenu","impôt provincial retenu","case e","case E"],
+      "keywordsEn": ["quebec tax withheld","provincial tax","box E"],
+      "ocrAliases": ["E","case E","box E"],
+      "semanticConcept": "provincial_tax_withheld",
+      "taxMapping": { "t1": [], "tp1": ["451"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.QC.RL5.C": {
+      "fieldId": "CA.QC.RL5.C",
+      "document": "RL-5",
+      "box": "C",
+      "type": "money",
+      "labelFr": "Indemnités de la CNESST",
+      "labelEn": "CNESST indemnities",
+      "keywordsFr": ["indemnités cnesst","cnesst","commission normes","accident travail","case c"],
+      "keywordsEn": ["cnesst","workers comp","box c"],
+      "ocrAliases": ["C","case C","box C"],
+      "semanticConcept": "workers_comp",
+      "taxMapping": { "t1": ["14400"], "tp1": ["148"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.85
+    },
+
+    "CA.QC.RL5.M": {
+      "fieldId": "CA.QC.RL5.M",
+      "document": "RL-5",
+      "box": "M",
+      "type": "money",
+      "labelFr": "Redressement pour indemnités reçues dans l'année",
+      "labelEn": "Adjustment for indemnities received in the year",
+      "keywordsFr": ["redressement","indemnités reçues","case m","case M"],
+      "keywordsEn": ["adjustment","indemnities received","box M"],
+      "ocrAliases": ["M","case M","box M"],
+      "semanticConcept": "adjustment_workers_comp",
+      "taxMapping": { "t1": ["25000"], "tp1": ["358"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.80
+    },
+
+    "CA.QC.RL5.O": {
+      "fieldId": "CA.QC.RL5.O",
+      "document": "RL-5",
+      "box": "O",
+      "type": "money",
+      "labelFr": "Redressement pour indemnités reçues pour des années passées",
+      "labelEn": "Adjustment for prior year indemnities",
+      "keywordsFr": ["redressement","années passées","indemnités années passées","case o","case O"],
+      "keywordsEn": ["prior year adjustment","box O"],
+      "ocrAliases": ["O","case O","box O"],
+      "semanticConcept": "adjustment_workers_comp",
+      "taxMapping": { "t1": ["25000"], "tp1": ["358"] },
+      "includedIn": [],
+      "nullable": true,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_distinct_documents",
+      "confidenceRequired": 0.80
+    },
+
+    "CA.FED.REER.amount": {
+      "fieldId": "CA.FED.REER.amount",
+      "document": "RECU-REER",
+      "box": "amount",
+      "type": "money",
+      "labelFr": "Montant de la cotisation REER",
+      "labelEn": "RRSP contribution amount",
+      "keywordsFr": ["montant cotisation","cotisation reer","reer","montant versé"],
+      "keywordsEn": ["rrsp contribution","amount contributed","contribution"],
+      "ocrAliases": ["amount","montant","contribution"],
+      "semanticConcept": "rrsp_contribution",
+      "taxMapping": { "t1": ["20800"], "tp1": ["214"] },
+      "includedIn": [],
+      "nullable": false,
+      "allowNegative": false,
+      "duplicatePolicy": "sum_all",
+      "confidenceRequired": 0.90
+    }
+  },
+
+  "identityExtraction": {
+    "employerName": {
+      "patternsFr": ["Nom du payeur","Nom de l'employeur","Nom et adresse de l'organisme","Nom de l'émetteur"],
+      "patternsEn": ["Payer's name","Employer's name","Issuer name"],
+      "type": "text",
+      "maxLength": 100
+    },
+    "employerBN": {
+      "patternsFr": ["Numéro de compte de programme","Numéro d'entreprise"],
+      "patternsEn": ["Business number","Program account number","BN"],
+      "type": "business_number",
+      "format": "^\\d{9}[A-Z]{2}\\d{4}$"
+    },
+    "recipientName": {
+      "patternsFr": ["Nom de famille","Prénom","Nom du bénéficiaire"],
+      "patternsEn": ["Last name","First name","Recipient name"],
+      "type": "text",
+      "maxLength": 100
+    },
+    "recipientSIN": {
+      "patternsFr": ["Numéro d'assurance sociale","NAS"],
+      "patternsEn": ["Social insurance number","SIN"],
+      "type": "sin",
+      "format": "^\\d{3}[\\s\\-]?\\d{3}[\\s\\-]?\\d{3}$"
+    },
+    "taxYear": {
+      "patternsFr": ["Année","Année d'imposition"],
+      "patternsEn": ["Year","Tax year"],
+      "type": "year",
+      "format": "^20\\d{2}$"
+    }
+  },
+
+  "ocrRules": {
+    "numeric": {
+      "commonConfusions": { "O":"0","I":"1","l":"1","S":"5","B":"8","Z":"2","G":"6" },
+      "formats": ["52340.25","52,340.25","52 340,25","52 340.25","52,340 25","$52,340.25"],
+      "ambiguousFormats": ["52 340 25"],
+      "ambiguousAction": "review"
+    },
+    "rejectPatterns": [
+      { "pattern": "[.,]\\d{3,}", "reason": "more_than_2_decimals" },
+      { "pattern": "^\\d{1,4}$", "reason": "looks_like_box_code_not_amount" }
+    ],
+    "minimumAmount": 0.01,
+    "maximumAmount": 9999999.99
+  },
+
+  "confidenceRules": {
+    "AUTO_ACCEPT": { "min": 0.95, "max": 1.0, "action": "auto_accept" },
+    "ACCEPT_OPTIONAL_REVIEW": { "min": 0.85, "max": 0.949, "action": "accept_with_flag" },
+    "REVIEW_REQUIRED": { "min": 0.70, "max": 0.849, "action": "hold_for_review" },
+    "MANUAL_REVIEW": { "min": 0.0, "max": 0.699, "action": "block_manual_required" }
+  },
+
+  "duplicateRules": {
+    "identityKeys": ["documentType","taxYear","issuer.businessNumber","recipient.sin"],
+    "secondaryKeys": ["serialNumber","referenceNumber"],
+    "contentHash": true,
+    "duplicateAction": "review",
+    "statuses": ["unique","possible_duplicate","confirmed_duplicate","replacement_document","amended_document"]
+  },
+
+  "unmappedFieldPolicy": {
+    "action": "preserve",
+    "status": "UNKNOWN_FIELD",
+    "requiresReview": true,
+    "neverDiscard": true
+  },
+
+  "unknownDocumentPolicy": {
+    "action": "MANUAL_CLASSIFICATION_REQUIRED",
+    "preserveRawFields": true,
+    "allowUserToSelectType": true
+  },
+
+  "returnStructures": {
+    "T1": {
+      "jurisdiction": "CA",
+      "authority": "CRA",
+      "lines": {
+        "10100": "employment_income",
+        "11400": "cpp_oas_benefits",
+        "11500": "pension_income",
+        "11900": "ei_benefits",
+        "12000": "dividends_eligible",
+        "12010": "dividends_ineligible",
+        "12100": "interest_income",
+        "12600": "rental_income",
+        "12900": "rrsp_income",
+        "13000": "other_income",
+        "13010": "scholarships",
+        "13200": "capital_gains",
+        "13500": "self_employment",
+        "14400": "workers_comp",
+        "14500": "social_assistance",
+        "20800": "rrsp_contribution",
+        "21200": "union_dues",
+        "25000": "adjustment_workers_comp",
+        "30800": "cpp_employee",
+        "31200": "ei_employee",
+        "34900": "donations_credit",
+        "43700": "federal_tax_withheld"
+      }
+    },
+    "TP1": {
+      "jurisdiction": "QC",
+      "authority": "Revenu Québec",
+      "lines": {
+        "101": "employment_income",
+        "111": "pension_income",
+        "114": "cpp_oas_benefits",
+        "128": "dividends_eligible",
+        "130": "interest_income",
+        "147": "social_assistance",
+        "148": "workers_comp",
+        "154": "other_income",
+        "164": "self_employment",
+        "168": "rental_income",
+        "206": "rrq_employee",
+        "207": "union_dues",
+        "214": "rrsp_contribution",
+        "307": "ei_employee",
+        "358": "adjustment_workers_comp",
+        "375": "rqap_employee",
+        "381": "childcare",
+        "395": "donations_credit",
+        "398": "tuition",
+        "415": "dividend_tax_credit",
+        "451": "provincial_tax_withheld",
+        "456": "work_premium_credit"
+      }
+    }
+  }
+}
