@@ -49,9 +49,34 @@ export async function POST(req: NextRequest) {
       province, postalCode: body.postal ? String(body.postal) : null,
       fiscalResidence,
       isCanadianCitizen: typeof body.canadaStatus === "string" ? body.canadaStatus.toLowerCase().includes("citoyen") : null,
-      isQuebecResident: fiscalResidence === "QC", pancanadianData: JSON.stringify(safeMetadata(body)),
+      isQuebecResident: fiscalResidence === "QC",
+      maritalStatus: (() => {
+        const m = String(body.marital ?? "").toLowerCase();
+        if (m.includes("mari") || m.includes("married")) return "married" as const;
+        if (m.includes("conjoint") || m.includes("common")) return "common_law" as const;
+        if (m.includes("sépar") || m.includes("separat")) return "separated" as const;
+        if (m.includes("divorc")) return "divorced" as const;
+        if (m.includes("veuf") || m.includes("widow")) return "widowed" as const;
+        return "single" as const;
+      })(),
+      pancanadianData: JSON.stringify(safeMetadata(body)),
     }).returning({ id: taxProfiles.id });
-    return NextResponse.json({ profileId: created.id, taxYearId: years[0]?.id ?? null, created: true });
+    // Créer automatiquement un taxReturn pour 2025
+    let taxReturnId: string | null = null;
+    if (created.id && years[0]?.id) {
+      try {
+        const { taxReturns } = await import("@/db/schema");
+        const [tr] = await db.insert(taxReturns).values({
+          profileId: created.id,
+          taxYearId: years[0].id,
+          status: "in_progress",
+          federalStatus: "draft",
+          quebecStatus: "draft",
+        }).returning({ id: taxReturns.id });
+        taxReturnId = tr.id;
+      } catch { /* taxReturn peut déjà exister */ }
+    }
+    return NextResponse.json({ profileId: created.id, taxYearId: years[0]?.id ?? null, taxReturnId, created: true });
   }
 
   const existingOrg = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.ownerUserId, clerkUserId)).limit(1);
