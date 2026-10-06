@@ -371,6 +371,21 @@ export default function DeclarationPage() {
     },
   ];
 
+  // Variables calculées — avant tout return (data peut être null)
+  const isQC        = data?.meta.isQC ?? false;
+  const fedBalance  = data?.summary.federal.balance ?? 0;
+  const provBalance = data?.summary.provincial.balance ?? 0;
+  const totalBalance = fedBalance + provBalance;
+  const t1Sections  = data ? buildT1Sections() : [];
+  const tp1Sections = data ? buildTp1Sections() : [];
+  const totalT1Filled  = t1Sections.reduce((s, sec) => s + sec.filledCount, 0);
+  const totalTp1Filled = tp1Sections.reduce((s, sec) => s + sec.filledCount, 0);
+  const TABS = [
+    { id: "resume" as const, label: T("📊 Résumé","📊 Summary") },
+    { id: "t1"     as const, label: `🇨🇦 T1 — Fédéral (${totalT1Filled})` },
+    ...(isQC ? [{ id: "tp1" as const, label: `⚜️ TP-1 — Québec (${totalTp1Filled})` }] : []),
+  ];
+
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "var(--bg-base,#f7f9f8)" }}>
@@ -383,21 +398,7 @@ export default function DeclarationPage() {
     </div>
   );
 
-  const isQC = data?.meta.isQC ?? false;
-  const fedBalance = data?.summary.federal.balance ?? 0;
-  const provBalance = data?.summary.provincial.balance ?? 0;
-  const totalBalance = fedBalance + provBalance;
-  const t1Sections  = buildT1Sections();
-  const tp1Sections = buildTp1Sections();
 
-  const totalT1Filled  = t1Sections.reduce((s, sec) => s + sec.filledCount, 0);
-  const totalTp1Filled = tp1Sections.reduce((s, sec) => s + sec.filledCount, 0);
-
-  const TABS = [
-    { id: "resume" as const, label: T("📊 Résumé","📊 Summary") },
-    { id: "t1"     as const, label: `🇨🇦 T1 — Fédéral (${totalT1Filled})` },
-    ...(isQC ? [{ id: "tp1" as const, label: `⚜️ TP-1 — Québec (${totalTp1Filled})` }] : []),
-  ];
 
   return (
     <div style={{ background: "var(--bg-base,#f7f9f8)", minHeight: "100vh" }}>
