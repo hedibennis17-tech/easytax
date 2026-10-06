@@ -164,14 +164,8 @@ export function extractSlipMetadata(ocrText: string): {
 
   // Nom employeur/payeur
   const employerPatterns = [
-    /(?:Payer'?s?\s+name|Nom\s+du\s+payeur|Employer'?s?\s+name|Nom\s+de\s+l'?employeur)[^
-]*
-([^
-]+)/i,
-    /(?:Nom\s+et\s+adresse\s+de\s+l'?organisme)[^
-]*
-([^
-]+)/i,
+    /(?:Payer.{0,3}name|Nom.{0,3}payeur|Employer.{0,3}name)\s*[:\-]?\s*([A-Za-z][^\n]{3,60})/i,
+    /(?:organisme|employeur)\s*[:\-]?\s*([A-Za-z][^\n]{3,60})/i,
   ];
   let employerName: string | null = null;
   for (const pat of employerPatterns) {
