@@ -473,6 +473,25 @@ function DocumentUploadSection({
   );
 }
 
+// ── MIGRATION v2: vider immédiatement les brouillons v1 ─────
+// S'exécute une seule fois au chargement du module, avant tout render
+if (typeof window !== "undefined") {
+  try {
+    const toDelete: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith("easytax_draft_")) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const p = JSON.parse(raw) as { version?: number };
+          if (!p.version || p.version < 2) toDelete.push(k);
+        }
+      }
+    }
+    toDelete.forEach(k => localStorage.removeItem(k));
+  } catch { /* silencieux */ }
+}
+
 // ── PAGE PRINCIPALE ────────────────────────────────────────────────────────
 export default function QuestionnairePage() {
   const router = useRouter();
