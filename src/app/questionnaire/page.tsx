@@ -473,6 +473,9 @@ function DocumentUploadSection({
   );
 }
 
+// ── Import RevenusSection ────────────────────────────────────
+import RevenusSection from "@/components/RevenusSection";
+
 // ── MIGRATION v2: vider immédiatement les brouillons v1 ─────
 // S'exécute une seule fois au chargement du module, avant tout render
 if (typeof window !== "undefined") {
@@ -855,42 +858,18 @@ export default function QuestionnairePage() {
           })}
         </div>
 
-        {/* ── ÉTAPE 4: REVENUS — upload OCR inline ─────────────── */}
+        {/* ── ÉTAPE 4: REVENUS — composant complet ─────────────── */}
         {triageDone && currentSection?.code === "revenus" && qIdx === 0 && (
-          <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "20px 16px", marginBottom: 12, boxShadow: "0 1px 8px rgba(0,0,0,0.04)" }}>
-            {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #dde8e5" }}>
-              <span style={{ fontSize: 24 }}>💰</span>
-              <div>
-                <div style={{ fontFamily: "Georgia,serif", fontSize: 16, fontWeight: 700, color: "#0f1f1e" }}>
-                  {lang === "en" ? "Step 4 — Income" : "Étape 4 — Revenus"}
-                </div>
-                <div style={{ fontSize: 11, color: "#7a9c97", marginTop: 2 }}>
-                  {lang === "en"
-                    ? "Upload your T4/RL-1/T5... slips. OCR extracts the amounts. Then answer the complementary questions."
-                    : "Uploadez vos feuillets T4/RL-1/T5... L'OCR extrait les montants. Répondez ensuite aux questions complémentaires."}
-                </div>
-              </div>
-            </div>
-
-            {/* Upload + OCR */}
-            <DocumentUploadSection
+          <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "16px", marginBottom: 12, boxShadow: "0 1px 8px rgba(0,0,0,0.04)" }}>
+            <RevenusSection
               lang={lang}
-              ocrSlips={ocrSlips}
-              onPipelineDone={(newAnswers) => {
-                setAnswers(prev => ({ ...newAnswers, ...prev }));
-                setOcrAnswers(prev => ({ ...prev, ...newAnswers }));
+              province={String(answers["t0"] ?? "QC")}
+              onComplete={(totalRevenueCents) => {
+                // Marquer les revenus comme validés et passer aux questions complémentaires
+                setAnswers(prev => ({ ...prev, revenus_validated: true, revenus_total_cents: totalRevenueCents }));
+                setQIdx(1);
               }}
             />
-
-            {/* Bouton passer aux questions complémentaires */}
-            <button
-              onClick={() => setQIdx(1)}
-              style={{ width: "100%", marginTop: 14, padding: "12px 0", borderRadius: 9, fontSize: 14, fontWeight: 700, background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer" }}>
-              {ocrSlips.filter(s => s.typeCode !== "OTHER" && s.fields.some(f => f.value && f.value.trim() !== "" && f.value !== "—")).length > 0
-                ? (lang === "en" ? "Slips validated → answer complementary questions" : "Feuillets validés → répondre aux questions complémentaires")
-                : (lang === "en" ? "No slips → continue to questions" : "Sans feuillets → continuer aux questions")}
-            </button>
           </div>
         )}
 
