@@ -299,7 +299,9 @@ export default function RevenusSection({
       update({ phase: "uploading", progress: 10, filename: file.name });
       const form = new FormData();
       form.append("file", file);
+      // Toujours envoyer le type choisi par l'user ET laisser autoDetect valider
       form.append("documentTypeCode", typeCode);
+      form.append("autoDetect", "true"); // EasyTax corrige si l'user se trompe de type
       const upRes = await fetch("/api/documents/upload", { method: "POST", body: form });
       const upText = await upRes.text();
       const upData = JSON.parse(upText || "{}") as { id?: string; existingDocumentId?: string; error?: string };
@@ -314,9 +316,16 @@ export default function RevenusSection({
       const ocrRes = await fetch(`/api/documents/${documentId}/process`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taxYear: 2025 }),
+        body: JSON.stringify({ 
+          taxYear: 2025,
+          autoDetect: true,        // laisser EasyTax détecter le bon type
+          selectedTypeCode: "AUTO" // pas de rejet si type différent
+        }),
       });
-      if (!ocrRes.ok) throw new Error("Échec OCR");
+      if (!ocrRes.ok) {
+        const ocrErr = await ocrRes.json().catch(() => ({ error: "Échec OCR" })) as { error?: string };
+        throw new Error(ocrErr.error ?? "Échec OCR");
+      }
 
       update({ progress: 80 });
 

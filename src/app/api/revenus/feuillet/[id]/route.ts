@@ -5,9 +5,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { fiscalDocuments, documentExtractions, extractionFields, documentTypes } from "@/db/schema";
+import { fiscalDocuments, documentExtractions, extractionFields, documentTypes, documentPages } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { getSlipDict, parseMontantOCR, getMappableBoxes } from "@/lib/ocr/dictionnaire";
+import { getSlipDict, parseMontantOCR, extractAllBoxes } from "@/lib/ocr/dictionnaire";
+import { getExtractor } from "@/lib/extractors/t4";
+import { db as _db } from "@/lib/db";
+import { documentPages as docPagesTable } from "@/db/schema";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth();
@@ -47,10 +50,30 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const slipDef = getSlipDict(slipCode);
   const allBoxes = slipDef?.boxes ?? [];
 
+  // Si extractionFields vide → extraire depuis le texte OCR en DB (documentPages)
+  let enrichedFields = fields;
+  if (fields.length === 0) {
+    const pages = await db.select({ ocrText: documentPages.ocrText })
+      .from(documentPages).where(eq(documentPages.documentId, documentId));
+    if (pages.length > 0 && pages[0].ocrText) {
+      const fullText = pages.map(p => p.ocrText ?? "").join("\n\n");
+      const boxes = extractAllBoxes(fullText, slipCode);
+      enrichedFields = boxes
+        .filter(b => b.rawValue)
+        .map(b => ({
+          code: `box_${b.code}`,
+          label: b.label_fr,
+          rawValue: b.rawValue,
+          validatedValue: b.rawValue,
+          confidence: b.confidence,
+        }));
+    }
+  }
+
   const cases = allBoxes.map(boxDef => {
     // Chercher la valeur extraite
     const candidates = [`box_${boxDef.code}`, `case_${boxDef.code}`, boxDef.code];
-    const extracted = fields.find(f => candidates.some(c =>
+    const extracted = enrichedFields.find(f => candidates.some(c =>
       f.code.toLowerCase() === c.toLowerCase()
     ));
     const rawValue = extracted?.validatedValue ?? extracted?.rawValue ?? null;
