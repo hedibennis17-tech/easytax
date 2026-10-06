@@ -729,17 +729,16 @@ export default function QuestionnairePage() {
     setSaving(true);
     resetInput();
 
-    // Sauvegarder le brouillon localement
+    // Écrire immédiatement le brouillon local : un clic arrière ou un
+    // changement de section ne doit jamais perdre la dernière réponse.
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    saveTimeout.current = setTimeout(() => {
-      saveDraftLocal(userId, TAX_YEAR, {
-        answers: newAnswers,
-        sectionIdx: secIdx,
-        questionIdx: qIdx + 1,
-        triageDone: triageQs.every(q => newAnswers[q.id] !== undefined),
-      });
-      setLastSaved("À l'instant");
-    }, 500);
+    saveDraftLocal(userId, TAX_YEAR, {
+      answers: newAnswers,
+      sectionIdx: secIdx,
+      questionIdx: qIdx + 1,
+      triageDone: triageQs.every(q => newAnswers[q.id] !== undefined),
+    });
+    setLastSaved("À l'instant");
 
     // Recalculer les questions après la réponse
     const newTriageDone = triageQs.every(q => newAnswers[q.id] !== undefined);

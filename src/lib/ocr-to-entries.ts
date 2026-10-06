@@ -188,8 +188,9 @@ export async function syncOcrToEntries(params: {
   taxReturnId: string;
   documentTypeCode: string;
   ocrText?: string;
+  replaceExisting?: boolean;
 }): Promise<{ created: number; skipped: number; errors: string[] }> {
-  const { extractionId, documentId, userId, taxReturnId, documentTypeCode, ocrText } = params;
+  const { extractionId, documentId, userId, taxReturnId, documentTypeCode, ocrText, replaceExisting = false } = params;
   const errors: string[] = [];
   let created = 0;
   let skipped = 0;
@@ -304,22 +305,49 @@ export async function syncOcrToEntries(params: {
             eq(incomeEntries.sourceDocumentId, documentId),
             eq(incomeEntries.category, mapping.category as IncomeCategory),
           )).limit(1);
-        if (existing.length > 0) { skipped++; continue; }
-
-        await db.insert(incomeEntries).values({
-          userId, taxProfileId, taxYearId, taxReturnId,
-          category: mapping.category as IncomeCategory,
-          sourceDocumentId: documentId,
-          sourceType: "validated_ocr",
-          amountCents: box.amountCents,
-          description: `${box.label_fr} (${documentTypeCode} case ${box.code})`,
-          isValidated: !box.hasCondition, // conditionnel = demande revue
-          updatedAt: now,
-        });
-        created++;
+        if (existing.length > 0) {
+          if (!replaceExisting) { skipped++; continue; }
+          await db.update(incomeEntries).set({
+            amountCents: box.amountCents,
+            description: `${box.label_fr} (${documentTypeCode} case ${box.code})`,
+            isValidated: !box.hasCondition,
+            updatedAt: now,
+          }).where(eq(incomeEntries.id, existing[0].id));
+          created++;
+        } else {
+          await db.insert(incomeEntries).values({
+            userId, taxProfileId, taxYearId, taxReturnId,
+            category: mapping.category as IncomeCategory,
+            sourceDocumentId: documentId,
+            sourceType: "validated_ocr",
+            amountCents: box.amountCents,
+            description: `${box.label_fr} (${documentTypeCode} case ${box.code})`,
+            isValidated: !box.hasCondition, // conditionnel = demande revue
+            updatedAt: now,
+          });
+          created++;
+        }
 
         // Déduction automatique (T5007 case 10 → ligne 25000)
         if (box.autoDeductionLine) {
+          const existingDeduction = await db.select({ id: deductionEntries.id })
+            .from(deductionEntries)
+            .where(and(
+              eq(deductionEntries.userId, userId),
+              eq(deductionEntries.taxReturnId, taxReturnId),
+              eq(deductionEntries.sourceDocumentId, documentId),
+              eq(deductionEntries.category, "other_deductions"),
+              eq(deductionEntries.description, `Déduction automatique (ligne ${box.autoDeductionLine}) — ${documentTypeCode} case ${box.code}`),
+            )).limit(1);
+          if (existingDeduction.length > 0) {
+            if (replaceExisting) {
+              await db.update(deductionEntries).set({ amountCents: box.amountCents, updatedAt: now })
+                .where(eq(deductionEntries.id, existingDeduction[0].id));
+              created++;
+            } else {
+              skipped++;
+            }
+          } else {
           await db.insert(deductionEntries).values({
             userId, taxProfileId, taxYearId, taxReturnId,
             category: "other_deductions" as DeductionCategory,
@@ -331,6 +359,7 @@ export async function syncOcrToEntries(params: {
             updatedAt: now,
           });
           created++;
+          }
         }
 
       } else if (mapping.entryType === "deduction") {

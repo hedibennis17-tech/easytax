@@ -262,6 +262,20 @@ export default function RevenusSection({
   const [showAllTypes, setShowAllTypes] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // L’état visuel du composant est recréé à chaque navigation de section.
+  // Recharger la source DB empêche de faire croire que les feuillets/revenus
+  // ont été supprimés lorsqu’on revient en arrière.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/revenus/feuillets")
+      .then(response => response.ok ? response.json() : null)
+      .then((payload: { feuillets?: FeuilletResult[] } | null) => {
+        if (!cancelled && payload?.feuillets) setConfirmedFeuillets(payload.feuillets);
+      })
+      .catch(() => { /* l’écran reste utilisable pour ajouter un feuillet */ });
+    return () => { cancelled = true; };
+  }, []);
+
   // Filtrer selon la province
   const visibleSlips = SLIP_CATALOG.filter(s => {
     if (s.group === "qc" && !isQC) return false;

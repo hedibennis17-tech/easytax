@@ -81,7 +81,9 @@ export async function GET() {
         confidence: extracted?.confidence ?? 0,
         hasValue: amountCents !== null && amountCents > 0,
         isRequired: boxDef.data_type === "money" && ["14","16","18","22","A","E"].includes(boxDef.code),
-        auto_deduction_line: boxDef.auto_deduction_line ?? null,
+        hasCondition: Boolean(boxDef.t1_line_condition),
+        includedIn: boxDef.included_in ?? null,
+        autoDeductionLine: boxDef.auto_deduction_line ?? null,
         notes: boxDef.notes ?? null,
       };
     });
