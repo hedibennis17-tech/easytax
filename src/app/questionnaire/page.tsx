@@ -522,13 +522,30 @@ export default function QuestionnairePage() {
   // Charger le brouillon au démarrage
   useEffect(() => {
     if (userId === "guest") return;
+
+    // ── MIGRATION v2: effacer tous les brouillons v1 (ancien workflow) ──
+    // Nouveau workflow: triage→profil→famille→revenus→déductions→crédits→province→déclaration
+    // L'ancien workflow (documents séparé, emploi/autonome/location séparés) est invalide
+    try {
+      const keysToDelete: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("easytax_draft_")) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const parsed = JSON.parse(raw) as { version?: number };
+            if (!parsed.version || parsed.version < 2) keysToDelete.push(k);
+          }
+        }
+      }
+      keysToDelete.forEach(k => localStorage.removeItem(k));
+      if (keysToDelete.length > 0) console.log(`[draft] Migration v2: ${keysToDelete.length} ancien(s) brouillon(s) effacé(s)`);
+    } catch { /* silencieux */ }
+
     const draft = loadDraftLocal(userId, TAX_YEAR);
     if (draft && draft.status === "in_progress" && Object.keys(draft.answers).length > 0) {
       setAnswers(draft.answers);
-      // Vérifier si t0 (province) est répondu — sinon forcer le retour au début du triage
-      // t0 est la nouvelle question province ajoutée au triage
       if (draft.answers["t0"] === undefined) {
-        // t0 manquant: reset au début — triage doit recommencer avec la province
         setSecIdx(0);
         setQIdx(0);
       } else {
