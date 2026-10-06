@@ -7,6 +7,9 @@ import { getExtractor } from "@/lib/extractors/t4";
 import { syncOcrToEntries } from "@/lib/ocr-to-entries";
 import { classifyTaxDocument } from "@/lib/document-intelligence/catalog";
 
+// GET pour appeler depuis le navigateur (même logique que POST)
+export async function GET(req: NextRequest) { return POST(req); }
+
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
