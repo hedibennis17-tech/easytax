@@ -23,7 +23,7 @@ export function saveDraftLocal(userId: string, taxYear: string, state: Partial<D
   try {
     const key = `${DRAFT_KEY_PREFIX}${userId}_${taxYear}`;
     const existing = loadDraftLocal(userId, taxYear) ?? {
-      version: 1, taxYear, userId, answers: {}, sectionIdx: 0, questionIdx: 0,
+      version: 2, taxYear, userId, answers: {}, sectionIdx: 0, questionIdx: 0,
       triageDone: false, lastSavedAt: new Date().toISOString(), status: "in_progress" as const,
     };
     const merged: DraftState = { ...existing, ...state, lastSavedAt: new Date().toISOString() };
@@ -37,7 +37,13 @@ export function loadDraftLocal(userId: string, taxYear: string): DraftState | nu
     const key = `${DRAFT_KEY_PREFIX}${userId}_${taxYear}`;
     const raw = localStorage.getItem(key);
     if (!raw) return null;
-    return JSON.parse(raw) as DraftState;
+    const draft = JSON.parse(raw) as DraftState;
+    // v2 = nouveau workflow 8 étapes. Invalider les anciens brouillons.
+    if (!draft.version || draft.version < 2) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return draft;
   } catch { return null; }
 }
 
