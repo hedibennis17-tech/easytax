@@ -43,6 +43,35 @@ export async function GET() {
         const ded = await db.select({ id: deductionEntries.id, category: deductionEntries.category, amountCents: deductionEntries.amountCents })
           .from(deductionEntries).where(eq(deductionEntries.taxReturnId, tr.id));
         steps.push(`✓ DeductionEntries: ${ded.length} entrées`);
+
+        // 4b. Documents fiscaux
+        const { fiscalDocuments, documentExtractions, extractionFields } = await import("@/db/schema");
+        const docs = await db.select({ 
+          id: fiscalDocuments.id, 
+          status: fiscalDocuments.status,
+          taxReturnId: fiscalDocuments.taxReturnId,
+        }).from(fiscalDocuments).where(eq(fiscalDocuments.userId, userId));
+        steps.push(`✓ FiscalDocuments: ${docs.length} documents (${docs.filter(d => d.taxReturnId === tr.id).length} liés à ce dossier)`);
+        diag.documents = docs;
+
+        // 4c. Extractions
+        let totalFields = 0;
+        for (const doc of docs) {
+          const [ext] = await db.select({ id: documentExtractions.id })
+            .from(documentExtractions).where(eq(documentExtractions.fiscalDocumentId, doc.id)).limit(1);
+          if (ext) {
+            const fields = await db.select({ code: extractionFields.fieldCode, value: extractionFields.rawOcrValue })
+              .from(extractionFields).where(eq(extractionFields.extractionId, ext.id));
+            totalFields += fields.length;
+          }
+        }
+        steps.push(`✓ ExtractionFields total: ${totalFields} champs extraits`);
+
+        // 4d. Diagnostic: pourquoi 0 incomeEntries?
+        if (inc.length === 0 && docs.length > 0) {
+          steps.push(`⚠ DIAGNOSTIC: ${docs.length} document(s) trouvé(s) mais 0 incomeEntries → sync OCR manquant`);
+          steps.push(`→ ACTION: appeler POST /api/resume/sync-from-docs pour lier les données`);
+        }
       }
     }
 
