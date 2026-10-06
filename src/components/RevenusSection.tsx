@@ -85,6 +85,7 @@ const SLIP_CATALOG = [
   { code: "T5008",    group: "fed", label: "T5008",      desc: "Opérations sur titres (gains en capital)", icon: "📉" },
   { code: "T2202",    group: "fed", label: "T2202",      desc: "Frais de scolarité", icon: "🎓" },
   { code: "RECU-REER",group: "fed", label: "Reçu REER",  desc: "Cotisation REER / CELIAPP", icon: "🏦" },
+  { code: "T5013",    group: "fed", label: "T5013",      desc: "Revenus d'une société de personnes (partenariat)", icon: "🤝" },
   // Québec
   { code: "RL-1",     group: "qc",  label: "RL-1",       desc: "Revenus d'emploi (Québec)", icon: "⚜️" },
   { code: "RL-2",     group: "qc",  label: "RL-2",       desc: "Revenus de retraite et rentes (QC)", icon: "⚜️" },
@@ -94,6 +95,11 @@ const SLIP_CATALOG = [
   { code: "RL-16",    group: "qc",  label: "RL-16",      desc: "Revenus de fiducie (QC)", icon: "⚜️" },
   { code: "RL-24",    group: "qc",  label: "RL-24",      desc: "Frais de garde d'enfants (QC)", icon: "⚜️" },
   { code: "RL-31",    group: "qc",  label: "RL-31",      desc: "Occupation d'un logement (QC)", icon: "⚜️" },
+  { code: "RL-6",     group: "qc",  label: "RL-6",       desc: "Régime québécois d'assurance parentale (RQAP autonome)", icon: "⚜️" },
+  { code: "RL-15",    group: "qc",  label: "RL-15",      desc: "Revenus d'une société de personnes (QC)", icon: "⚜️" },
+  { code: "RL-22",    group: "qc",  label: "RL-22",      desc: "Revenu d'emploi — assurance-salaire collectif (QC)", icon: "⚜️" },
+  { code: "RL-25",    group: "qc",  label: "RL-25",      desc: "Revenus d'un régime d'intéressement (QC)", icon: "⚜️" },
+  { code: "RL-27",    group: "qc",  label: "RL-27",      desc: "Paiements du gouvernement (QC)", icon: "⚜️" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
