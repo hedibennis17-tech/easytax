@@ -21,6 +21,11 @@ assert.equal(amount?.amountCents, 720132, "La case 10 T5007 doit préserver les 
 assert.equal(amount?.t1_line, "14400");
 assert.equal(amount?.autoDeductionLine, "25000");
 assert.equal(parseMontantOCR("7 201 32"), 720132, "Les cents séparés doivent être normalisés");
+const wholeDollar = extractAllBoxes("T5007 Statement of Benefits\n10 Workers' compensation benefits 7201", "T5007")
+  .find(box => box.code === "10");
+assert.equal(wholeDollar?.amountCents, 720100, "La case 10 T5007 doit accepter un montant entier de quatre chiffres");
+const social = extracted.find(box => box.code === "11");
+assert.equal(social?.t1_line, "14500", "La case 11 T5007 doit pointer vers la ligne T1 14500");
 assert.equal(SLIP_DICT.length, 28, "Les 28 feuillets du dictionnaire actif doivent rester disponibles");
 assert.ok(SUPPLIED_OCR_DICTIONARY_VERSION.length > 0, "La version du dictionnaire fourni doit être active");
 

@@ -155,8 +155,10 @@ export function parseMontantOCR(raw: string | null | undefined): number | null {
   }
   // Rejeter si plus de 2 décimales (ex: "1580,8016" = deux montants collés)
   if (/[.,]\d{3,}/.test(raw.replace(/\s/g, ""))) return null;
-  // Rejeter les codes de cases (ex: "024" sans décimale et < 5 chiffres)
-  if (/^\d{1,4}$/.test(s) && !s.includes(".")) return null;
+  // Rejeter les codes de cases isolés (ex: "024"), mais conserver un montant
+  // entier à quatre chiffres (ex: « 7201 ») : plusieurs T5007 n'impriment pas
+  // les cents et l'ancien seuil de 5 chiffres les supprimait à tort.
+  if (/^\d{1,3}$/.test(s) && !/[$€¥£,\.\s]/.test(visual)) return null;
   const num = parseFloat(s);
   // Rejeter < 1$ (codes de cases qui passent la regex) et > 9 999 999$
   if (isNaN(num) || num < 0.01 || num > 9_999_999) return null;
@@ -210,7 +212,7 @@ export function extractSlipMetadata(ocrText: string): {
   return { slipType, taxYear, employerName, recipientNas };
 }
 
-const MONEY_CAPTURE = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2}|\\s+[0-9]{2})(?!\\d)|[0-9]+[.,][0-9]{2}(?!\\d))";
+const MONEY_CAPTURE = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2}|\\s+[0-9]{2})(?!\\d)|[0-9]+[.,][0-9]{2}(?!\\d)|[0-9]{4,}(?!\\d))";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

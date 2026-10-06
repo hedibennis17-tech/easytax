@@ -240,6 +240,7 @@ export async function syncOcrToEntries(params: {
     "13500": { entryType: "income",    category: "self_employment" },
     "13900": { entryType: "income",    category: "self_employment" },
     "14400": { entryType: "income",    category: "workers_comp" },
+    "14500": { entryType: "income",    category: "social_assistance" },
     "14600": { entryType: "income",    category: "other_income" },
     "20800": { entryType: "deduction", category: "rrsp" },
     "21200": { entryType: "deduction", category: "union_dues" },

@@ -35,7 +35,7 @@ const CAT_T1: Record<string, string> = {
   employment: "10100", oas: "11300", cpp_benefits: "11400", pension: "11500",
   ei_benefits: "11900", interest: "12100", rental: "12600", capital_gains: "12700",
   rrsp_withdrawal: "12900", scholarships: "13010", self_employment: "13500",
-  workers_comp: "14400", other_income: "13000", dividends_eligible: "12000",
+  workers_comp: "14400", social_assistance: "14500", other_income: "13000", dividends_eligible: "12000",
   dividends_ineligible: "12000", gis: "14600",
 };
 const CAT_TP1: Record<string, string> = {
