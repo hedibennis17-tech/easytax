@@ -71,6 +71,8 @@ interface ActiveFeuillet {
 
 // ─── Catalogue simplifié pour le sélecteur ────────────────────────────────────
 const SLIP_CATALOG = [
+  // Détection automatique — en premier
+  { code: "AUTO",     group: "auto", label: "Détection auto", desc: "EasyTax identifie le type et prouve le feuillet avant extraction", icon: "🔍" },
   // Fédéraux principaux
   { code: "T4",       group: "fed", label: "T4",         desc: "Rémunération payée (emploi)", icon: "💼" },
   { code: "T4A",      group: "fed", label: "T4A",        desc: "Pension, retraite, rentes, honoraires", icon: "🏦" },
@@ -478,12 +480,30 @@ export default function RevenusSection({
               : T("Choisir le type de feuillet à uploader", "Choose the slip type to upload")}
           </div>
 
+          {/* AUTO — détection automatique */}
+          <button onClick={() => selectType("AUTO")}
+            style={{ width: "100%", marginBottom: 12, padding: "12px 14px", borderRadius: 11, textAlign: "left", cursor: "pointer",
+              background: "linear-gradient(135deg, rgba(11,107,103,0.08), rgba(11,107,103,0.04))",
+              border: "1.5px solid #0b6b67", display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 22 }}>🔍</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#0b6b67" }}>
+                {T("Détection automatique", "Auto-detection")}
+              </div>
+              <div style={{ fontSize: 11, color: "#526865", marginTop: 1 }}>
+                {T("EasyTax identifie le type et prouve le feuillet avant extraction",
+                   "EasyTax identifies the type and proves the slip before extraction")}
+              </div>
+            </div>
+            <span style={{ marginLeft: "auto", color: "#0b6b67", fontSize: 18 }}>→</span>
+          </button>
+
           {/* Fédéraux */}
           <div style={{ fontSize: 10, fontWeight: 700, color: "#9fd4cc", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
             {T("Feuillets fédéraux (ARC)", "Federal slips (CRA)")}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7, marginBottom: 10 }}>
-            {displayed.filter(s => s.group === "fed").map(slip => (
+            {displayed.filter(s => s.group === "fed" && s.code !== "AUTO").map(slip => (
               <SlipTypeButton key={slip.code} slip={slip} onSelect={selectType} />
             ))}
           </div>
