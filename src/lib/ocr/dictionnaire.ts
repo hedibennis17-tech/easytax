@@ -123,10 +123,13 @@ export function parseMontantOCR(raw: string | null | undefined): number | null {
   } else {
     s = s.replace(/,(?=\d{3})/g, "").replace(",", ".");
   }
+  // Rejeter si plus de 2 décimales (ex: "1580,8016" = deux montants collés)
+  if (/[.,]\d{3,}/.test(raw.replace(/\s/g, ""))) return null;
   // Rejeter les codes de cases (ex: "024" sans décimale et < 5 chiffres)
   if (/^\d{1,4}$/.test(s) && !s.includes(".")) return null;
   const num = parseFloat(s);
-  if (isNaN(num) || num < 0 || num > 9_999_999) return null;
+  // Rejeter < 1$ (codes de cases qui passent la regex) et > 9 999 999$
+  if (isNaN(num) || num < 1 || num > 9_999_999) return null;
   return Math.round(num * 100);
 }
 
