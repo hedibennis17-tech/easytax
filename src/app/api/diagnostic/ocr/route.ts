@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
     const [tr] = profile ? await db.select({ id: taxReturns.id }).from(taxReturns).where(eq(taxReturns.profileId, profile.id)).orderBy(desc(taxReturns.updatedAt)).limit(1) : [null];
     steps.push(`${tr ? "✓" : "✗"} TaxReturn: ${tr?.id.slice(0,8) ?? "ABSENT"}`);
 
-    const docs = await db.select({ id: fiscalDocuments.id, status: fiscalDocuments.status, mimeType: fiscalDocuments.mimeType, storageKey: fiscalDocuments.storageKey, taxReturnId: fiscalDocuments.taxReturnId, createdAt: fiscalDocuments.createdAt })
-      .from(fiscalDocuments).where(eq(fiscalDocuments.userId, userId)).orderBy(desc(fiscalDocuments.createdAt)).limit(10);
+    const docs = await db.select({ id: fiscalDocuments.id, status: fiscalDocuments.status, mimeType: fiscalDocuments.mimeType, storageKey: fiscalDocuments.storageKey, taxReturnId: fiscalDocuments.taxReturnId, updatedAt: fiscalDocuments.updatedAt })
+      .from(fiscalDocuments).where(eq(fiscalDocuments.userId, userId)).orderBy(desc(fiscalDocuments.updatedAt)).limit(10);
     steps.push(`✓ Documents: ${docs.length}`);
     details.documents = docs.map(d => ({ id: d.id.slice(0,8), full_id: d.id, status: d.status, mime: d.mimeType, hasKey: !!d.storageKey, linkedTR: d.taxReturnId === tr?.id }));
 
