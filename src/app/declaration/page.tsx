@@ -60,6 +60,18 @@ interface DeclarationData {
     syncedEntries: number;
     pendingEntries: number;
   } | null;
+  questionnaireAnswers: Array<{
+    id: string;
+    section: string;
+    sectionFr: string;
+    sectionEn: string;
+    questionFr: string;
+    questionEn: string;
+    type: string;
+    value: unknown;
+    displayValue: string;
+    validated: boolean;
+  }>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -111,6 +123,79 @@ function QuestionnaireProgressCard({ progress, database, lang }: { progress: Que
       </div>}
     </section>
   );
+}
+
+function QuestionnaireAnswersAccordion({ answers, progress, provinceName, lang }: {
+  answers: DeclarationData["questionnaireAnswers"];
+  progress: QuestionnaireProgress | null;
+  provinceName: string;
+  lang: string;
+}) {
+  const T = (fr: string, en: string) => lang === "en" ? en : fr;
+  const [rows, setRows] = useState(answers);
+  const [openSector, setOpenSector] = useState<"federal" | "provincial">("federal");
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+
+  useEffect(() => setRows(answers), [answers]);
+  const provincial = rows.filter(row => row.section === "ma_province");
+  const federal = rows.filter(row => row.section !== "ma_province");
+  const sections = (items: typeof rows) => Array.from(new Set(items.map(row => row.section))).map(code => ({
+    code,
+    rows: items.filter(row => row.section === code),
+    titleFr: items.find(row => row.section === code)?.sectionFr ?? code,
+    titleEn: items.find(row => row.section === code)?.sectionEn ?? code,
+  }));
+  const federalProgress = progress?.sections.filter(section => section.code !== "ma_province").reduce((sum, section) => sum + section.total, 0) ?? federal.length;
+  const federalAnswered = progress?.sections.filter(section => section.code !== "ma_province").reduce((sum, section) => sum + section.answered, 0) ?? federal.length;
+  const provincialProgress = progress?.sections.find(section => section.code === "ma_province");
+
+  const updateRow = async (id: string, value: unknown, validated?: boolean) => {
+    const response = await fetch("/api/questionnaire/answer", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ questionId: id, value, validated }) });
+    if (!response.ok) throw new Error("save failed");
+    setRows(current => current.map(row => row.id === id ? { ...row, value, displayValue: String(value), validated: validated ?? row.validated } : row));
+  };
+  const removeRow = async (id: string) => {
+    const response = await fetch("/api/questionnaire/answer", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ questionId: id }) });
+    if (!response.ok) throw new Error("delete failed");
+    setRows(current => current.filter(row => row.id !== id));
+  };
+  const renderSector = (sector: "federal" | "provincial", items: typeof rows, answered: number, total: number, percent: number) => (
+    <div style={{ border: "1px solid #dde8e5", borderRadius: 12, overflow: "hidden", marginBottom: 10 }}>
+      <button type="button" onClick={() => setOpenSector(openSector === sector ? "federal" : sector)} aria-expanded={openSector === sector}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 14px", background: "#fff", border: 0, cursor: "pointer", textAlign: "left" }}>
+        <span><strong style={{ color: "#0f1f1e" }}>{sector === "federal" ? "🇨🇦 " + T("Fédéral", "Federal") : `🏛️ ${provinceName}`}</strong><span style={{ display: "block", color: "#7a9c97", fontSize: 11, marginTop: 3 }}>{answered}/{total} {T("questions", "questions")} · {percent}% · {items.length} {T("réponses sauvegardées", "saved answers")}</span></span>
+        <span style={{ color: "#0b6b67", fontSize: 20, transform: openSector === sector ? "rotate(180deg)" : "none", transition: "transform 160ms" }}>⌄</span>
+      </button>
+      {openSector === sector && <div style={{ padding: "0 10px 10px", background: "#fbfdfc" }}>
+        {sections(items).map(section => {
+          const open = openSections[`${sector}-${section.code}`] ?? true;
+          return <div key={section.code} style={{ borderTop: "1px solid #eef4f2" }}>
+            <button type="button" onClick={() => setOpenSections(current => ({ ...current, [`${sector}-${section.code}`]: !open }))} aria-expanded={open}
+              style={{ width: "100%", display: "flex", justifyContent: "space-between", padding: "10px 4px", background: "transparent", border: 0, cursor: "pointer", textAlign: "left" }}>
+              <strong style={{ fontSize: 12, color: "#526865" }}>{section.titleFr === section.titleEn ? section.titleFr : lang === "en" ? section.titleEn : section.titleFr} <span style={{ color: "#9fd4cc" }}>({section.rows.length})</span></strong><span style={{ color: "#0b6b67" }}>{open ? "−" : "+"}</span>
+            </button>
+            {open && section.rows.map(row => <div key={row.id} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(150px,0.8fr) auto", gap: 8, alignItems: "center", padding: "9px 4px", borderTop: "1px solid #f0f4f3" }}>
+              <div><div style={{ fontSize: 12, color: "#0f1f1e" }}>{lang === "en" ? row.questionEn : row.questionFr}</div><div style={{ fontFamily: "monospace", fontSize: 9, color: "#9fd4cc", marginTop: 2 }}>{row.id}</div></div>
+              {editing === row.id ? <input autoFocus value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { updateRow(row.id, draft).then(() => setEditing(null)).catch(() => {}); } }} style={{ width: "100%", padding: "6px 8px", border: "1px solid #0b6b67", borderRadius: 6, fontSize: 12 }} /> : <div style={{ fontSize: 12, color: "#0f1f1e", background: "#fff", borderRadius: 6, padding: "6px 8px", border: "1px solid #eef4f2", wordBreak: "break-word" }}>{row.displayValue}</div>}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 4, flexWrap: "wrap" }}>
+                {editing === row.id ? <button type="button" onClick={() => { updateRow(row.id, draft).then(() => setEditing(null)).catch(() => {}); }} style={{ color: "#fff", background: "#0b6b67", border: 0, borderRadius: 5, padding: "5px 7px", cursor: "pointer", fontSize: 10 }}>{T("Enregistrer", "Save")}</button> : <button type="button" onClick={() => { setEditing(row.id); setDraft(row.displayValue); }} style={{ color: "#0b6b67", background: "#fff", border: "1px solid #9fd4cc", borderRadius: 5, padding: "5px 7px", cursor: "pointer", fontSize: 10 }}>{T("Modifier", "Edit")}</button>}
+                <button type="button" onClick={() => updateRow(row.id, row.value, true).catch(() => {})} style={{ color: row.validated ? "#059669" : "#526865", background: row.validated ? "#ecfdf5" : "#fff", border: "1px solid #d1e8df", borderRadius: 5, padding: "5px 7px", cursor: "pointer", fontSize: 10 }}>{row.validated ? "✓ " + T("Validée", "Validated") : T("Valider", "Validate")}</button>
+                <button type="button" onClick={() => { if (window.confirm(T("Supprimer cette réponse ?", "Delete this answer?"))) removeRow(row.id).catch(() => {}); }} style={{ color: "#b91c1c", background: "#fff", border: "1px solid #fecaca", borderRadius: 5, padding: "5px 7px", cursor: "pointer", fontSize: 10 }}>{T("Supprimer", "Delete")}</button>
+              </div>
+            </div>)}
+          </div>;
+        })}
+        {items.length === 0 && <div style={{ padding: "12px 4px", color: "#9ca3af", fontSize: 11 }}>{T("Aucune réponse enregistrée dans ce secteur.", "No answer saved in this sector.")}</div>}
+      </div>}
+    </div>
+  );
+  return <section aria-label={T("Réponses du rapport fiscal", "Tax report answers")} style={{ marginBottom: 14 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "4px 2px 8px" }}><strong style={{ color: "#0f1f1e", fontSize: 15 }}>{T("Réponses du rapport fiscal", "Tax report answers")}</strong><span style={{ color: "#7a9c97", fontSize: 11 }}>{rows.length} {T("réponses", "answers")}</span></div>
+    {renderSector("federal", federal, federalAnswered, federalProgress, federalProgress ? Math.round((federalAnswered / federalProgress) * 100) : 0)}
+    {renderSector("provincial", provincial, provincialProgress?.answered ?? provincial.length, provincialProgress?.total ?? provincial.length, provincialProgress?.percent ?? (provincial.length ? 100 : 0))}
+  </section>;
 }
 
 // ─── Ligne éditable inline ────────────────────────────────────────────────────
@@ -496,6 +581,7 @@ export default function DeclarationPage() {
         {activeTab === "resume" && (
           <div>
             <QuestionnaireProgressCard progress={data.questionnaireProgress} database={data.questionnaireDatabase} lang={lang} />
+            <QuestionnaireAnswersAccordion answers={data.questionnaireAnswers} progress={data.questionnaireProgress} provinceName={data.meta.provinceName} lang={lang} />
             <ResultsNotices
               lang={lang}
               taxYear={data.meta.taxYear}

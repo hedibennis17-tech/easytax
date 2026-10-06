@@ -10,7 +10,7 @@ import {
   taxProfiles, taxReturns, taxYears,
   questionnaireSessions, incomeEntries, deductionEntries,
 } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { normalizeProvinceCode } from "@/lib/provinces";
 import type { QuestionnaireProgress } from "@/lib/questionnaire-progress";
 
@@ -198,6 +198,37 @@ export async function POST(req: NextRequest) {
     ...(province ? { fiscalResidence: province } : {}),
     updatedAt: new Date(),
   }).where(eq(taxProfiles.userId, userId));
+
+  // Nouvelle structure questionnaire : conserver une session maître et un
+  // audit des réponses, en parallèle du stockage pancanadien historique.
+  // Le try/catch permet aux anciens environnements de continuer à sauvegarder
+  // avant l’application de la migration 0010.
+  try {
+    const sessionRows = await db.execute(sql`
+      INSERT INTO q_sessions (user_id, tax_profile_id, tax_year_id, tax_return_id, questionnaire_type, province, status, current_step, progress_pct, updated_at)
+      VALUES (${userId}, ${profile.id}, ${tr.taxYearId}, ${tr.id}, 'particulier', ${province ?? null}, ${progress?.globalPercent === 100 ? "complete" : "en_cours"}, ${progress?.currentSection ?? currentSection ?? sectionCompleted ?? null}, ${progress?.globalPercent ?? 0}, now())
+      ON CONFLICT (tax_return_id, questionnaire_type) DO UPDATE SET
+        province = EXCLUDED.province,
+        status = EXCLUDED.status,
+        current_step = EXCLUDED.current_step,
+        progress_pct = EXCLUDED.progress_pct,
+        updated_at = now()
+      RETURNING id
+    `) as unknown as Array<{ id: string }>;
+    const qSessionId = sessionRows[0]?.id;
+    const previousAnswers = (existingPancanadianData.questionnaireAnswers ?? {}) as Record<string, unknown>;
+    if (qSessionId) {
+      for (const [questionId, newValue] of Object.entries(answers)) {
+        if (JSON.stringify(previousAnswers[questionId]) === JSON.stringify(newValue)) continue;
+        await db.execute(sql`
+          INSERT INTO q_answer_history (session_id, table_name, question_id, old_value, new_value, changed_by)
+          VALUES (${qSessionId}, 'pancanadianData', ${questionId}, ${previousAnswers[questionId] === undefined ? null : JSON.stringify(previousAnswers[questionId])}, ${JSON.stringify(newValue)}, ${userId})
+        `);
+      }
+    }
+  } catch {
+    // Compatible avec une base où la migration questionnaire n’est pas encore appliquée.
+  }
 
   return NextResponse.json({ ok: true, sessionId, sectionsCompleted, entriesCreated });
 }

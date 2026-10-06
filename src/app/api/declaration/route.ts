@@ -5,6 +5,7 @@ import { taxProfiles, taxReturns, incomeEntries, deductionEntries, creditEntries
 import { eq, and, desc, sql } from "drizzle-orm";
 import { normalizeProvinceCode } from "@/lib/provinces";
 import type { QuestionnaireProgress } from "@/lib/questionnaire-progress";
+import { getAllQuestionsWithProvince, INDIVIDUAL_SECTIONS, type Question } from "@/lib/questionnaire-individual";
 
 import path from "path";
 import fs from "fs";
@@ -12,6 +13,18 @@ import fs from "fs";
 type DictT1Line  = { label_fr: string; label_en?: string; section: string };
 type DictTP1Line = { label_fr: string; section: string };
 type DictType    = { t1_lines: Record<string, DictT1Line>; tp1_lines: Record<string, DictTP1Line> };
+type QuestionnaireAnswerSummary = {
+  id: string;
+  section: string;
+  sectionFr: string;
+  sectionEn: string;
+  questionFr: string;
+  questionEn: string;
+  type: string;
+  value: unknown;
+  displayValue: string;
+  validated: boolean;
+};
 
 function loadDict(): DictType {
   const p = path.join(process.cwd(), "src/lib/ocr/dictionnaire-fiscal-complet-2025.json");
@@ -27,6 +40,39 @@ function readQuestionnaireProgress(raw: string | null | undefined): Questionnair
     return parsed.questionnaireProgress ?? null;
   } catch {
     return null;
+  }
+}
+
+function readQuestionnaireAnswers(raw: string | null | undefined, province: string): QuestionnaireAnswerSummary[] {
+  if (!raw) return [];
+  try {
+    const data = JSON.parse(raw) as { questionnaireAnswers?: Record<string, unknown>; questionnaireValidated?: Record<string, boolean> };
+    const answers = data.questionnaireAnswers ?? {};
+    const validated = data.questionnaireValidated ?? {};
+    const questions = new Map<string, Question>(getAllQuestionsWithProvince().map(question => [question.id, question]));
+    const sections = new Map(INDIVIDUAL_SECTIONS.map(section => [section.code, section]));
+    return Object.entries(answers)
+      .filter(([id, value]) => value !== undefined && value !== null && value !== "" && !["triage_done", "profil_done", "revenus_validated", "credits_validated", "credits_selected", "revenus_total_cents"].includes(id))
+      .map(([id, value]) => {
+        const question = questions.get(id);
+        const sectionCode = question?.section ?? "declaration";
+        const section = sections.get(sectionCode);
+        return {
+          id,
+          section: sectionCode,
+          sectionFr: section?.fr ?? "Autres réponses",
+          sectionEn: section?.en ?? "Other answers",
+          questionFr: question?.fr ?? id,
+          questionEn: question?.en ?? id,
+          type: question?.type ?? "TEXT",
+          value,
+          displayValue: typeof value === "object" ? JSON.stringify(value) : String(value),
+          validated: Boolean(validated[id]),
+        };
+      })
+      .filter(answer => answer.section !== "ma_province" || (questions.get(answer.id)?.provinceOnly ?? []).includes(province));
+  } catch {
+    return [];
   }
 }
 
@@ -116,6 +162,7 @@ export async function GET() {
   const isQC = province === "QC";
   const questionnaireProgress = readQuestionnaireProgress(profile.pancanadianData);
   const questionnaireDatabase = await readQuestionnaireDatabaseSummary(userId, taxReturn?.id);
+  const questionnaireAnswers = readQuestionnaireAnswers(profile.pancanadianData, province);
 
   // Données DB
   const incomes    = taxReturn ? await db.select().from(incomeEntries).where(and(eq(incomeEntries.userId, userId), eq(incomeEntries.taxReturnId, taxReturn.id))) : [];
@@ -277,6 +324,7 @@ export async function GET() {
     },
     questionnaireProgress,
     questionnaireDatabase,
+    questionnaireAnswers,
     t1: t1Lines,
     tp1: tp1Lines,
     summary: {
