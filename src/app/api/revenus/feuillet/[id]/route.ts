@@ -7,7 +7,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { fiscalDocuments, documentExtractions, extractionFields, documentTypes, documentPages } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { getSlipDict, parseMontantOCR, extractAllBoxes } from "@/lib/ocr/dictionnaire";
+import { getSlipDict, parseMontantOCR, extractAllBoxes, extractSlipMetadata } from "@/lib/ocr/dictionnaire";
 import { getExtractor } from "@/lib/extractors/t4";
 import { db as _db } from "@/lib/db";
 import { documentPages as docPagesTable } from "@/db/schema";
@@ -111,10 +111,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     };
   });
 
+  const slipMeta = fullOcrText.length > 50 ? extractSlipMetadata(fullOcrText) : null;
+  const finalSlipDef2 = getSlipDict(effectiveSlipCode);
+
   return NextResponse.json({
     docId: documentId,
-    typeCode: slipCode,
-    nameFr: slipDef?.name_fr ?? doc.nameFr ?? slipCode,
+    typeCode: effectiveSlipCode,
+    nameFr: finalSlipDef?.name_fr ?? doc.nameFr ?? effectiveSlipCode,
+    metadata: {
+      slipType:     slipMeta?.slipType ?? effectiveSlipCode,
+      taxYear:      slipMeta?.taxYear ?? 2025,
+      employerName: slipMeta?.employerName ?? null,
+      recipientNas: slipMeta?.recipientNas ?? null,
+      government:   finalSlipDef2?.authority === "federal"
+        ? "ARC — Agence du revenu du Canada"
+        : "Revenu Québec",
+      authority: finalSlipDef2?.authority ?? "federal",
+    },
     cases,
     totalExtracted: cases.filter(c => c.hasValue && !c.includedIn).length,
     totalCases: cases.filter(c => !c.includedIn).length,

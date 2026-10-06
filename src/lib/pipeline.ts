@@ -6,6 +6,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import { getOcrProvider } from "@/lib/ocr/provider";
 import { getExtractor } from "@/lib/extractors/t4";
+import { extractSlipMetadata } from "@/lib/ocr/dictionnaire";
 import { syncOcrToEntries } from "@/lib/ocr-to-entries";
 import { extractVisibleUnknownFields } from "@/lib/extractors/generic";
 import {
@@ -142,6 +143,15 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
         .limit(1);
       detectedJurisdictionId = jurisdiction?.id ?? null;
     }
+
+    // Extraire les métadonnées du feuillet (employeur, année, NAS, type)
+    const slipMeta = extractSlipMetadata(ocrResult.fullText);
+    await writeAudit(documentId, userId, "document_slip_metadata", {
+      slipType: slipMeta.slipType,
+      taxYear: slipMeta.taxYear,
+      employerName: slipMeta.employerName,
+      recipientNas: slipMeta.recipientNas ? slipMeta.recipientNas.slice(-4) : null, // seulement last 4
+    });
 
     await writeAudit(documentId, userId, "document_extraction_started", {
       typeCode: classification.documentTypeCode,
