@@ -6279,7 +6279,8 @@
             "repayment",
             "year"
           ],
-          "label_source": "rq_fr"
+          "label_source": "rq_fr",
+          "included_in": "C"
         },
         {
           "code": "J",

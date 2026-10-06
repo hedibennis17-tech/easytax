@@ -223,6 +223,7 @@ export async function syncOcrToEntries(params: {
   const boxes = extractAllBoxes(fullText, documentTypeCode);
 
   // Mapping case → catégorie EasyTax
+  // Mapping ligne T1 → catégorie EasyTax
   const T1_TO_CATEGORY: Record<string, { entryType: string; category: string }> = {
     "10100": { entryType: "income",    category: "employment" },
     "10400": { entryType: "income",    category: "employment" },
@@ -254,11 +255,23 @@ export async function syncOcrToEntries(params: {
     "43700": { entryType: "withheld_federal",   category: "federal_tax_withheld" },
   };
 
+  // Mapping ligne TP-1 → catégorie EasyTax (Québec)
   const TP1_TO_CATEGORY: Record<string, { entryType: string; category: string }> = {
     "101":  { entryType: "income",             category: "employment" },
+    "111":  { entryType: "income",             category: "pension" },
+    "114":  { entryType: "income",             category: "cpp_benefits" },
+    "128":  { entryType: "income",             category: "interest" },
+    "147":  { entryType: "income",             category: "workers_comp" },
+    "148":  { entryType: "income",             category: "workers_comp" },  // RL-5 case C/D/E (CNESST)
+    "154":  { entryType: "income",             category: "other_income" },
+    "164":  { entryType: "income",             category: "self_employment" },
+    "246":  { entryType: "deduction",          category: "other_deductions" }, // remboursements
+    "276":  { entryType: "deduction",          category: "other_deductions" },
+    "358":  { entryType: "deduction",          category: "other_deductions" }, // RL-5 case M/O
     "451":  { entryType: "withheld_provincial", category: "provincial_tax_withheld" },
     "206":  { entryType: "credit",             category: "rrq_employee" },
     "375":  { entryType: "credit",             category: "rqap_employee" },
+    "456":  { entryType: "credit",             category: "other_credits" },   // prime au travail
   };
 
   const now = new Date();

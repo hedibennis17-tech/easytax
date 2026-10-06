@@ -129,7 +129,7 @@ export function parseMontantOCR(raw: string | null | undefined): number | null {
   if (/^\d{1,4}$/.test(s) && !s.includes(".")) return null;
   const num = parseFloat(s);
   // Rejeter < 1$ (codes de cases qui passent la regex) et > 9 999 999$
-  if (isNaN(num) || num < 1 || num > 9_999_999) return null;
+  if (isNaN(num) || num < 0.01 || num > 9_999_999) return null;
   return Math.round(num * 100);
 }
 
