@@ -8,7 +8,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { NavClient } from "@/components/NavClient";
 import { useApp } from "@/components/ThemeProvider";
-import { ResultsNotices } from "@/components/declaration/ResultsNotices";
+import { ProvincialResultNotice, ResultsNotices } from "@/components/declaration/ResultsNotices";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface DeclarationLine {
@@ -211,7 +211,7 @@ export default function DeclarationPage() {
   const [loading,    setLoading]    = useState(true);
   const [t1Lines,    setT1Lines]    = useState<DeclarationLine[]>([]);
   const [tp1Lines,   setTp1Lines]   = useState<DeclarationLine[]>([]);
-  const [activeTab,  setActiveTab]  = useState<"t1" | "tp1" | "resume">("resume");
+  const [activeTab,  setActiveTab]  = useState<"t1" | "provincial" | "resume">("resume");
   const [saving,     setSaving]     = useState(false);
 
   // ── Charger les données ─────────────────────────────────────────────────────
@@ -362,7 +362,12 @@ export default function DeclarationPage() {
   const TABS = [
     { id: "resume" as const, label: T("📊 Résumé","📊 Summary") },
     { id: "t1"     as const, label: `🇨🇦 T1 — Fédéral (${totalT1Filled})` },
-    ...(isQC ? [{ id: "tp1" as const, label: `⚜️ TP-1 — Québec (${totalTp1Filled})` }] : []),
+    {
+      id: "provincial" as const,
+      label: isQC
+        ? `⚜️ Québec — TP-1 (${totalTp1Filled})`
+        : `🏛️ ${data?.meta.provinceName ?? T("Province", "Province")} — ${data?.meta.provincialForm ?? "428"}`,
+    },
   ];
 
   // ── Loading ─────────────────────────────────────────────────────────────────
@@ -472,12 +477,10 @@ export default function DeclarationPage() {
                 <span>🇨🇦 {T("Voir le détail T1 — fédéral (104 lignes)","View T1 federal detail (104 lines)")}</span>
                 <span style={{ color: "#9fd4cc" }}>→</span>
               </button>
-              {isQC && (
-                <button onClick={() => setActiveTab("tp1")} style={{ padding: "12px 14px", background: "#fff", border: "1px solid #dde8e5", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", color: "#0f1f1e", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
-                  <span>⚜️ {T("Voir le détail TP-1 — Québec (89 lignes)","View TP-1 Quebec detail (89 lines)")}</span>
-                  <span style={{ color: "#9fd4cc" }}>→</span>
-                </button>
-              )}
+              <button onClick={() => setActiveTab("provincial")} style={{ padding: "12px 14px", background: "#fff", border: "1px solid #dde8e5", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", color: "#0f1f1e", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
+                <span>{isQC ? "⚜️" : "🏛️"} {T(`Voir le détail provincial — ${data.meta.provinceName} (${data.meta.provincialForm})`, `View provincial result — ${data.meta.provinceName} (${data.meta.provincialForm})`)}</span>
+                <span style={{ color: "#9fd4cc" }}>→</span>
+              </button>
             </div>
 
             <div style={{ marginTop: 16, fontSize: 11, color: "#a0b4b0", textAlign: "center", lineHeight: 1.6 }}>
@@ -515,25 +518,39 @@ export default function DeclarationPage() {
           </div>
         )}
 
-        {/* ═══ ONGLET TP-1 — ACCORDÉON ══════════════════════════════════ */}
-        {activeTab === "tp1" && isQC && (
+        {/* ═══ ONGLET PROVINCIAL — ADAPTÉ À LA PROVINCE FISCALE ═════════ */}
+        {activeTab === "provincial" && (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div style={{ fontSize: 12, color: "#7a9c97" }}>
-                ⚜️ {T("Déclaration Québec TP-1 — 2025","Quebec TP-1 return — 2025")}
-                {" · "}{totalTp1Filled} {T("ligne(s) remplie(s)","line(s) filled")}
+                {isQC ? "⚜️" : "🏛️"} {isQC
+                  ? T("Déclaration Québec TP-1 — 2025", "Quebec TP-1 return — 2025")
+                  : T(`Résultat ${data.meta.provinceName} — ${data.meta.provincialForm} · 2025`, `${data.meta.provinceName} result — ${data.meta.provincialForm} · 2025`)}
+                {isQC && <> {" · "}{totalTp1Filled} {T("ligne(s) remplie(s)","line(s) filled")}</>}
               </div>
             </div>
 
-            {tp1Sections.map((section, i) => (
-              <AccordionPanel
-                key={section.id}
-                section={section}
-                lang={lang}
-                defaultOpen={section.filledCount > 0 || i === 0}
-                onEdit={editTp1}
-              />
-            ))}
+            {isQC ? tp1Sections.map((section, i) => (
+                <AccordionPanel
+                  key={section.id}
+                  section={section}
+                  lang={lang}
+                  defaultOpen={section.filledCount > 0 || i === 0}
+                  onEdit={editTp1}
+                />
+              )) : (
+                <ProvincialResultNotice
+                  lang={lang}
+                  taxYear={data.meta.taxYear}
+                  provinceName={data.meta.provinceName}
+                  provincialForm={data.meta.provincialForm}
+                  provincialAuthority={data.meta.provincialAuthority}
+                  totalIncomeCents={data.summary.totalRevenuCents}
+                  netIncomeCents={data.summary.revenuNetCents}
+                  taxableIncomeCents={data.summary.revenuImposableCents}
+                  provincial={data.summary.provincial}
+                />
+              )}
           </div>
         )}
 

@@ -247,3 +247,68 @@ export function ResultsNotices({
     </div>
   );
 }
+
+interface ProvincialResultNoticeProps {
+  lang: string;
+  taxYear: number;
+  provinceName: string;
+  provincialForm: string;
+  provincialAuthority: string;
+  totalIncomeCents: number;
+  netIncomeCents: number;
+  taxableIncomeCents: number;
+  provincial: ResultBreakdown;
+}
+
+/** Résultat provincial seul : affiché dans l’onglet de la province fiscale du profil. */
+export function ProvincialResultNotice({
+  lang,
+  taxYear,
+  provinceName,
+  provincialForm,
+  provincialAuthority,
+  totalIncomeCents,
+  netIncomeCents,
+  taxableIncomeCents,
+  provincial,
+}: ProvincialResultNoticeProps) {
+  const isEn = lang === "en";
+  const labels = isEn
+    ? {
+        totalIncome: "Total income used for provincial calculation", netIncome: "Net income", taxableIncome: "Taxable income",
+        taxBeforeCredits: "Provincial tax before credits", credits: "Non-refundable tax credits", taxPayable: "Net provincial tax payable",
+        withheld: "Provincial tax withheld / instalments", refundableCredits: "Refundable credits", refund: "Estimated provincial refund", owing: "Estimated provincial balance owing",
+      }
+    : {
+        totalIncome: "Revenu total utilisé au calcul provincial", netIncome: "Revenu net", taxableIncome: "Revenu imposable",
+        taxBeforeCredits: "Impôt provincial avant crédits", credits: "Crédits d'impôt non remboursables", taxPayable: "Impôt provincial net à payer",
+        withheld: "Impôt provincial retenu / acomptes", refundableCredits: "Crédits remboursables", refund: "Remboursement provincial estimé", owing: "Solde provincial estimé à payer",
+      };
+
+  return (
+    <div>
+      <div style={{ margin: "2px 0 12px", color: "#526865", fontSize: 12, lineHeight: 1.55 }}>
+        {isEn
+          ? `Provincial calculation for ${provinceName}, using the ${provincialForm} form.`
+          : `Calcul provincial pour ${provinceName}, à partir du formulaire ${provincialForm}.`}
+      </div>
+      <NoticeCard
+        eyebrow={provincialAuthority}
+        title={isEn ? `${provinceName} provincial result` : `Résultat provincial — ${provinceName}`}
+        subtitle={`${provincialForm} · ${taxYear}`}
+        income={totalIncomeCents}
+        netIncome={netIncomeCents}
+        taxableIncome={taxableIncomeCents}
+        result={provincial}
+        labels={labels}
+        accent="#0b6b67"
+        isEn={isEn}
+      />
+      <div style={{ margin: "4px 2px 15px", color: "#748197", fontSize: 10, lineHeight: 1.55 }}>
+        {isEn
+          ? "This provincial calculation is preliminary and does not submit a return."
+          : "Ce calcul provincial est préliminaire et ne transmet aucune déclaration."}
+      </div>
+    </div>
+  );
+}
