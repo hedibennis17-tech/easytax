@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { NavClient } from "@/components/NavClient";
 import { saveDraftLocal, loadDraftLocal, formatLastSaved } from "@/lib/draft";
 import { normalizeProvinceCode, type ProvinceCode } from "@/lib/provinces";
+import { buildIndividualQuestionnaireProgress } from "@/lib/questionnaire-progress";
 import {
   ALL_INDIVIDUAL_QUESTIONS,
   getAllQuestionsWithProvince,
@@ -542,20 +543,29 @@ export default function QuestionnairePage() {
     }).catch(() => {});
   }, []);
 
-  // ── Sauvegarde DB à chaque section complétée ────────────────────────────
+  // ── Sauvegarde DB après chaque réponse ──────────────────────────────────
+  // localStorage offre la reprise instantanée, la base garde le brouillon et
+  // permet au résumé Déclaration d’afficher toute la progression persistée.
   const saveToDb = async (currentAnswers: Record<string, unknown>, sectionDone?: string) => {
+    const progress = buildIndividualQuestionnaireProgress(
+      currentAnswers,
+      profileProvince ?? currentAnswers.p14 ?? currentAnswers.province,
+      currentSection?.code ?? (!triageDone ? "triage" : undefined),
+    );
     try {
-      await fetch("/api/questionnaire/save", {
+      const response = await fetch("/api/questionnaire/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           answers: currentAnswers,
           sectionCompleted: sectionDone,
-          currentSection: currentSection?.code,
-          questionsAnswered: Object.keys(currentAnswers).length,
+          currentSection: progress.currentSection,
+          questionsAnswered: progress.questionsAnswered,
+          progress,
         }),
       });
-    } catch { /* silencieux — localStorage reste la source de vérité */ }
+      if (response.ok) setLastSaved("À l'instant");
+    } catch { /* localStorage reste disponible si le réseau est temporairement indisponible */ }
   };
 
   // ── Charger le brouillon au démarrage
@@ -731,17 +741,15 @@ export default function QuestionnairePage() {
       setLastSaved("À l'instant");
     }, 500);
 
-    try {
-      await fetch("/api/answers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questionCode: qId, answerValue: String(value), taxReturnId: "current", taxYearId: "2025" }),
-      });
-    } catch { /* silencieux */ }
-    setSaving(false);
-
     // Recalculer les questions après la réponse
     const newTriageDone = triageQs.every(q => newAnswers[q.id] !== undefined);
+    try {
+      // Sauvegarde durable à chaque étape; aucune dépendance à un faux taxReturnId.
+      await saveToDb(newAnswers, newTriageDone ? currentSection?.code : "triage");
+    } finally {
+      setSaving(false);
+    }
+
     const newDisplayQs = !newTriageDone ? triageQs
       : ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === currentSection?.code && newAnswers[q.id] === undefined && evalCond(q.showIf, newAnswers) && isQuestionApplicable(q)).sort((a, b) => a.order - b.order);
 
@@ -763,7 +771,7 @@ export default function QuestionnairePage() {
         setDone(true);
       }
     }
-  }, [answers, triageQs, currentSection, secIdx]);
+  }, [answers, triageQs, currentSection, secIdx, profileProvince, userId, qIdx]);
 
   const handleBack = () => {
     if (qIdx > 0) { setQIdx(i => i - 1); resetInput(); }

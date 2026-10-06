@@ -11,6 +11,8 @@ import {
   questionnaireSessions, incomeEntries, deductionEntries,
 } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { normalizeProvinceCode } from "@/lib/provinces";
+import type { QuestionnaireProgress } from "@/lib/questionnaire-progress";
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -21,12 +23,18 @@ export async function POST(req: NextRequest) {
     sectionCompleted?: string;
     currentSection?: string;
     questionsAnswered?: number;
+    progress?: QuestionnaireProgress;
   };
 
-  const { answers, sectionCompleted, currentSection, questionsAnswered } = body;
+  const { answers, sectionCompleted, currentSection, questionsAnswered, progress } = body;
 
   // Récupérer profil + taxReturn
-  const [profile] = await db.select({ id: taxProfiles.id })
+  const [profile] = await db.select({
+    id: taxProfiles.id,
+    pancanadianData: taxProfiles.pancanadianData,
+    fiscalResidence: taxProfiles.fiscalResidence,
+    province: taxProfiles.province,
+  })
     .from(taxProfiles).where(eq(taxProfiles.userId, userId)).limit(1);
   if (!profile) return NextResponse.json({ error: "Profil introuvable" }, { status: 404 });
 
@@ -42,10 +50,20 @@ export async function POST(req: NextRequest) {
   const hasInvestment   = answers["t4"] === true || answers["t4"] === "true";
   const hasRrsp         = !!(answers["r_reer"] || answers["deductions_reer"]);
   const hasChildcare    = answers["f4"] === true || answers["f4"] === "true";
-  const province        = String(answers["t0"] ?? answers["province"] ?? "QC");
+  // Ne jamais réinitialiser la province à QC pendant un autosave : une réponse
+  // de triage peut arriver avant le champ d’adresse. La province du wizard reste
+  // donc la source principale tant que le questionnaire ne fournit pas une valeur valide.
+  const province = normalizeProvinceCode(progress?.province)
+    ?? normalizeProvinceCode(answers["t0"])
+    ?? normalizeProvinceCode(answers["province"])
+    ?? normalizeProvinceCode(answers["p14"])
+    ?? normalizeProvinceCode(profile.fiscalResidence)
+    ?? normalizeProvinceCode(profile.province);
 
   // Sections complétées
-  const sectionsCompleted: string[] = [];
+  const sectionsCompleted: string[] = progress?.sections
+    .filter(section => section.completed)
+    .map(section => section.code) ?? [];
   if (answers["triage_done"])    sectionsCompleted.push("triage");
   if (answers["profil_done"])    sectionsCompleted.push("profil");
   if (answers["revenus_validated"]) sectionsCompleted.push("revenus");
@@ -68,7 +86,7 @@ export async function POST(req: NextRequest) {
     taxReturnId: tr.id,
     taxYearId: tr.taxYearId,
     status: "in_progress" as const,
-    currentSection: currentSection ?? sectionCompleted ?? null,
+    currentSection: progress?.currentSection ?? currentSection ?? sectionCompleted ?? null,
     sectionsCompleted: JSON.stringify(sectionsCompleted),
     hasEmploymentIncome: hasEmployment,
     hasSelfEmployment:   hasSelfEmp,
@@ -77,7 +95,7 @@ export async function POST(req: NextRequest) {
     hasForeignIncome:    !!(answers["r_pla_etranger"]),
     hasRrsp:             hasRrsp,
     hasChildcare:        hasChildcare,
-    questionsAnswered:   questionsAnswered ?? Object.keys(answers).length,
+    questionsAnswered:   progress?.questionsAnswered ?? questionsAnswered ?? Object.keys(answers).length,
     updatedAt: new Date(),
   };
 
@@ -163,10 +181,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Mettre à jour pancanadianData avec toutes les réponses
+  // Mettre à jour pancanadianData avec toutes les réponses et le détail de
+  // progression. Le résumé déclaration lit cette même source persistée.
+  let existingPancanadianData: Record<string, unknown> = {};
+  try {
+    existingPancanadianData = JSON.parse(profile.pancanadianData ?? "{}") as Record<string, unknown>;
+  } catch {
+    // Une ancienne valeur invalide ne doit jamais empêcher la sauvegarde du brouillon.
+  }
   await db.update(taxProfiles).set({
-    pancanadianData: JSON.stringify({ ...JSON.parse((await db.select({ d: taxProfiles.pancanadianData }).from(taxProfiles).where(eq(taxProfiles.userId, userId)).limit(1))[0]?.d ?? "{}"), questionnaireAnswers: answers }),
-    fiscalResidence: province as "QC" | "ON" | "AB" | "BC" | "SK" | "MB" | "NB" | "NS" | "PE" | "NL" | "NT" | "NU" | "YT",
+    pancanadianData: JSON.stringify({
+      ...existingPancanadianData,
+      questionnaireAnswers: answers,
+      questionnaireProgress: progress ?? null,
+    }),
+    ...(province ? { fiscalResidence: province } : {}),
     updatedAt: new Date(),
   }).where(eq(taxProfiles.userId, userId));
 

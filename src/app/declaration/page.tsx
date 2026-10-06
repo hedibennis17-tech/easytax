@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { NavClient } from "@/components/NavClient";
 import { useApp } from "@/components/ThemeProvider";
 import { ProvincialResultNotice, ResultsNotices } from "@/components/declaration/ResultsNotices";
+import type { QuestionnaireProgress } from "@/lib/questionnaire-progress";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface DeclarationLine {
@@ -49,6 +50,7 @@ interface DeclarationData {
     totalBalance: number;
     isRefund: boolean;
   };
+  questionnaireProgress: QuestionnaireProgress | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -59,6 +61,42 @@ function fmtCAD(cents: number): string {
 function parseCents(s: string): number {
   const n = parseFloat(s.replace(/[$,\s ]/g, "").replace(",", "."));
   return isNaN(n) ? 0 : Math.round(n * 100);
+}
+
+function QuestionnaireProgressCard({ progress, lang }: { progress: QuestionnaireProgress | null; lang: string }) {
+  const T = (fr: string, en: string) => lang === "en" ? en : fr;
+  if (!progress) {
+    return (
+      <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 12, padding: "14px 16px", marginBottom: 14 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: "#0f1f1e" }}>{T("Progression du questionnaire", "Questionnaire progress")}</div>
+        <div style={{ color: "#7a9c97", fontSize: 12, marginTop: 5 }}>{T("Aucun brouillon détaillé n’est encore enregistré.", "No detailed draft has been saved yet.")}</div>
+      </div>
+    );
+  }
+  return (
+    <section aria-label={T("Progression du questionnaire", "Questionnaire progress")} style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 12, padding: "14px 16px", marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", marginBottom: 8 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "#0f1f1e" }}>{T("Progression du questionnaire", "Questionnaire progress")}</div>
+          <div style={{ fontSize: 11, color: "#7a9c97", marginTop: 2 }}>{progress.questionsAnswered} / {progress.questionsApplicable} {T("questions répondues", "questions answered")}{progress.province ? ` · ${progress.province}` : ""}</div>
+        </div>
+        <strong style={{ color: "#0b6b67", fontSize: 20 }}>{progress.globalPercent}%</strong>
+      </div>
+      <div style={{ height: 8, background: "#e8f1ef", borderRadius: 99, overflow: "hidden", marginBottom: 12 }}>
+        <div style={{ width: `${Math.min(100, Math.max(0, progress.globalPercent))}%`, height: "100%", background: "#0b6b67", borderRadius: 99 }} />
+      </div>
+      <div style={{ display: "grid", gap: 7 }}>
+        {progress.sections.map(section => (
+          <div key={section.code} style={{ display: "grid", gridTemplateColumns: "minmax(120px,1fr) 1.5fr auto", gap: 8, alignItems: "center", fontSize: 11 }}>
+            <span style={{ color: "#526865", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{section.icon} {lang === "en" ? section.en : section.fr}</span>
+            <div style={{ height: 5, background: "#eef4f2", borderRadius: 99, overflow: "hidden" }}><div style={{ width: `${section.percent}%`, height: "100%", background: section.completed ? "#059669" : "#9fd4cc", borderRadius: 99 }} /></div>
+            <span style={{ minWidth: 62, textAlign: "right", color: section.completed ? "#059669" : "#7a9c97" }}>{section.answered}/{section.total} · {section.percent}%</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ color: "#a0b4b0", fontSize: 10, marginTop: 10 }}>{T("Les réponses sont sauvegardées automatiquement après chaque étape.", "Answers are saved automatically after each step.")}</div>
+    </section>
+  );
 }
 
 // ─── Ligne éditable inline ────────────────────────────────────────────────────
@@ -443,6 +481,7 @@ export default function DeclarationPage() {
         {/* ═══ ONGLET RÉSUMÉ ════════════════════════════════════════════ */}
         {activeTab === "resume" && (
           <div>
+            <QuestionnaireProgressCard progress={data.questionnaireProgress} lang={lang} />
             <ResultsNotices
               lang={lang}
               taxYear={data.meta.taxYear}

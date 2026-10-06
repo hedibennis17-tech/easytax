@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { taxProfiles, taxReturns, incomeEntries, deductionEntries, creditEntries, taxCalculations } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { normalizeProvinceCode } from "@/lib/provinces";
+import type { QuestionnaireProgress } from "@/lib/questionnaire-progress";
 
 import path from "path";
 import fs from "fs";
@@ -18,6 +19,16 @@ function loadDict(): DictType {
 }
 
 function cents(v: number | null | undefined) { return v ?? 0; }
+
+function readQuestionnaireProgress(raw: string | null | undefined): QuestionnaireProgress | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { questionnaireProgress?: QuestionnaireProgress };
+    return parsed.questionnaireProgress ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // Mapping catégorie incomeEntries → ligne T1
 const CAT_T1: Record<string, string> = {
@@ -58,6 +69,7 @@ export async function GET() {
 
   const province = normalizeProvinceCode(profile.fiscalResidence ?? profile.province) ?? "QC";
   const isQC = province === "QC";
+  const questionnaireProgress = readQuestionnaireProgress(profile.pancanadianData);
 
   // Données DB
   const incomes    = taxReturn ? await db.select().from(incomeEntries).where(and(eq(incomeEntries.userId, userId), eq(incomeEntries.taxReturnId, taxReturn.id))) : [];
@@ -217,6 +229,7 @@ export async function GET() {
       address: [profile.address, profile.city, province, profile.postalCode].filter(Boolean).join(", "),
       isPreliminary: true,
     },
+    questionnaireProgress,
     t1: t1Lines,
     tp1: tp1Lines,
     summary: {

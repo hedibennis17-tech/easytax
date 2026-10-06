@@ -11,6 +11,12 @@
  *   auto_deduction_line → déduction automatique (T5007→25000, RL-5→295)
  */
 
+import {
+  enrichLegacySlips,
+  SUPPLIED_OCR_DICTIONARY_VERSION,
+  SUPPLIED_OCR_SEGMENTATION_RULES,
+} from "./enriched-dictionary";
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface BoxDef {
   code: string;
@@ -26,6 +32,17 @@ export interface BoxDef {
   t1_line_condition?: string | null;    // mapping conditionnel T1
   auto_deduction_line?: string | null;  // ligne de déduction automatique
   label_source?: string;                // "arc_fr" | "rq_fr" | "translation"
+  /** Métadonnées du dictionnaire pancanadien enrichi, sans remplacer les mappings historiques. */
+  ocrAliases?: string[];
+  fieldId?: string;
+  semanticConcept?: string;
+  dataType?: string;
+  source?: unknown;
+  mapping?: unknown;
+  relationships?: unknown;
+  validation?: unknown;
+  confidencePolicy?: unknown;
+  provenanceRequired?: boolean;
 }
 
 export interface SlipDef {
@@ -74,15 +91,22 @@ const _raw = require("./dictionnaire-fiscal-complet-2025.json") as {
 };
 
 // ── Exports ───────────────────────────────────────────────────────────────────
-export const SLIP_DICT: SlipDef[] = _raw.slips;
+// Les 28 feuillets historiques restent compatibles; ils sont enrichis à l’exécution
+// par le JSON pancanadien fourni (313 concepts sémantiques et alias OCR additionnels).
+export const SLIP_DICT: SlipDef[] = enrichLegacySlips(_raw.slips);
+export const OCR_DICTIONARY_VERSION = SUPPLIED_OCR_DICTIONARY_VERSION;
 export const T1_DICT:  Record<string, T1LineDef>  = _raw.t1_lines  as Record<string, T1LineDef>;
 export const TP1_DICT: Record<string, TP1LineDef> = _raw.tp1_lines as Record<string, TP1LineDef>;
 export const PROVINCE_DICT: ProvinceDef[] = _raw.provinces;
-export const SEGMENTATION_RULES: string[] = _raw.segmentation_rules;
+export const SEGMENTATION_RULES: string[] = [...new Set([
+  ..._raw.segmentation_rules,
+  ...SUPPLIED_OCR_SEGMENTATION_RULES,
+])];
 
 // ── Helpers de lookup ─────────────────────────────────────────────────────────
 export function getSlipDict(slipCode: string): SlipDef | null {
-  return SLIP_DICT.find(s => s.code === slipCode) ?? null;
+  const normalized = slipCode.trim().toUpperCase().replace(/[\s_-]+/g, "");
+  return SLIP_DICT.find(s => s.code.toUpperCase().replace(/[\s_-]+/g, "") === normalized) ?? null;
 }
 
 export function getBoxDef(slipCode: string, boxCode: string): BoxDef | null {
@@ -115,7 +139,13 @@ export function getMappableBoxes(slipCode: string): BoxDef[] {
  */
 export function parseMontantOCR(raw: string | null | undefined): number | null {
   if (!raw?.trim()) return null;
-  let s = raw.replace(/[$€¥£\u00a0\s]/g, "");
+  const visual = raw.replace(/\u00a0/g, " ").trim();
+  // Certains feuillets mettent les cents dans une cellule adjacente : « 7 201 32 ».
+  // Ne jamais transformer cette valeur en 720 132 $.
+  const spacedCents = visual.match(/^(-?)(\d{1,3}(?:[ ,]\d{3})+)\s+(\d{2})$/);
+  let s = spacedCents
+    ? `${spacedCents[1]}${spacedCents[2].replace(/[ ,]/g, "")}.${spacedCents[3]}`
+    : raw.replace(/[$€¥£\u00a0\s]/g, "");
   // Détecter format FR (virgule décimale) vs EN (point décimal)
   const hasCommaDecimal = /\d,\d{2}$/.test(s) && !s.includes(".");
   if (hasCommaDecimal) {
@@ -180,13 +210,60 @@ export function extractSlipMetadata(ocrText: string): {
   return { slipType, taxYear, employerName, recipientNas };
 }
 
+const MONEY_CAPTURE = "([0-9]{1,3}(?:[\\s,\\u00a0][0-9]{3})*(?:[.,][0-9]{2}|\\s+[0-9]{2})(?!\\d)|[0-9]+[.,][0-9]{2}(?!\\d))";
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function asMoney(raw: string | undefined): string | null {
+  const value = raw?.trim() ?? "";
+  return parseMontantOCR(value) !== null ? value : null;
+}
+
+function relaxedLabelPattern(label: string): string {
+  // Les apostrophes droites et typographiques sont fréquemment perdues par l’OCR.
+  return escapeRegex(label).replace(/[’']/g, "[’']?");
+}
+
+/**
+ * Lecture d’une rangée de gabarit : « 10 Workers' compensation benefits 7 201,32 ».
+ * Cette stratégie intervient avant la recherche par mots isolés afin que le montant
+ * reste attaché à son libellé de case, même dans un tableau sans séparateur |.
+ */
+function findLayoutBoundValue(ocrText: string, box: BoxDef): string | null {
+  const labels = [box.label_fr, box.label_en]
+    .filter((label): label is string => Boolean(label && label.length >= 5))
+    .map(relaxedLabelPattern);
+
+  const patterns: RegExp[] = [];
+  if (labels.length > 0) {
+    patterns.push(new RegExp(`(?:\\b${escapeRegex(box.code)}\\b[\\s:—–-]*)?(?:${labels.join("|")})[^\\r\\n]{0,160}?${MONEY_CAPTURE}`, "i"));
+  }
+
+  // Gabarits éprouvés par les feuillets T5007 : la ligne contient le code, le
+  // libellé, le montant, le NAS puis le code de relevé, sans nécessairement un |.
+  if (box.code === "10" && /workers'?\s+compensation|indemnités?\s+(?:d['’]indemnisation\s+)?(?:pour\s+)?accidents?\s+du\s+travail/i.test(`${box.label_fr} ${box.label_en}`)) {
+    patterns.unshift(
+      new RegExp(`(?:\\b10\\b\\s*)?(?:workers?[’']?\\s+compensation\\s+benefits|indemnit[ée]s?(?:\\s+d[’']indemnisation)?\\s+(?:pour\\s+)?accidents?\\s+du\\s+travail)[^\\r\\n]{0,180}?${MONEY_CAPTURE}`, "i"),
+      new RegExp(`\\b20\\d{2}\\s+10\\s+(?:workers?[’']?\\s+compensation\\s+benefits|indemnit[ée]s?(?:\\s+d[’']indemnisation)?\\s+(?:pour\\s+)?accidents?\\s+du\\s+travail)[^\\r\\n]{0,180}?${MONEY_CAPTURE}`, "i"),
+    );
+  }
+
+  for (const pattern of patterns) {
+    const value = asMoney(pattern.exec(ocrText)?.[1]);
+    if (value) return value;
+  }
+  return null;
+}
+
 /**
  * Cherche la valeur d'une case dans le texte OCR brut (enrichi par Google Doc AI).
  * Stratégie:
  *   1. Bloc STRUCTURED FIELDS (injecté par google-document-ai.ts)
- *   2. Code de case explicite (box_14:, case 14:, 14:)
- *   3. Keywords FR dans le texte
- *   4. Pattern tableau Google Doc AI (2025 | montant | NAS | code)
+ *   2. Rangée de gabarit libellé → montant (T4, T4A, T5007, RL)
+ *   3. Code de case explicite (box_14:, case 14:, 14:)
+ *   4. Keywords français et anglais, puis tableau Google Document AI
  */
 export function findBoxValueInText(
   ocrText: string,
@@ -196,15 +273,25 @@ export function findBoxValueInText(
   const structStart = ocrText.indexOf("--- STRUCTURED FIELDS ---");
   if (structStart >= 0) {
     const structText = ocrText.slice(structStart);
-    const candidates = [`box_${box.code}`, `case_${box.code}`, box.code];
+    const candidates = [...new Set([
+      `box_${box.code}`,
+      `case_${box.code}`,
+      box.code,
+      ...(box.ocrAliases ?? []),
+    ])];
     for (const key of candidates) {
-      const pat = new RegExp(`${key.replace(/[()]/g, "\\$&")}[:\\s]+([\\d\\s,.']+)`, "i");
+      const pat = new RegExp(`${escapeRegex(key)}[:\\s]+${MONEY_CAPTURE}`, "i");
       const m = structText.match(pat);
       if (m?.[1] && parseMontantOCR(m[1]) !== null) return m[1].trim();
     }
   }
 
-  // 2. Code de case explicite dans le texte brut
+  // 2. Rangée de gabarit complète, avant les mots isolés qui peuvent traverser
+  // une colonne voisine ou une autre copie du même feuillet.
+  const layoutValue = findLayoutBoundValue(ocrText, box);
+  if (layoutValue) return layoutValue;
+
+  // 3. Code de case explicite dans le texte brut
   const codePatterns = [
     new RegExp(`box[_\\s]?${box.code}[:\\s]+([\\d\\s,.']+)`, "i"),
     new RegExp(`case[_\\s]?${box.code}[:\\s]+([\\d\\s,.']+)`, "i"),
@@ -215,10 +302,10 @@ export function findBoxValueInText(
     if (m?.[1] && parseMontantOCR(m[1]) !== null) return m[1].trim();
   }
 
-  // 3. Keywords FR
+  // 4. Keywords FR et EN — secours lorsque le gabarit n’a pas de libellé complet.
   const lower = ocrText.toLowerCase();
-  const MONEY_RE = /([0-9]{1,3}(?:[\s,\u00a0][0-9]{3})*(?:[.,][0-9]{2})(?!\d)|[0-9]+[.,][0-9]{2}(?!\d))/;
-  for (const kw of box.keywords_fr) {
+  const MONEY_RE = new RegExp(MONEY_CAPTURE);
+  for (const kw of [...new Set([...box.keywords_fr, ...box.keywords_en])]) {
     const idx = lower.indexOf(kw.toLowerCase());
     if (idx >= 0) {
       const after = ocrText.slice(idx, idx + 120);
@@ -227,7 +314,7 @@ export function findBoxValueInText(
     }
   }
 
-  // 4. Pattern tableau (année | montant)
+  // 5. Pattern tableau (année | montant)
   if (box.code === "14" || box.data_type === "money") {
     const m = ocrText.match(TABLE_ROW_PATTERN);
     if (m?.[1]) {
@@ -236,7 +323,7 @@ export function findBoxValueInText(
     }
   }
 
-  // 5. Format tableau T4A/T4RSP: code de case suivi du montant
+  // 6. Format tableau T4A/T4RSP: code de case suivi du montant
   const pat5a = new RegExp("\\b0*" + box.code + "\\s+([0-9][\\d\\s,.']+)", "im");
   const pat5b = new RegExp("\\b0*" + box.code + "\\n([0-9][\\d\\s,.']+)", "im");
   for (const pat5 of [pat5a, pat5b]) {
