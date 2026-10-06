@@ -299,9 +299,17 @@ export class T4Extractor implements DocumentExtractor {
   }
 }
 
-// Registre des extracteurs — ajouter RL-1, T4A, T5 ici plus tard
-export const EXTRACTORS: DocumentExtractor[] = [new T4Extractor()];
+// Registre des extracteurs
+// T4Extractor: extracteur spécialisé avec patterns hardcodés (haute confiance)
+// UNIVERSAL_EXTRACTORS: extracteur dictionnaire pour les 27 autres feuillets
+import { UNIVERSAL_EXTRACTORS } from "./universal";
+
+export const EXTRACTORS: DocumentExtractor[] = [
+  new T4Extractor(),    // Extracteur spécialisé T4
+  ...UNIVERSAL_EXTRACTORS, // Extracteurs universels pour T4A, T4E, T5, RL-1, RL-2... (27 feuillets)
+];
 
 export function getExtractor(documentTypeCode: string): DocumentExtractor | null {
+  // Priorité: extracteur spécialisé > extracteur universel
   return EXTRACTORS.find((e) => e.documentTypeCode === documentTypeCode) ?? null;
 }
