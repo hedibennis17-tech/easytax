@@ -57,6 +57,13 @@
       "when": 1790930000000,
       "tag": "0007_questionnaire_engine",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791330210042,
+      "tag": "0010_questionnaire_schema",
+      "breakpoints": true
     }
   ]
 }

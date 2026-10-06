@@ -51,6 +51,15 @@ interface DeclarationData {
     isRefund: boolean;
   };
   questionnaireProgress: QuestionnaireProgress | null;
+  questionnaireDatabase: {
+    sessionId: string;
+    questionnaireType: string;
+    status: string;
+    currentStep: string | null;
+    progressPct: number;
+    syncedEntries: number;
+    pendingEntries: number;
+  } | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -63,8 +72,9 @@ function parseCents(s: string): number {
   return isNaN(n) ? 0 : Math.round(n * 100);
 }
 
-function QuestionnaireProgressCard({ progress, lang }: { progress: QuestionnaireProgress | null; lang: string }) {
+function QuestionnaireProgressCard({ progress, database, lang }: { progress: QuestionnaireProgress | null; database: DeclarationData["questionnaireDatabase"]; lang: string }) {
   const T = (fr: string, en: string) => lang === "en" ? en : fr;
+  const [isOpen, setIsOpen] = useState(true);
   if (!progress) {
     return (
       <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 12, padding: "14px 16px", marginBottom: 14 }}>
@@ -74,27 +84,31 @@ function QuestionnaireProgressCard({ progress, lang }: { progress: Questionnaire
     );
   }
   return (
-    <section aria-label={T("Progression du questionnaire", "Questionnaire progress")} style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 12, padding: "14px 16px", marginBottom: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", marginBottom: 8 }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 14, color: "#0f1f1e" }}>{T("Progression du questionnaire", "Questionnaire progress")}</div>
-          <div style={{ fontSize: 11, color: "#7a9c97", marginTop: 2 }}>{progress.questionsAnswered} / {progress.questionsApplicable} {T("questions répondues", "questions answered")}{progress.province ? ` · ${progress.province}` : ""}</div>
+    <section aria-label={T("Résumé du questionnaire", "Questionnaire summary")} style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 12, marginBottom: 14, overflow: "hidden" }}>
+      <button type="button" onClick={() => setIsOpen(value => !value)} aria-expanded={isOpen}
+        style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "14px 16px", background: "transparent", border: 0, cursor: "pointer", textAlign: "left" }}>
+        <span>
+          <span style={{ display: "block", fontWeight: 700, fontSize: 14, color: "#0f1f1e" }}>{T("Résumé du questionnaire", "Questionnaire summary")}</span>
+          <span style={{ display: "block", fontSize: 11, color: "#7a9c97", marginTop: 2 }}>{progress.questionsAnswered} / {progress.questionsApplicable} {T("questions répondues", "questions answered")}{progress.province ? ` · ${progress.province}` : ""}</span>
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: 12 }}><strong style={{ color: "#0b6b67", fontSize: 20 }}>{progress.globalPercent}%</strong><span aria-hidden="true" style={{ color: "#0b6b67", fontSize: 20, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 160ms" }}>⌄</span></span>
+      </button>
+      {isOpen && <div style={{ padding: "0 16px 14px" }}>
+        <div style={{ height: 8, background: "#e8f1ef", borderRadius: 99, overflow: "hidden", marginBottom: 12 }}><div style={{ width: `${Math.min(100, Math.max(0, progress.globalPercent))}%`, height: "100%", background: "#0b6b67", borderRadius: 99 }} /></div>
+        <div style={{ display: "grid", gap: 7 }}>
+          {progress.sections.map(section => (
+            <div key={section.code} style={{ display: "grid", gridTemplateColumns: "minmax(120px,1fr) 1.5fr auto", gap: 8, alignItems: "center", fontSize: 11 }}>
+              <span style={{ color: "#526865", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{section.icon} {lang === "en" ? section.en : section.fr}</span>
+              <div style={{ height: 5, background: "#eef4f2", borderRadius: 99, overflow: "hidden" }}><div style={{ width: `${section.percent}%`, height: "100%", background: section.completed ? "#059669" : "#9fd4cc", borderRadius: 99 }} /></div>
+              <span style={{ minWidth: 62, textAlign: "right", color: section.completed ? "#059669" : "#7a9c97" }}>{section.answered}/{section.total} · {section.percent}%</span>
+            </div>
+          ))}
         </div>
-        <strong style={{ color: "#0b6b67", fontSize: 20 }}>{progress.globalPercent}%</strong>
-      </div>
-      <div style={{ height: 8, background: "#e8f1ef", borderRadius: 99, overflow: "hidden", marginBottom: 12 }}>
-        <div style={{ width: `${Math.min(100, Math.max(0, progress.globalPercent))}%`, height: "100%", background: "#0b6b67", borderRadius: 99 }} />
-      </div>
-      <div style={{ display: "grid", gap: 7 }}>
-        {progress.sections.map(section => (
-          <div key={section.code} style={{ display: "grid", gridTemplateColumns: "minmax(120px,1fr) 1.5fr auto", gap: 8, alignItems: "center", fontSize: 11 }}>
-            <span style={{ color: "#526865", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{section.icon} {lang === "en" ? section.en : section.fr}</span>
-            <div style={{ height: 5, background: "#eef4f2", borderRadius: 99, overflow: "hidden" }}><div style={{ width: `${section.percent}%`, height: "100%", background: section.completed ? "#059669" : "#9fd4cc", borderRadius: 99 }} /></div>
-            <span style={{ minWidth: 62, textAlign: "right", color: section.completed ? "#059669" : "#7a9c97" }}>{section.answered}/{section.total} · {section.percent}%</span>
-          </div>
-        ))}
-      </div>
-      <div style={{ color: "#a0b4b0", fontSize: 10, marginTop: 10 }}>{T("Les réponses sont sauvegardées automatiquement après chaque étape.", "Answers are saved automatically after each step.")}</div>
+        {database && <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #eef4f2", display: "flex", flexWrap: "wrap", gap: 8, fontSize: 10, color: "#526865" }}>
+          <span>{T("État", "Status")}: <strong>{database.status}</strong></span><span>{T("Étape", "Step")}: <strong>{database.currentStep ?? "—"}</strong></span><span>{T("Entrées synchronisées", "Synced entries")}: <strong>{database.syncedEntries}</strong></span>{database.pendingEntries > 0 && <span style={{ color: "#d97706" }}>{T("À synchroniser", "Pending")}: <strong>{database.pendingEntries}</strong></span>}
+        </div>}
+        <div style={{ color: "#a0b4b0", fontSize: 10, marginTop: 10 }}>{T("Les réponses sont sauvegardées automatiquement après chaque étape.", "Answers are saved automatically after each step.")}</div>
+      </div>}
     </section>
   );
 }
@@ -481,7 +495,7 @@ export default function DeclarationPage() {
         {/* ═══ ONGLET RÉSUMÉ ════════════════════════════════════════════ */}
         {activeTab === "resume" && (
           <div>
-            <QuestionnaireProgressCard progress={data.questionnaireProgress} lang={lang} />
+            <QuestionnaireProgressCard progress={data.questionnaireProgress} database={data.questionnaireDatabase} lang={lang} />
             <ResultsNotices
               lang={lang}
               taxYear={data.meta.taxYear}

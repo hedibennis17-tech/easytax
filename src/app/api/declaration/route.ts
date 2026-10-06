@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { taxProfiles, taxReturns, incomeEntries, deductionEntries, creditEntries, taxCalculations } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { normalizeProvinceCode } from "@/lib/provinces";
 import type { QuestionnaireProgress } from "@/lib/questionnaire-progress";
 
@@ -25,6 +25,51 @@ function readQuestionnaireProgress(raw: string | null | undefined): Questionnair
   try {
     const parsed = JSON.parse(raw) as { questionnaireProgress?: QuestionnaireProgress };
     return parsed.questionnaireProgress ?? null;
+  } catch {
+    return null;
+  }
+}
+
+type QuestionnaireDatabaseSummary = {
+  sessionId: string;
+  questionnaireType: string;
+  status: string;
+  currentStep: string | null;
+  progressPct: number;
+  syncedEntries: number;
+  pendingEntries: number;
+} | null;
+
+async function readQuestionnaireDatabaseSummary(userId: string, taxReturnId?: string): Promise<QuestionnaireDatabaseSummary> {
+  if (!taxReturnId) return null;
+  try {
+    const rows = await db.execute(sql`
+      SELECT id::text AS "sessionId", questionnaire_type AS "questionnaireType",
+             status, current_step AS "currentStep", COALESCE(progress_pct, 0) AS "progressPct"
+      FROM q_sessions
+      WHERE user_id = ${userId} AND tax_return_id = ${taxReturnId}
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `) as unknown as Array<Record<string, unknown>>;
+    const session = rows[0];
+    if (!session) return null;
+    const syncRows = await db.execute(sql`
+      SELECT status, COUNT(*)::int AS count
+      FROM q_entry_sync
+      WHERE session_id = ${String(session.sessionId)}
+      GROUP BY status
+    `) as unknown as Array<{ status: string; count: number }>;
+    const syncedEntries = syncRows.find(row => row.status === "synchronise")?.count ?? 0;
+    const pendingEntries = syncRows.filter(row => ["en_attente", "erreur"].includes(row.status)).reduce((sum, row) => sum + row.count, 0);
+    return {
+      sessionId: String(session.sessionId),
+      questionnaireType: String(session.questionnaireType ?? "particulier"),
+      status: String(session.status ?? "brouillon"),
+      currentStep: session.currentStep ? String(session.currentStep) : null,
+      progressPct: Number(session.progressPct ?? 0),
+      syncedEntries,
+      pendingEntries,
+    };
   } catch {
     return null;
   }
@@ -70,6 +115,7 @@ export async function GET() {
   const province = normalizeProvinceCode(profile.fiscalResidence ?? profile.province) ?? "QC";
   const isQC = province === "QC";
   const questionnaireProgress = readQuestionnaireProgress(profile.pancanadianData);
+  const questionnaireDatabase = await readQuestionnaireDatabaseSummary(userId, taxReturn?.id);
 
   // Données DB
   const incomes    = taxReturn ? await db.select().from(incomeEntries).where(and(eq(incomeEntries.userId, userId), eq(incomeEntries.taxReturnId, taxReturn.id))) : [];
@@ -230,6 +276,7 @@ export async function GET() {
       isPreliminary: true,
     },
     questionnaireProgress,
+    questionnaireDatabase,
     t1: t1Lines,
     tp1: tp1Lines,
     summary: {
