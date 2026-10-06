@@ -542,7 +542,23 @@ export default function QuestionnairePage() {
     }).catch(() => {});
   }, []);
 
-  // Charger le brouillon au démarrage
+  // ── Sauvegarde DB à chaque section complétée ────────────────────────────
+  const saveToDb = async (currentAnswers: Record<string, unknown>, sectionDone?: string) => {
+    try {
+      await fetch("/api/questionnaire/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          answers: currentAnswers,
+          sectionCompleted: sectionDone,
+          currentSection: currentSection?.code,
+          questionsAnswered: Object.keys(currentAnswers).length,
+        }),
+      });
+    } catch { /* silencieux — localStorage reste la source de vérité */ }
+  };
+
+  // ── Charger le brouillon au démarrage
   useEffect(() => {
     if (userId === "guest") return;
 
@@ -866,8 +882,9 @@ export default function QuestionnairePage() {
               lang={lang}
               province={String(answers["t0"] ?? "QC")}
               onComplete={(totalRevenueCents) => {
-                // Marquer les revenus comme validés et passer aux questions complémentaires
-                setAnswers(prev => ({ ...prev, revenus_validated: true, revenus_total_cents: totalRevenueCents }));
+                const newAnswers = { ...answers, revenus_validated: true, revenus_total_cents: totalRevenueCents };
+                setAnswers(newAnswers);
+                saveToDb(newAnswers, "revenus");
                 setQIdx(1);
               }}
             />
@@ -882,7 +899,9 @@ export default function QuestionnairePage() {
               province={String(answers["t0"] ?? "QC")}
               answers={answers}
               onComplete={(selectedIds) => {
-                setAnswers(prev => ({ ...prev, credits_selected: selectedIds, credits_validated: true }));
+                const newAnswers = { ...answers, credits_selected: selectedIds, credits_validated: true };
+                setAnswers(newAnswers);
+                saveToDb(newAnswers, "credits");
                 setQIdx(1);
               }}
             />

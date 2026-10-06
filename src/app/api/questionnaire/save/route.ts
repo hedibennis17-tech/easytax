@@ -1,0 +1,174 @@
+/**
+ * POST /api/questionnaire/save
+ * Sauvegarde toutes les réponses du questionnaire en DB
+ * Appelé automatiquement à chaque section complétée
+ */
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
+import {
+  taxProfiles, taxReturns, taxYears,
+  questionnaireSessions, incomeEntries, deductionEntries,
+} from "@/db/schema";
+import { eq, and, desc } from "drizzle-orm";
+
+export async function POST(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
+  const body = await req.json() as {
+    answers: Record<string, unknown>;
+    sectionCompleted?: string;
+    currentSection?: string;
+    questionsAnswered?: number;
+  };
+
+  const { answers, sectionCompleted, currentSection, questionsAnswered } = body;
+
+  // Récupérer profil + taxReturn
+  const [profile] = await db.select({ id: taxProfiles.id })
+    .from(taxProfiles).where(eq(taxProfiles.userId, userId)).limit(1);
+  if (!profile) return NextResponse.json({ error: "Profil introuvable" }, { status: 404 });
+
+  const [tr] = await db.select({ id: taxReturns.id, taxYearId: taxReturns.taxYearId })
+    .from(taxReturns).where(eq(taxReturns.profileId, profile.id))
+    .orderBy(desc(taxReturns.updatedAt)).limit(1);
+  if (!tr) return NextResponse.json({ error: "TaxReturn introuvable" }, { status: 404 });
+
+  // Inférer les flags depuis les réponses
+  const hasEmployment   = answers["t1"] === true || answers["t1"] === "true";
+  const hasSelfEmp      = answers["t2"] === true || answers["t2"] === "true";
+  const hasRental       = answers["t3"] === true || answers["t3"] === "true";
+  const hasInvestment   = answers["t4"] === true || answers["t4"] === "true";
+  const hasRrsp         = !!(answers["r_reer"] || answers["deductions_reer"]);
+  const hasChildcare    = answers["f4"] === true || answers["f4"] === "true";
+  const province        = String(answers["t0"] ?? answers["province"] ?? "QC");
+
+  // Sections complétées
+  const sectionsCompleted: string[] = [];
+  if (answers["triage_done"])    sectionsCompleted.push("triage");
+  if (answers["profil_done"])    sectionsCompleted.push("profil");
+  if (answers["revenus_validated"]) sectionsCompleted.push("revenus");
+  if (answers["credits_validated"]) sectionsCompleted.push("credits");
+  if (sectionCompleted && !sectionsCompleted.includes(sectionCompleted)) {
+    sectionsCompleted.push(sectionCompleted);
+  }
+
+  // Upsert questionnaire_sessions
+  const [existing] = await db.select({ id: questionnaireSessions.id })
+    .from(questionnaireSessions)
+    .where(and(
+      eq(questionnaireSessions.userId, userId),
+      eq(questionnaireSessions.taxReturnId, tr.id),
+    )).limit(1);
+
+  const sessionData = {
+    userId,
+    taxProfileId: profile.id,
+    taxReturnId: tr.id,
+    taxYearId: tr.taxYearId,
+    status: "in_progress" as const,
+    currentSection: currentSection ?? sectionCompleted ?? null,
+    sectionsCompleted: JSON.stringify(sectionsCompleted),
+    hasEmploymentIncome: hasEmployment,
+    hasSelfEmployment:   hasSelfEmp,
+    hasInvestmentIncome: hasInvestment,
+    hasRentalIncome:     hasRental,
+    hasForeignIncome:    !!(answers["r_pla_etranger"]),
+    hasRrsp:             hasRrsp,
+    hasChildcare:        hasChildcare,
+    questionsAnswered:   questionsAnswered ?? Object.keys(answers).length,
+    updatedAt: new Date(),
+  };
+
+  let sessionId: string;
+  if (existing) {
+    await db.update(questionnaireSessions).set(sessionData).where(eq(questionnaireSessions.id, existing.id));
+    sessionId = existing.id;
+  } else {
+    const [created] = await db.insert(questionnaireSessions).values({ ...sessionData, createdAt: new Date() })
+      .returning({ id: questionnaireSessions.id });
+    sessionId = created.id;
+  }
+
+  // Sauvegarder les questions complémentaires revenus → incomeEntries / deductionEntries
+  let entriesCreated = 0;
+
+  // Pourboires non déclarés (r_emp_tip)
+  if (answers["r_emp_tip"] && typeof answers["r_emp_tip"] === "string") {
+    const cents = Math.round(parseFloat(String(answers["r_emp_tip"]).replace(",", ".")) * 100);
+    if (cents > 0) {
+      const exists = await db.select({ id: incomeEntries.id }).from(incomeEntries)
+        .where(and(eq(incomeEntries.userId, userId), eq(incomeEntries.taxReturnId, tr.id), eq(incomeEntries.category, "other_income")))
+        .limit(1);
+      if (!exists[0]) {
+        await db.insert(incomeEntries).values({
+          userId, taxProfileId: profile.id, taxYearId: tr.taxYearId, taxReturnId: tr.id,
+          category: "other_income", amountCents: cents,
+          description: "Pourboires non déclarés (questionnaire)", isValidated: false, updatedAt: new Date(),
+        });
+        entriesCreated++;
+      }
+    }
+  }
+
+  // Revenus autonome bruts (r_aut_brut)
+  if (answers["r_aut_brut"] && typeof answers["r_aut_brut"] === "string") {
+    const cents = Math.round(parseFloat(String(answers["r_aut_brut"]).replace(",", ".")) * 100);
+    if (cents > 0) {
+      const exists = await db.select({ id: incomeEntries.id }).from(incomeEntries)
+        .where(and(eq(incomeEntries.userId, userId), eq(incomeEntries.taxReturnId, tr.id), eq(incomeEntries.category, "self_employment")))
+        .limit(1);
+      if (!exists[0]) {
+        await db.insert(incomeEntries).values({
+          userId, taxProfileId: profile.id, taxYearId: tr.taxYearId, taxReturnId: tr.id,
+          category: "self_employment", amountCents: cents,
+          description: `Revenus autonome${answers["r_aut_type"] ? ` (${answers["r_aut_type"]})` : ""} (questionnaire)`,
+          isValidated: false, updatedAt: new Date(),
+        });
+        entriesCreated++;
+      }
+    }
+  }
+
+  // Location (r_loc_brut)
+  if (answers["r_loc_brut"] && typeof answers["r_loc_brut"] === "string") {
+    const cents = Math.round(parseFloat(String(answers["r_loc_brut"]).replace(",", ".")) * 100);
+    if (cents > 0) {
+      const exists = await db.select({ id: incomeEntries.id }).from(incomeEntries)
+        .where(and(eq(incomeEntries.userId, userId), eq(incomeEntries.taxReturnId, tr.id), eq(incomeEntries.category, "rental")))
+        .limit(1);
+      if (!exists[0]) {
+        await db.insert(incomeEntries).values({
+          userId, taxProfileId: profile.id, taxYearId: tr.taxYearId, taxReturnId: tr.id,
+          category: "rental", amountCents: cents,
+          description: `Location — ${answers["r_loc_adresse"] ?? "adresse non précisée"} (questionnaire)`,
+          isValidated: false, updatedAt: new Date(),
+        });
+        entriesCreated++;
+      }
+    }
+  }
+
+  // REER (déduction)
+  if (answers["ded_reer"] && typeof answers["ded_reer"] === "string") {
+    const cents = Math.round(parseFloat(String(answers["ded_reer"]).replace(",", ".")) * 100);
+    if (cents > 0) {
+      await db.insert(deductionEntries).values({
+        userId, taxProfileId: profile.id, taxYearId: tr.taxYearId, taxReturnId: tr.id,
+        category: "rrsp", amountCents: cents,
+        description: "Cotisation REER (questionnaire)", isValidated: false, updatedAt: new Date(),
+      }).onConflictDoNothing();
+      entriesCreated++;
+    }
+  }
+
+  // Mettre à jour pancanadianData avec toutes les réponses
+  await db.update(taxProfiles).set({
+    pancanadianData: JSON.stringify({ ...JSON.parse((await db.select({ d: taxProfiles.pancanadianData }).from(taxProfiles).where(eq(taxProfiles.userId, userId)).limit(1))[0]?.d ?? "{}"), questionnaireAnswers: answers }),
+    fiscalResidence: province as "QC" | "ON" | "AB" | "BC" | "SK" | "MB" | "NB" | "NS" | "PE" | "NL" | "NT" | "NU" | "YT",
+    updatedAt: new Date(),
+  }).where(eq(taxProfiles.userId, userId));
+
+  return NextResponse.json({ ok: true, sessionId, sectionsCompleted, entriesCreated });
+}
