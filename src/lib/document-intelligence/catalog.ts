@@ -257,10 +257,13 @@ export function guardSelectedDocumentType(
   }
 
   if (!smartMode && selected !== normalize(classification.documentTypeCode)) {
+    // L'user a sélectionné le mauvais type — mais le document est prouvé.
+    // On accepte quand même avec le type DÉTECTÉ (meilleure UX que rejeter).
+    // Le front affichera un avertissement via suggestedTypeCode.
     return {
-      accepted: false,
-      action: "REJECT",
-      reason: `Type contradictoire : le téléversement indiquait ${selectedTypeCode}, mais EasyTax a prouvé ${classification.documentTypeCode}. Le document est conservé, sans injection fiscale.`,
+      accepted: true,
+      action: "ACCEPT",
+      reason: `Type corrigé automatiquement : sélectionné ${selectedTypeCode}, prouvé ${classification.documentTypeCode}. Extraction avec le bon type.`,
       suggestedTypeCode: classification.documentTypeCode,
     };
   }
