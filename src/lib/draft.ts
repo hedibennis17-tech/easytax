@@ -23,7 +23,7 @@ export function saveDraftLocal(userId: string, taxYear: string, state: Partial<D
   try {
     const key = `${DRAFT_KEY_PREFIX}${userId}_${taxYear}`;
     const existing = loadDraftLocal(userId, taxYear) ?? {
-      version: 2, taxYear, userId, answers: {}, sectionIdx: 0, questionIdx: 0,
+      version: 3, taxYear, userId, answers: {}, sectionIdx: 0, questionIdx: 0,
       triageDone: false, lastSavedAt: new Date().toISOString(), status: "in_progress" as const,
     };
     const merged: DraftState = { ...existing, ...state, lastSavedAt: new Date().toISOString() };

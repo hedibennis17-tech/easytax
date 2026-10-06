@@ -484,7 +484,7 @@ if (typeof window !== "undefined") {
         const raw = localStorage.getItem(k);
         if (raw) {
           const p = JSON.parse(raw) as { version?: number };
-          if (!p.version || p.version < 2) toDelete.push(k);
+          if (!p.version || p.version < 3) toDelete.push(k);
         }
       }
     }

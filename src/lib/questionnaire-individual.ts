@@ -110,13 +110,7 @@ export const TRIAGE: Question[] = [
     hint: "T4A, T4A(P), T4A(OAS), T4E, T5007, RL-5.",
     type: "BOOLEAN", required: true,
   },
-  {
-    id: "t6", section: "triage", order: 6,
-    fr: "Avez-vous un époux/conjoint de fait ou des personnes à charge (enfants, parents...) ?",
-    en: "Do you have a spouse/common-law partner or dependants (children, parents...)?",
-    hint: "Affecte plusieurs crédits d'impôt non remboursables.",
-    type: "BOOLEAN", required: true,
-  },
+
   // ── Question 7: Situation particulière ────────────────────────────────────
   {
     id: "t7", section: "triage", order: 7,
@@ -274,9 +268,9 @@ export const MODULE_PROFIL: Question[] = [
 
 export const MODULE_FAMILLE: Question[] = [
   {
-    id: "f1", section: "famille", order: 1,
+    id: "f1", section: "profil", order: 22,
     fr: "Quelle était votre situation matrimoniale au 31 décembre 2025 ?", en: "What was your marital status on December 31, 2025?",
-    type: "SINGLE_CHOICE", required: true, showIf: "t6=true",
+    type: "SINGLE_CHOICE", required: true,
     options: [
       { value: "married",     fr: "Marié(e)",                     en: "Married"                  },
       { value: "common_law",  fr: "Conjoint(e) de fait",          en: "Common-law partner"       },
@@ -287,33 +281,60 @@ export const MODULE_FAMILLE: Question[] = [
     ],
   },
   {
-    id: "f2", section: "famille", order: 2,
+    id: "f2", section: "profil", order: 23,
     fr: "Si votre état civil a changé en 2025 : date du changement", en: "If your marital status changed in 2025: date of change",
-    type: "DATE", required: false, showIf: "t6=true",
+    type: "DATE", required: false,
   },
   {
-    id: "f3", section: "famille", order: 3,
+    id: "f3", section: "profil", order: 24,
     fr: "Renseignements sur l'époux ou conjoint de fait", en: "Spouse or common-law partner details",
-    type: "PERSON", required: false, showIf: "t6=true",
+    type: "PERSON", required: false, showIf: "f1=married",
     hint: "Nom, NAS, date de naissance, revenu net 2025, produit-il/elle une déclaration ?",
     hintEn: "Name, SIN, birth date, net income 2025, filing a return?",
   },
   {
-    id: "f4", section: "famille", order: 4,
-    fr: "Avez-vous des personnes à charge ?", en: "Do you have any dependants?",
-    type: "BOOLEAN", required: true, showIf: "t6=true",
+    id: "f4", section: "profil", order: 25,
+    fr: "Avez-vous des enfants ou personnes à charge ?", en: "Do you have children or dependants?",
+    type: "BOOLEAN", required: true,
   },
   {
-    id: "f5", section: "famille", order: 5,
-    fr: "Combien de personnes à charge avez-vous ?", en: "How many dependants do you have?",
+    id: "f5", section: "profil", order: 26,
+    fr: "Combien d'enfants ou de personnes à charge avez-vous ?",
+    en: "How many children or dependants do you have?",
     type: "NUMBER", required: true, showIf: "f4=true",
+    hint: "Enfants mineurs, étudiants à charge, parents à charge, personnes handicapées...",
   },
   {
-    id: "f6", section: "famille", order: 6,
-    fr: "Pour chaque personne à charge : nom, lien de parenté, date de naissance, NAS, revenu net, vit avec vous, déficience, études",
-    en: "For each dependant: name, relationship, birth date, SIN, net income, lives with you, disability, studies",
-    type: "PERSON", required: true, showIf: "f4=true",
-    hint: "Vous pourrez ajouter autant de personnes à charge que nécessaire",
+    id: "f6_1", section: "profil", order: 27,
+    fr: "Enfant / personne à charge #1 — Prénom et nom",
+    en: "Child / dependant #1 — First and last name",
+    type: "TEXT", required: false, showIf: "f4=true",
+  },
+  {
+    id: "f6_1b", section: "profil", order: 28,
+    fr: "Enfant / personne à charge #1 — Date de naissance",
+    en: "Child / dependant #1 — Date of birth",
+    type: "DATE", required: false, showIf: "f4=true",
+    hint: "La date de naissance détermine les crédits admissibles (moins de 18 ans, etc.)",
+  },
+  {
+    id: "f6_2", section: "profil", order: 29,
+    fr: "Enfant / personne à charge #2 — Prénom et nom (si applicable)",
+    en: "Child / dependant #2 — First and last name (if applicable)",
+    type: "TEXT", required: false, showIf: "f4=true",
+  },
+  {
+    id: "f6_2b", section: "profil", order: 30,
+    fr: "Enfant / personne à charge #2 — Date de naissance",
+    en: "Child / dependant #2 — Date of birth",
+    type: "DATE", required: false, showIf: "f4=true",
+  },
+  {
+    id: "f6_3", section: "profil", order: 31,
+    fr: "Autres personnes à charge — nom(s) et date(s) de naissance",
+    en: "Other dependants — name(s) and date(s) of birth",
+    type: "TEXT", required: false, showIf: "f4=true",
+    hint: "Si plus de 2 personnes à charge, indiquez leurs infos ici.",
   },
 ];
 
@@ -919,7 +940,6 @@ export const INDIVIDUAL_SECTIONS = [
   // ═══════════════════════════════════════════════════════════
   { code: "triage",      fr: "Triage",       en: "Triage",       icon: "🧭", alwaysShow: true },
   { code: "profil",      fr: "Profil",       en: "Profile",      icon: "🪪", alwaysShow: true },
-  { code: "famille",     fr: "Famille",      en: "Family",       icon: "👨‍👩‍👧", showIf: "t6=true" },
   { code: "revenus",     fr: "Revenus",      en: "Income",       icon: "💰", alwaysShow: true },
   { code: "deductions",  fr: "Déductions",   en: "Deductions",   icon: "📉", alwaysShow: true },
   { code: "credits",     fr: "Crédits",      en: "Credits",      icon: "🎁", alwaysShow: true },
