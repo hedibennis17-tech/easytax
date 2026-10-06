@@ -31,7 +31,7 @@
  */
 
 import { db } from "@/lib/db";
-import { getSlipDict, findBoxValueInText, parseMontantOCR, SLIP_DICT } from "@/lib/ocr/dictionnaire";
+import { extractAllBoxes, getMappableBoxes, parseMontantOCR, classifySlip } from "@/lib/ocr/dictionnaire";
 import {
   incomeEntries, deductionEntries, creditEntries,
   taxReturns, taxYears, taxProfiles, extractionFields,
@@ -175,8 +175,11 @@ export function hasTaxMappingForDocumentType(documentTypeCode: string): boolean 
 
 // ── Fonction principale ────────────────────────────────────────
 /**
- * MISE À JOUR: utilise slip-line-map.ts pour le mapping case→ligne T1/TP-1
- * Chaque entry créée contient maintenant t1Line et tp1Line pour la page déclaration.
+ * MISE À JOUR v2: utilise dictionnaire.ts (28 feuillets, 368 cases)
+ * - extractAllBoxes() lit les cases OCR avec anti-double-comptage (included_in)
+ * - getMappableBoxes() ne prend que les cases money avec ligne T1/TP-1
+ * - t1_line_condition signalé pour revue manuelle
+ * - auto_deduction_line crée automatiquement la déduction compensatoire
  */
 export async function syncOcrToEntries(params: {
   extractionId: string;
@@ -191,41 +194,94 @@ export async function syncOcrToEntries(params: {
   let created = 0;
   let skipped = 0;
 
-  // Récupérer taxProfileId et taxYearId depuis le taxReturn
   const [taxReturn] = await db.select({
     profileId: taxReturns.profileId,
     taxYearId: taxReturns.taxYearId,
   }).from(taxReturns).where(eq(taxReturns.id, taxReturnId)).limit(1);
-
-  if (!taxReturn) { return { created: 0, skipped: 0, errors: ["taxReturn introuvable"] }; }
+  if (!taxReturn) return { created: 0, skipped: 0, errors: ["taxReturn introuvable"] };
 
   const taxProfileId = taxReturn.profileId;
-  const taxYearId = taxReturn.taxYearId;
+  const taxYearId    = taxReturn.taxYearId;
 
-  // Récupérer les champs extraits
+  // Récupérer les champs extraits par OCR
   const fields = await db.select().from(extractionFields)
     .where(eq(extractionFields.extractionId, extractionId));
-
   if (fields.length === 0) return { created: 0, skipped: 0, errors: ["Aucun champ extrait"] };
 
-  // Map des champs disponibles
-  const fieldMap = DOCUMENT_FIELD_MAPS[documentTypeCode] ?? {};
-  const employerName = ocrText ? extractEmployerName(ocrText) : null;
+  // Reconstruire un ocrText enrichi depuis les champs si ocrText absent
+  let fullText = ocrText ?? "";
+  if (!fullText.includes("--- STRUCTURED FIELDS ---") && fields.length > 0) {
+    fullText += "\n\n--- STRUCTURED FIELDS ---\n";
+    for (const f of fields) {
+      const val = f.validatedValue ?? f.rawOcrValue ?? "";
+      if (val) fullText += `${f.fieldCode}: ${val}\n`;
+    }
+  }
 
-  for (const field of fields) {
-    const mapping = fieldMap[field.fieldCode];
-    if (!mapping || mapping.type === "skip") { skipped++; continue; }
+  // Extraire toutes les cases via le dictionnaire (anti-double-comptage intégré)
+  const { extractAllBoxes } = await import("@/lib/ocr/dictionnaire");
+  const boxes = extractAllBoxes(fullText, documentTypeCode);
 
-    // Valeur finale (validée > brute)
-    const rawValue = field.validatedValue ?? field.rawOcrValue;
-    const amountCents = parseMoneyCents(rawValue);
+  // Mapping case → catégorie EasyTax
+  const T1_TO_CATEGORY: Record<string, { entryType: string; category: string }> = {
+    "10100": { entryType: "income",    category: "employment" },
+    "10400": { entryType: "income",    category: "employment" },
+    "11300": { entryType: "income",    category: "oas" },
+    "11400": { entryType: "income",    category: "cpp_benefits" },
+    "11500": { entryType: "income",    category: "pension" },
+    "11900": { entryType: "income",    category: "ei_benefits" },
+    "12100": { entryType: "income",    category: "interest" },
+    "12600": { entryType: "income",    category: "rental" },
+    "12700": { entryType: "income",    category: "capital_gains" },
+    "12900": { entryType: "income",    category: "rrsp_withdrawal" },
+    "13000": { entryType: "income",    category: "other_income" },
+    "13010": { entryType: "income",    category: "scholarships" },
+    "13500": { entryType: "income",    category: "self_employment" },
+    "13900": { entryType: "income",    category: "self_employment" },
+    "14400": { entryType: "income",    category: "workers_comp" },
+    "14600": { entryType: "income",    category: "other_income" },
+    "20800": { entryType: "deduction", category: "rrsp" },
+    "21200": { entryType: "deduction", category: "union_dues" },
+    "21400": { entryType: "deduction", category: "childcare" },
+    "21900": { entryType: "deduction", category: "moving_expenses" },
+    "22900": { entryType: "deduction", category: "employment_expenses" },
+    "23200": { entryType: "deduction", category: "other_deductions" },
+    "25000": { entryType: "deduction", category: "other_deductions" },
+    "30800": { entryType: "credit",    category: "cpp_employee" },
+    "31200": { entryType: "credit",    category: "ei_employee" },
+    "32300": { entryType: "credit",    category: "tuition" },
+    "34900": { entryType: "credit",    category: "donations" },
+    "43700": { entryType: "withheld_federal",   category: "federal_tax_withheld" },
+  };
 
-    // Ignorer les montants nuls ou invalides (sauf si champ requis)
-    if (amountCents === null || amountCents === 0) { skipped++; continue; }
+  const TP1_TO_CATEGORY: Record<string, { entryType: string; category: string }> = {
+    "101":  { entryType: "income",             category: "employment" },
+    "451":  { entryType: "withheld_provincial", category: "provincial_tax_withheld" },
+    "206":  { entryType: "credit",             category: "rrq_employee" },
+    "375":  { entryType: "credit",             category: "rqap_employee" },
+  };
+
+  const now = new Date();
+
+  for (const box of boxes) {
+    // Skip: inclus dans une autre case (anti-double-comptage)
+    if (box.includedIn) { skipped++; continue; }
+    // Skip: pas de valeur ou zéro
+    if (!box.rawValue || !box.amountCents || box.amountCents === 0) { skipped++; continue; }
+    // Skip: pas de ligne T1/TP-1
+    const lineKey = box.t1_line ?? box.tp1_line;
+    if (!lineKey) { skipped++; continue; }
+
+    const mapping = box.t1_line
+      ? T1_TO_CATEGORY[box.t1_line]
+      : (box.tp1_line ? TP1_TO_CATEGORY[box.tp1_line] : null);
+
+    if (!mapping) { skipped++; continue; }
+
+    const fieldCodeNorm = `box_${box.code}`;
 
     try {
-      if (mapping.type === "income" || mapping.type === "income_and_offset") {
-        // Vérifier doublon
+      if (mapping.entryType === "income") {
         const existing = await db.select({ id: incomeEntries.id })
           .from(incomeEntries)
           .where(and(
@@ -234,51 +290,36 @@ export async function syncOcrToEntries(params: {
             eq(incomeEntries.sourceDocumentId, documentId),
             eq(incomeEntries.category, mapping.category as IncomeCategory),
           )).limit(1);
-
         if (existing.length > 0) { skipped++; continue; }
 
-        // Auto-validation: les données T4/RL-1 sont des documents officiels émis par l'employeur.
-        // Case 14 (revenus d'emploi) = validée automatiquement.
-        const autoValidate = ["employment", "pension", "ei_benefits"].includes(mapping.category as string);
         await db.insert(incomeEntries).values({
-          userId, taxProfileId, taxYearId,
-          taxReturnId,
+          userId, taxProfileId, taxYearId, taxReturnId,
           category: mapping.category as IncomeCategory,
           sourceDocumentId: documentId,
           sourceType: "validated_ocr",
-          amountCents,
-          description: mapping.labelFr,
-          employerName: employerName ?? undefined,
-          isValidated: autoValidate,
+          amountCents: box.amountCents,
+          description: `${box.label_fr} (${documentTypeCode} case ${box.code})`,
+          isValidated: !box.hasCondition, // conditionnel = demande revue
+          updatedAt: now,
         });
         created++;
 
-        if (mapping.type === "income_and_offset") {
-          const offsetLabel = `Déduction compensatoire — ${mapping.labelFr}`;
-          const [existingOffset] = await db.select({ id: deductionEntries.id })
-            .from(deductionEntries)
-            .where(and(
-              eq(deductionEntries.userId, userId),
-              eq(deductionEntries.taxReturnId, taxReturnId),
-              eq(deductionEntries.sourceDocumentId, documentId),
-              eq(deductionEntries.description, offsetLabel),
-            )).limit(1);
-          if (!existingOffset) {
-            await db.insert(deductionEntries).values({
-              userId, taxProfileId, taxYearId,
-              taxReturnId,
-              category: "other_deductions",
-              sourceDocumentId: documentId,
-              sourceType: "validated_ocr",
-              amountCents,
-              description: offsetLabel,
-              isValidated: true,
-            });
-            created++;
-          }
+        // Déduction automatique (T5007 case 10 → ligne 25000)
+        if (box.autoDeductionLine) {
+          await db.insert(deductionEntries).values({
+            userId, taxProfileId, taxYearId, taxReturnId,
+            category: "other_deductions" as DeductionCategory,
+            sourceDocumentId: documentId,
+            sourceType: "validated_ocr",
+            amountCents: box.amountCents,
+            description: `Déduction automatique (ligne ${box.autoDeductionLine}) — ${documentTypeCode} case ${box.code}`,
+            isValidated: true,
+            updatedAt: now,
+          });
+          created++;
         }
 
-      } else if (mapping.type === "deduction") {
+      } else if (mapping.entryType === "deduction") {
         const existing = await db.select({ id: deductionEntries.id })
           .from(deductionEntries)
           .where(and(
@@ -287,22 +328,21 @@ export async function syncOcrToEntries(params: {
             eq(deductionEntries.sourceDocumentId, documentId),
             eq(deductionEntries.category, mapping.category as DeductionCategory),
           )).limit(1);
-
         if (existing.length > 0) { skipped++; continue; }
 
         await db.insert(deductionEntries).values({
-          userId, taxProfileId, taxYearId,
-          taxReturnId,
+          userId, taxProfileId, taxYearId, taxReturnId,
           category: mapping.category as DeductionCategory,
           sourceDocumentId: documentId,
           sourceType: "validated_ocr",
-          amountCents,
-          description: mapping.labelFr,
-          isValidated: true, // Cotisations RPC/RRQ/AE = faits légaux auto-validés
+          amountCents: box.amountCents,
+          description: `${box.label_fr} (${documentTypeCode} case ${box.code})`,
+          isValidated: true,
+          updatedAt: now,
         });
         created++;
 
-      } else if (mapping.type === "credit") {
+      } else if (mapping.entryType === "credit") {
         const existing = await db.select({ id: creditEntries.id })
           .from(creditEntries)
           .where(and(
@@ -311,81 +351,51 @@ export async function syncOcrToEntries(params: {
             eq(creditEntries.sourceDocumentId, documentId),
             eq(creditEntries.category, mapping.category as CreditCategory),
           )).limit(1);
-
         if (existing.length > 0) { skipped++; continue; }
 
         await db.insert(creditEntries).values({
-          userId, taxProfileId, taxYearId,
-          taxReturnId,
+          userId, taxProfileId, taxYearId, taxReturnId,
           category: mapping.category as CreditCategory,
           sourceDocumentId: documentId,
           sourceType: "validated_ocr",
-          claimedAmountCents: amountCents,
-          description: mapping.labelFr,
-          isValidated: false,
-        });
-        created++;
-
-      } else if (mapping.type === "withheld_federal") {
-        // Mettre à jour estimatedFederalRefund sur taxReturn comme proxy
-        // (le champ dédié withheld n'est pas sur taxReturns — on stocke en deduction_entries comme "retenue")
-        const existing = await db.select({ id: deductionEntries.id })
-          .from(deductionEntries)
-          .where(and(
-            eq(deductionEntries.userId, userId),
-            eq(deductionEntries.taxReturnId, taxReturnId),
-            eq(deductionEntries.sourceDocumentId, documentId),
-            eq(deductionEntries.description, mapping.labelFr),
-          )).limit(1);
-
-        if (existing.length > 0) { skipped++; continue; }
-
-        await db.insert(deductionEntries).values({
-          userId, taxProfileId, taxYearId,
-          taxReturnId,
-          category: "other_deductions",
-          sourceDocumentId: documentId,
-          sourceType: "validated_ocr",
-          amountCents,
-          description: mapping.labelFr,
-          isValidated: true, // Les retenues sont des faits, pas des déductions à valider
-        });
-        created++;
-
-      } else if (mapping.type === "withheld_provincial") {
-        const existing = await db.select({ id: deductionEntries.id })
-          .from(deductionEntries)
-          .where(and(
-            eq(deductionEntries.userId, userId),
-            eq(deductionEntries.taxReturnId, taxReturnId),
-            eq(deductionEntries.sourceDocumentId, documentId),
-            eq(deductionEntries.description, mapping.labelFr),
-          )).limit(1);
-
-        if (existing.length > 0) { skipped++; continue; }
-
-        await db.insert(deductionEntries).values({
-          userId, taxProfileId, taxYearId,
-          taxReturnId,
-          category: "other_deductions",
-          sourceDocumentId: documentId,
-          sourceType: "validated_ocr",
-          amountCents,
-          description: mapping.labelFr,
+          claimedAmountCents: box.amountCents,
+          description: `${box.label_fr} (${documentTypeCode} case ${box.code})`,
           isValidated: true,
+          updatedAt: now,
+        });
+        created++;
+
+      } else if (mapping.entryType === "withheld_federal" || mapping.entryType === "withheld_provincial") {
+        const existing = await db.select({ id: deductionEntries.id })
+          .from(deductionEntries)
+          .where(and(
+            eq(deductionEntries.userId, userId),
+            eq(deductionEntries.taxReturnId, taxReturnId),
+            eq(deductionEntries.sourceDocumentId, documentId),
+            eq(deductionEntries.description, `${box.label_fr} (${documentTypeCode} case ${box.code})`),
+          )).limit(1);
+        if (existing.length > 0) { skipped++; continue; }
+
+        await db.insert(deductionEntries).values({
+          userId, taxProfileId, taxYearId, taxReturnId,
+          category: "other_deductions" as DeductionCategory,
+          sourceDocumentId: documentId,
+          sourceType: "validated_ocr",
+          amountCents: box.amountCents,
+          description: `${box.label_fr} (${documentTypeCode} case ${box.code})`,
+          isValidated: true,
+          updatedAt: now,
         });
         created++;
       }
-
     } catch (e) {
-      errors.push(`${field.fieldCode}: ${e instanceof Error ? e.message : "erreur"}`);
+      errors.push(`${box.code}: ${e instanceof Error ? e.message : "erreur"}`);
     }
   }
 
-  // Marquer le document comme ready_for_tax_return si des entrées ont été créées
   if (created > 0) {
     await db.update(fiscalDocuments)
-      .set({ status: "ready_for_tax_return", updatedAt: new Date() })
+      .set({ status: "ready_for_tax_return", updatedAt: now })
       .where(eq(fiscalDocuments.id, documentId));
   }
 
