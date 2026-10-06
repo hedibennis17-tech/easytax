@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
       if (found.length === 0 && fullText.length > 100) {
         errors.push(`Doc ${doc.id.slice(0,8)} (${slipCode}): OCR texte présent (${fullText.length} chars) mais 0 cases trouvées → keywords du dictionnaire ne matchent pas le texte`);
         // Afficher les 200 premiers chars pour voir le format
-        diag.ocrTextSample = fullText.slice(0, 400);
+        diag.ocrTextSample = fullText.slice(0, 2000);  // Plus de texte pour debug
       }
     } else {
       errors.push(`Doc ${doc.id.slice(0,8)}: Pas de texte OCR en DB → pipeline pas déclenché ou S3 key not found`);

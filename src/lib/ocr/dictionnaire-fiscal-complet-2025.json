@@ -733,7 +733,9 @@
             "assurance",
             "nas",
             "numéro",
-            "sociale"
+            "sociale",
+            "box 012",
+            "012"
           ],
           "keywords_en": [
             "insurance",
@@ -753,7 +755,9 @@
           "data_type": "code",
           "keywords_fr": [
             "bénéficiaire",
-            "numéro"
+            "numéro",
+            "box 014",
+            "014"
           ],
           "keywords_en": [
             "number",
@@ -776,7 +780,9 @@
             "prestations",
             "rente",
             "retraite",
-            "superannuation"
+            "superannuation",
+            "box 016",
+            "016"
           ],
           "keywords_en": [
             "pension",
@@ -795,7 +801,9 @@
           "keywords_fr": [
             "forfaitaire",
             "forfaitaires",
-            "paiements"
+            "paiements",
+            "box 018",
+            "018"
           ],
           "keywords_en": [
             "lump",
@@ -815,7 +823,9 @@
           "keywords_fr": [
             "commissions",
             "indépendant",
-            "travail"
+            "travail",
+            "box 020",
+            "020"
           ],
           "keywords_en": [
             "commissions",
@@ -836,7 +846,9 @@
           "keywords_fr": [
             "impôt",
             "retenu",
-            "revenu"
+            "revenu",
+            "box 022",
+            "022"
           ],
           "keywords_en": [
             "deducted",
@@ -854,7 +866,9 @@
           "data_type": "money",
           "keywords_fr": [
             "rente",
-            "rentes"
+            "rentes",
+            "box 024",
+            "024"
           ],
           "keywords_en": [
             "annuities",
@@ -873,7 +887,9 @@
           "data_type": "money",
           "keywords_fr": [
             "autres",
-            "revenus"
+            "revenus",
+            "box 028",
+            "028"
           ],
           "keywords_en": [
             "income",
@@ -894,7 +910,9 @@
             "commercial",
             "ristournes",
             "répartitions",
-            "selon"
+            "selon",
+            "box 030",
+            "030"
           ],
           "keywords_en": [
             "allocations",
@@ -913,7 +931,9 @@
             "cotisations",
             "passés",
             "rpa",
-            "services"
+            "services",
+            "box 032",
+            "032"
           ],
           "keywords_en": [
             "contributions",
@@ -932,7 +952,9 @@
           "data_type": "money",
           "keywords_fr": [
             "facteur",
-            "équivalence"
+            "équivalence",
+            "box 034",
+            "034"
           ],
           "keywords_en": [
             "adjustment",
@@ -950,7 +972,9 @@
           "keywords_fr": [
             "agrément",
             "numéro",
-            "régime"
+            "régime",
+            "box 036",
+            "036"
           ],
           "keywords_en": [
             "number",
@@ -971,7 +995,9 @@
             "accumulé",
             "paiements",
             "reee",
-            "revenu"
+            "revenu",
+            "box 040",
+            "040"
           ],
           "keywords_en": [
             "accumulated",
@@ -993,7 +1019,9 @@
             "aide",
             "paiements",
             "reee",
-            "études"
+            "études",
+            "box 042",
+            "042"
           ],
           "keywords_en": [
             "assistance",
@@ -1012,7 +1040,9 @@
           "data_type": "money",
           "keywords_fr": [
             "bienfaisance",
-            "dons"
+            "dons",
+            "box 046",
+            "046"
           ],
           "keywords_en": [
             "charitable",
@@ -1032,7 +1062,9 @@
             "honoraires",
             "rendus",
             "services",
-            "sommes"
+            "sommes",
+            "box 048",
+            "048"
           ],
           "keywords_en": [
             "fees",
@@ -1051,7 +1083,9 @@
           "data_type": "money",
           "keywords_fr": [
             "recherche",
-            "subventions"
+            "subventions",
+            "box 104",
+            "104"
           ],
           "keywords_en": [
             "grants",
@@ -1072,7 +1106,9 @@
             "bourses",
             "perfectionnement",
             "subventions",
-            "études"
+            "études",
+            "box 105",
+            "105"
           ],
           "keywords_en": [
             "artists",
@@ -1094,7 +1130,9 @@
           "keywords_fr": [
             "consécutives",
             "décès",
-            "prestations"
+            "prestations",
+            "box 106",
+            "106"
           ],
           "keywords_en": [
             "benefits",
@@ -1113,7 +1151,9 @@
             "assurance",
             "assurance-salaire",
             "régime",
-            "salaire"
+            "salaire",
+            "box 107",
+            "107"
           ],
           "keywords_en": [
             "loss",
@@ -1137,7 +1177,9 @@
             "non",
             "paiements",
             "périodiques",
-            "régime"
+            "régime",
+            "box 109",
+            "109"
           ],
           "keywords_en": [
             "payments",
@@ -1157,7 +1199,9 @@
           "keywords_fr": [
             "avantages",
             "liés",
-            "prêt"
+            "prêt",
+            "box 117",
+            "117"
           ],
           "keywords_en": [
             "benefits",
@@ -1176,7 +1220,9 @@
             "avantages",
             "médicaux",
             "primes",
-            "soins"
+            "soins",
+            "box 118",
+            "118"
           ],
           "keywords_en": [
             "benefits",
@@ -1197,7 +1243,9 @@
             "assurance-vie",
             "collective",
             "primes",
-            "temporaire"
+            "temporaire",
+            "box 119",
+            "119"
           ],
           "keywords_en": [
             "group",
@@ -1217,7 +1265,9 @@
           "data_type": "money",
           "keywords_fr": [
             "prestations",
-            "vétérans"
+            "vétérans",
+            "box 127",
+            "127"
           ],
           "keywords_en": [
             "benefits",
@@ -1237,7 +1287,9 @@
             "invalidité",
             "reei",
             "régime",
-            "épargne"
+            "épargne",
+            "box 131",
+            "131"
           ],
           "keywords_en": [
             "disability",
@@ -1258,7 +1310,9 @@
           "keywords_fr": [
             "prestations",
             "retraite",
-            "variables"
+            "variables",
+            "box 133",
+            "133"
           ],
           "keywords_en": [
             "benefits",
@@ -1278,7 +1332,9 @@
             "celi",
             "celiapp",
             "imposable",
-            "montant"
+            "montant",
+            "box 134",
+            "134"
           ],
           "keywords_en": [
             "amount",
@@ -1303,7 +1359,9 @@
             "payées",
             "primes",
             "privé",
-            "régime"
+            "régime",
+            "box 135",
+            "135"
           ],
           "keywords_en": [
             "health",
@@ -1328,7 +1386,9 @@
             "enfants",
             "jeunes",
             "parents",
-            "victimes"
+            "victimes",
+            "box 136",
+            "136"
           ],
           "keywords_en": [
             "children",
@@ -1350,7 +1410,9 @@
           "keywords_fr": [
             "adaptation",
             "prestations",
-            "travailleurs"
+            "travailleurs",
+            "box 150",
+            "150"
           ],
           "keywords_en": [
             "adjustment",
@@ -1369,7 +1431,9 @@
           "keywords_fr": [
             "admissible",
             "psc",
-            "supplément"
+            "supplément",
+            "box 152",
+            "152"
           ],
           "keywords_en": [
             "qualifying",
@@ -1388,7 +1452,9 @@
             "espèces",
             "payeur",
             "prix",
-            "récompense"
+            "récompense",
+            "box 154",
+            "154"
           ],
           "keywords_en": [
             "award",
@@ -1407,7 +1473,9 @@
           "data_type": "money",
           "keywords_fr": [
             "faillite",
-            "règlement"
+            "règlement",
+            "box 156",
+            "156"
           ],
           "keywords_en": [
             "bankruptcy",
@@ -1424,7 +1492,9 @@
           "data_type": "money",
           "keywords_fr": [
             "paiements",
-            "rpac"
+            "rpac",
+            "box 194",
+            "194"
           ],
           "keywords_en": [
             "payments",
@@ -1445,7 +1515,9 @@
             "base",
             "formation",
             "frais",
-            "scolarité"
+            "scolarité",
+            "box 196",
+            "196"
           ],
           "keywords_en": [
             "adult",
@@ -1470,7 +1542,9 @@
             "covid",
             "financière",
             "provinciale",
-            "territoriale"
+            "territoriale",
+            "box 200",
+            "200"
           ],
           "keywords_en": [
             "assistance",
@@ -1491,7 +1565,9 @@
             "aide",
             "covid",
             "financière",
-            "remboursement"
+            "remboursement",
+            "box 201",
+            "201"
           ],
           "keywords_en": [
             "assistance",
@@ -1509,7 +1585,9 @@
           "data_type": "money",
           "keywords_fr": [
             "bourses",
-            "postdoctorales"
+            "postdoctorales",
+            "box 210",
+            "210"
           ],
           "keywords_en": [
             "fellowship",
@@ -6051,7 +6129,11 @@
         "Relevé 5",
         "Prestations et indemnités",
         "CNESST",
-        "SAAQ"
+        "SAAQ",
+        "Commission des normes",
+        "Commission des normes de l",
+        "Redressement pour indemnités",
+        "indemnités reçues pour des années passées"
       ],
       "boxes": [
         {
