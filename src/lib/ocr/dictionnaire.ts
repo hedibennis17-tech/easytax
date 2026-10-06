@@ -189,6 +189,17 @@ export function findBoxValueInText(
     }
   }
 
+  // 5. Format tableau T4A/T4RSP: code de case suivi du montant
+  const pat5a = new RegExp("\\b0*" + box.code + "\\s+([0-9][\\d\\s,.']+)", "im");
+  const pat5b = new RegExp("\\b0*" + box.code + "\\n([0-9][\\d\\s,.']+)", "im");
+  for (const pat5 of [pat5a, pat5b]) {
+    const m5 = ocrText.match(pat5);
+    if (m5?.[1]) {
+      const raw5 = m5[1].trim().split(/\s+/)[0];
+      if (parseMontantOCR(raw5) !== null) return raw5;
+    }
+  }
+
   return null;
 }
 

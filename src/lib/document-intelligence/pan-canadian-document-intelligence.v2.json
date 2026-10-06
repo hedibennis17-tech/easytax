@@ -792,7 +792,11 @@
       "classification": {
         "anchors": [
           "RL-5",
-          "Prestations et indemnités"
+          "Prestations et indemnités",
+          "Commission des normes",
+          "CNESST",
+          "indemnités reçues pour des années passées",
+          "Redressement pour indemnités"
         ],
         "hard_type_check": true
       }

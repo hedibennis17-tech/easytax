@@ -50,27 +50,39 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const slipDef = getSlipDict(slipCode);
   const allBoxes = slipDef?.boxes ?? [];
 
-  // Si extractionFields vide → extraire depuis le texte OCR en DB (documentPages)
-  let enrichedFields = fields;
-  if (fields.length === 0) {
-    const pages = await db.select({ ocrText: documentPages.ocrText })
-      .from(documentPages).where(eq(documentPages.documentId, documentId));
-    if (pages.length > 0 && pages[0].ocrText) {
-      const fullText = pages.map(p => p.ocrText ?? "").join("\n\n");
-      const boxes = extractAllBoxes(fullText, slipCode);
-      enrichedFields = boxes
-        .filter(b => b.rawValue)
-        .map(b => ({
-          code: `box_${b.code}`,
-          label: b.label_fr,
-          rawValue: b.rawValue,
-          validatedValue: b.rawValue,
-          confidence: b.confidence,
-        }));
-    }
+  // Charger texte OCR depuis documentPages
+  const ocrPages = await db.select({ ocrText: documentPages.ocrText })
+    .from(documentPages).where(eq(documentPages.documentId, documentId));
+  const fullOcrText = ocrPages.map(p => p.ocrText ?? "").join("\n\n");
+
+  // Si typeCode=OTHER ou pas dans le dictionnaire → re-classifier
+  let effectiveSlipCode = slipCode;
+  if (slipCode === "OTHER" || !slipDef) {
+    const { classifySlip } = await import("@/lib/ocr/dictionnaire");
+    const detected = classifySlip(fullOcrText);
+    if (detected) effectiveSlipCode = detected;
   }
 
-  const cases = allBoxes.map(boxDef => {
+  // Re-charger le slipDef avec le bon code
+  const finalSlipDef = getSlipDict(effectiveSlipCode) ?? slipDef;
+  const finalAllBoxes = finalSlipDef?.boxes ?? [];
+
+  // Si extractionFields vide → extraire depuis le texte OCR en DB (documentPages)
+  let enrichedFields = fields;
+  if ((fields.length === 0 || slipCode === "OTHER") && fullOcrText.length > 50) {
+    const boxes = extractAllBoxes(fullOcrText, effectiveSlipCode);
+    enrichedFields = boxes
+      .filter(b => b.rawValue)
+      .map(b => ({
+        code: `box_${b.code}`,
+        label: b.label_fr,
+        rawValue: b.rawValue,
+        validatedValue: b.rawValue,
+        confidence: b.confidence,
+      }));
+  }
+
+  const cases = finalAllBoxes.map(boxDef => {
     // Chercher la valeur extraite
     const candidates = [`box_${boxDef.code}`, `case_${boxDef.code}`, boxDef.code];
     const extracted = enrichedFields.find(f => candidates.some(c =>
