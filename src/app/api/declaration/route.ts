@@ -4,11 +4,17 @@ import { db } from "@/lib/db";
 import { taxProfiles, taxReturns, incomeEntries, deductionEntries, creditEntries, taxCalculations } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const _dict = require("@/lib/ocr/dictionnaire-fiscal-complet-2025.json") as {
-  t1_lines: Record<string, { label_fr: string; label_en?: string; section: string }>;
-  tp1_lines: Record<string, { label_fr: string; section: string }>;
-};
+import path from "path";
+import fs from "fs";
+
+type DictT1Line  = { label_fr: string; label_en?: string; section: string };
+type DictTP1Line = { label_fr: string; section: string };
+type DictType    = { t1_lines: Record<string, DictT1Line>; tp1_lines: Record<string, DictTP1Line> };
+
+function loadDict(): DictType {
+  const p = path.join(process.cwd(), "src/lib/ocr/dictionnaire-fiscal-complet-2025.json");
+  return JSON.parse(fs.readFileSync(p, "utf-8")) as DictType;
+}
 
 function cents(v: number | null | undefined) { return v ?? 0; }
 
@@ -170,9 +176,10 @@ export async function GET() {
     };
   }).sort((a, b) => parseInt(a.line) - parseInt(b.line));
 
+  const _dict = loadDict();
   const t1Lines  = buildLines(_dict.t1_lines, t1Amounts, "t1");
   const tp1Lines = isQC ? buildLines(
-    _dict.tp1_lines as Record<string, { label_fr: string; label_en?: string; section: string }>,
+    _dict.tp1_lines as Record<string, DictT1Line>,
     tp1Amounts,
     "tp1"
   ) : [];
