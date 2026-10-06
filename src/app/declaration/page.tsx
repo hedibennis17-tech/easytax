@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { NavClient } from "@/components/NavClient";
 import { useApp } from "@/components/ThemeProvider";
+import { ResultsNotices } from "@/components/declaration/ResultsNotices";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface DeclarationLine {
@@ -29,6 +30,8 @@ interface DeclarationData {
     province: string;
     provinceName: string;
     form: string;
+    provincialForm: string;
+    provincialAuthority: string;
     isQC: boolean;
     profileName: string;
     sinLastFour: string | null;
@@ -41,8 +44,8 @@ interface DeclarationData {
     totalRevenuCents: number;
     revenuNetCents: number;
     revenuImposableCents: number;
-    federal: { taxPayable: number; withheld: number; balance: number; isRefund: boolean };
-    provincial: { taxPayable: number; withheld: number; balance: number; isRefund: boolean };
+    federal: { taxBeforeCredits: number; nonRefundableCredits: number; refundableCredits: number; taxPayable: number; withheld: number; balance: number; isRefund: boolean };
+    provincial: { taxBeforeCredits: number; nonRefundableCredits: number; refundableCredits: number; taxPayable: number; withheld: number; balance: number; isRefund: boolean };
     totalBalance: number;
     isRefund: boolean;
   };
@@ -192,27 +195,6 @@ function AccordionPanel({
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── Carte balance ────────────────────────────────────────────────────────────
-function BalanceCard({ label, balance, isRefund, big }: { label: string; balance: number; isRefund: boolean; big?: boolean }) {
-  const color = isRefund ? "#059669" : balance > 0 ? "#dc2626" : "#526865";
-  const bg    = isRefund ? "rgba(5,150,105,0.07)" : balance > 0 ? "rgba(220,38,38,0.07)" : "rgba(82,104,101,0.07)";
-  return (
-    <div style={{ background: bg, border: `1px solid ${color}30`, borderRadius: 12, padding: big ? "14px 16px" : "10px 14px", marginBottom: 8 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: big ? 13 : 12, color: "#526865" }}>{label}</span>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontWeight: 700, fontSize: big ? 22 : 16, fontFamily: "monospace", color }}>
-            {isRefund ? "▲ " : balance > 0 ? "▼ " : ""}{(Math.abs(balance) / 100).toLocaleString("fr-CA", { minimumFractionDigits: 2 })} $
-          </div>
-          <div style={{ fontSize: 10, color, marginTop: 1 }}>
-            {isRefund ? "Remboursement" : balance > 0 ? "Solde dû" : "Équilibre"}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -373,9 +355,6 @@ export default function DeclarationPage() {
 
   // Variables calculées — avant tout return (data peut être null)
   const isQC        = data?.meta.isQC ?? false;
-  const fedBalance  = data?.summary.federal.balance ?? 0;
-  const provBalance = data?.summary.provincial.balance ?? 0;
-  const totalBalance = fedBalance + provBalance;
   const t1Sections  = data ? buildT1Sections() : [];
   const tp1Sections = data ? buildTp1Sections() : [];
   const totalT1Filled  = t1Sections.reduce((s, sec) => s + sec.filledCount, 0);
@@ -395,6 +374,18 @@ export default function DeclarationPage() {
         <div style={{ fontSize: 13, color: "#7a9c97" }}>{T("Chargement de votre déclaration...","Loading your return...")}</div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
+    </div>
+  );
+
+  if (!data) return (
+    <div style={{ minHeight: "100vh", background: "var(--bg-base,#f7f9f8)" }}>
+      <NavClient />
+      <main style={{ maxWidth: 620, margin: "0 auto", padding: "48px 18px" }}>
+        <div style={{ background: "#fff", border: "1px solid #fde2e2", borderRadius: 14, padding: 20, color: "#8b1e1e" }}>
+          {T("Les données de la déclaration ne sont pas disponibles pour le moment. Réessayez après avoir complété votre profil.",
+             "Return data is not available yet. Try again after completing your profile.")}
+        </div>
+      </main>
     </div>
   );
 
@@ -447,10 +438,18 @@ export default function DeclarationPage() {
         {/* ═══ ONGLET RÉSUMÉ ════════════════════════════════════════════ */}
         {activeTab === "resume" && (
           <div>
-            {/* Soldes */}
-            <BalanceCard label={T("Fédéral — T1","Federal — T1")} balance={fedBalance} isRefund={fedBalance < 0} />
-            {isQC && <BalanceCard label="Québec — TP-1" balance={provBalance} isRefund={provBalance < 0} />}
-            <BalanceCard label={T("TOTAL","TOTAL")} balance={totalBalance} isRefund={totalBalance < 0} big />
+            <ResultsNotices
+              lang={lang}
+              taxYear={data.meta.taxYear}
+              provinceName={data.meta.provinceName}
+              provincialForm={data.meta.provincialForm}
+              provincialAuthority={data.meta.provincialAuthority}
+              totalIncomeCents={data.summary.totalRevenuCents}
+              netIncomeCents={data.summary.revenuNetCents}
+              taxableIncomeCents={data.summary.revenuImposableCents}
+              federal={data.summary.federal}
+              provincial={data.summary.provincial}
+            />
 
             {/* Légende sources */}
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12, marginBottom: 14, fontSize: 10, color: "#9ca3af" }}>
@@ -463,26 +462,6 @@ export default function DeclarationPage() {
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
                   {label}
-                </div>
-              ))}
-            </div>
-
-            {/* Tableau résumé financier */}
-            <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#9fd4cc", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>
-                {T("Résumé financier T1","T1 Financial Summary")}
-              </div>
-              {[
-                { label: T("Revenu total (L.15000)","Total income (L.15000)"),      val: totalRevenu,  bold: false },
-                { label: T("Déductions (L.20600–25999)","Deductions (L.20600–25999)"), val: totalDed, bold: false },
-                { label: T("Revenu net (L.23600)","Net income (L.23600)"),           val: revenuNet,    bold: true  },
-                { label: T("Impôt retenu (L.43700)","Tax withheld (L.43700)"),       val: totalRetenu,  bold: false },
-              ].map(row => (
-                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f3f4f6" }}>
-                  <span style={{ fontSize: 13, color: "#526865", fontWeight: row.bold ? 700 : 400 }}>{row.label}</span>
-                  <span style={{ fontFamily: "monospace", fontWeight: row.bold ? 700 : 600, fontSize: row.bold ? 15 : 13, color: row.bold ? "#0b6b67" : "#0f1f1e" }}>
-                    {fmtCAD(row.val)}
-                  </span>
                 </div>
               ))}
             </div>

@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { taxProfiles, taxReturns, incomeEntries, deductionEntries, creditEntries, taxCalculations } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { normalizeProvinceCode } from "@/lib/provinces";
 
 import path from "path";
 import fs from "fs";
@@ -55,7 +56,7 @@ export async function GET() {
     .from(taxReturns).where(eq(taxReturns.profileId, profile.id))
     .orderBy(desc(taxReturns.updatedAt)).limit(1);
 
-  const province = (profile.fiscalResidence ?? profile.province ?? "QC") as string;
+  const province = normalizeProvinceCode(profile.fiscalResidence ?? profile.province) ?? "QC";
   const isQC = province === "QC";
 
   // Données DB
@@ -145,12 +146,12 @@ export async function GET() {
   }
 
   // Solde fédéral
-  const fedWithheld = t1Amounts["43700"]?.cents ?? 0;
+  const fedWithheld = calc ? cents(calc.federalTaxWithheldCents) : (t1Amounts["43700"]?.cents ?? 0);
   const fedTax = cents(calc?.federalTaxPayableCents);
   const fedBalance = fedTax - fedWithheld;
 
   // Solde QC
-  const provWithheld = tp1Amounts["451"]?.cents ?? 0;
+  const provWithheld = calc ? cents(calc.provincialTaxWithheldCents) : (tp1Amounts["451"]?.cents ?? 0);
   const provTax = cents(calc?.provincialTaxPayableCents);
   const provBalance = provTax - provWithheld;
 
@@ -185,18 +186,31 @@ export async function GET() {
   ) : [];
 
   // Provinces
-  const PROV_NAMES: Record<string, string> = {
-    QC:"Québec",ON:"Ontario",AB:"Alberta",BC:"Colombie-Britannique",SK:"Saskatchewan",
-    MB:"Manitoba",NB:"Nouveau-Brunswick",NS:"Nouvelle-Écosse",PE:"Île-du-Prince-Édouard",
-    NL:"Terre-Neuve-et-Labrador",NT:"Territoires du Nord-Ouest",NU:"Nunavut",YT:"Yukon",
+  const PROVINCE_INFO: Record<string, { name: string; form: string; authority: string }> = {
+    QC: { name: "Québec", form: "TP-1", authority: "Revenu Québec" },
+    ON: { name: "Ontario", form: "ON428", authority: "Agence du revenu du Canada" },
+    AB: { name: "Alberta", form: "AB428", authority: "Agence du revenu du Canada" },
+    BC: { name: "Colombie-Britannique", form: "BC428", authority: "Agence du revenu du Canada" },
+    SK: { name: "Saskatchewan", form: "SK428", authority: "Agence du revenu du Canada" },
+    MB: { name: "Manitoba", form: "MB428", authority: "Agence du revenu du Canada" },
+    NB: { name: "Nouveau-Brunswick", form: "NB428", authority: "Agence du revenu du Canada" },
+    NS: { name: "Nouvelle-Écosse", form: "NS428", authority: "Agence du revenu du Canada" },
+    PE: { name: "Île-du-Prince-Édouard", form: "PE428", authority: "Agence du revenu du Canada" },
+    NL: { name: "Terre-Neuve-et-Labrador", form: "NL428", authority: "Agence du revenu du Canada" },
+    NT: { name: "Territoires du Nord-Ouest", form: "NT428", authority: "Agence du revenu du Canada" },
+    NU: { name: "Nunavut", form: "NU428", authority: "Agence du revenu du Canada" },
+    YT: { name: "Yukon", form: "YT428", authority: "Agence du revenu du Canada" },
   };
+  const provinceInfo = PROVINCE_INFO[province] ?? { name: province, form: `${province}428`, authority: "Agence du revenu du Canada" };
 
   return NextResponse.json({
     meta: {
       taxYear: 2025,
       province,
-      provinceName: PROV_NAMES[province] ?? province,
-      form: isQC ? "T1 + TP-1" : `T1 + ${province}428`,
+      provinceName: provinceInfo.name,
+      form: `T1 + ${provinceInfo.form}`,
+      provincialForm: provinceInfo.form,
+      provincialAuthority: provinceInfo.authority,
       isQC,
       profileName: `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim() || "—",
       sinLastFour: profile.sinLastFour,
@@ -209,10 +223,20 @@ export async function GET() {
       totalRevenuCents: totalRevenu,
       revenuNetCents: revenuNet,
       revenuImposableCents: revenuImposable,
-      federal:   { taxPayable: fedTax,  withheld: fedWithheld,  balance: fedBalance,  isRefund: fedBalance < 0  },
-      provincial:{ taxPayable: provTax, withheld: provWithheld, balance: provBalance, isRefund: provBalance < 0 },
-      totalBalance: fedBalance + provBalance,
-      isRefund: (fedBalance + provBalance) < 0,
+      federal: {
+        taxBeforeCredits: cents(calc?.federalTaxBeforeCreditsCents),
+        nonRefundableCredits: cents(calc?.federalNonRefundableCreditsCents),
+        refundableCredits: cents(calc?.federalRefundableCreditsCents),
+        taxPayable: fedTax, withheld: fedWithheld, balance: fedBalance, isRefund: fedBalance < 0,
+      },
+      provincial: {
+        taxBeforeCredits: cents(calc?.provincialTaxBeforeCreditsCents),
+        nonRefundableCredits: cents(calc?.provincialNonRefundableCreditsCents),
+        refundableCredits: cents(calc?.provincialRefundableCreditsCents),
+        taxPayable: provTax, withheld: provWithheld, balance: provBalance, isRefund: provBalance < 0,
+      },
+      totalBalance: calc ? cents(calc.totalBalanceCents) : fedBalance + provBalance,
+      isRefund: (calc ? cents(calc.totalBalanceCents) : fedBalance + provBalance) < 0,
     },
   });
 }
