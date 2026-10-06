@@ -137,6 +137,56 @@ export function parseMontantOCR(raw: string | null | undefined): number | null {
 export const TABLE_ROW_PATTERN = /\b20\d{2}\s*[|\t]\s*([\d\s,.']+)/;
 
 /**
+ * Extrait les métadonnées générales d'un feuillet depuis le texte OCR
+ * (type, année, employeur, NAS) — indépendantes des cases
+ */
+export function extractSlipMetadata(ocrText: string): {
+  slipType: string | null;
+  taxYear: number | null;
+  employerName: string | null;
+  recipientNas: string | null;
+} {
+  // Année fiscale
+  const yearMatch = ocrText.match(/(20\d{2})/g);
+  const taxYear = yearMatch
+    ? parseInt(yearMatch.sort().reverse()[0])
+    : null;
+
+  // Type de feuillet
+  const typePatterns = [
+    /(T4A?\(OAS\)|T4A?\(P\)|T4[A-Z]{0,3}|T5007|T5008|T5013|T5|T3|T2202|RL-\d{1,2})/i,
+  ];
+  let slipType: string | null = null;
+  for (const pat of typePatterns) {
+    const m = ocrText.match(pat);
+    if (m?.[1]) { slipType = m[1].toUpperCase(); break; }
+  }
+
+  // Nom employeur/payeur
+  const employerPatterns = [
+    /(?:Payer'?s?\s+name|Nom\s+du\s+payeur|Employer'?s?\s+name|Nom\s+de\s+l'?employeur)[^
+]*
+([^
+]+)/i,
+    /(?:Nom\s+et\s+adresse\s+de\s+l'?organisme)[^
+]*
+([^
+]+)/i,
+  ];
+  let employerName: string | null = null;
+  for (const pat of employerPatterns) {
+    const m = ocrText.match(pat);
+    if (m?.[1]?.trim()) { employerName = m[1].trim(); break; }
+  }
+
+  // NAS (format: 3 chiffres espace/tiret 3 chiffres espace/tiret 3 chiffres)
+  const nasMatch = ocrText.match(/(\d{3}[\s\-|]\d{3}[\s\-|]\d{3})/);
+  const recipientNas = nasMatch?.[1]?.replace(/[\s|]/g, "-") ?? null;
+
+  return { slipType, taxYear, employerName, recipientNas };
+}
+
+/**
  * Cherche la valeur d'une case dans le texte OCR brut (enrichi par Google Doc AI).
  * Stratégie:
  *   1. Bloc STRUCTURED FIELDS (injecté par google-document-ai.ts)

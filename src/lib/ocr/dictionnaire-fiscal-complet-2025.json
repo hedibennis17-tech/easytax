@@ -709,7 +709,21 @@
       ],
       "form_version": "2025-10",
       "family": "employment",
-      "notes": "Guide RC4120. Les codes 57-60 (COVID-2020) sont historiques, non pertinents 2025."
+      "notes": "Guide RC4120. Les codes 57-60 (COVID-2020) sont historiques, non pertinents 2025.",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "t4a",
@@ -774,19 +788,14 @@
           "tp1_line": null,
           "data_type": "money",
           "keywords_fr": [
-            "autres",
-            "pension",
-            "pensions",
-            "prestations",
-            "rente",
-            "retraite",
-            "superannuation",
-            "box 016",
-            "016"
+            "016",
+            "pension retraite",
+            "pension ou rente"
           ],
           "keywords_en": [
-            "pension",
-            "superannuation"
+            "016",
+            "pension superannuation",
+            "016 pension"
           ],
           "label_source": "arc_fr",
           "notes": "Admissible au montant pour revenu de pension (ligne 31400)"
@@ -799,16 +808,14 @@
           "tp1_line": null,
           "data_type": "money",
           "keywords_fr": [
+            "018",
             "forfaitaire",
-            "forfaitaires",
-            "paiements",
-            "box 018",
-            "018"
+            "paiement forfaitaire"
           ],
           "keywords_en": [
-            "lump",
+            "018",
             "lump-sum",
-            "payments"
+            "018 lump"
           ],
           "label_source": "arc_fr",
           "notes": "Dans la plupart des cas → 13000"
@@ -821,16 +828,13 @@
           "tp1_line": null,
           "data_type": "money",
           "keywords_fr": [
+            "020",
             "commissions",
-            "indépendant",
-            "travail",
-            "box 020",
-            "020"
+            "travail indépendant"
           ],
           "keywords_en": [
+            "020",
             "commissions",
-            "employed",
-            "self",
             "self-employed"
           ],
           "label_source": "arc_fr",
@@ -844,16 +848,14 @@
           "tp1_line": null,
           "data_type": "money",
           "keywords_fr": [
-            "impôt",
-            "retenu",
-            "revenu",
-            "box 022",
-            "022"
+            "022",
+            "impôt retenu",
+            "retenu sur"
           ],
           "keywords_en": [
-            "deducted",
-            "income",
-            "tax"
+            "022",
+            "income tax deducted",
+            "022 tax"
           ],
           "label_source": "arc_fr"
         },
@@ -865,14 +867,14 @@
           "tp1_line": null,
           "data_type": "money",
           "keywords_fr": [
-            "rente",
+            "024",
             "rentes",
-            "box 024",
-            "024"
+            "paiements de rente"
           ],
           "keywords_en": [
+            "024",
             "annuities",
-            "annuity"
+            "024 annuity"
           ],
           "label_source": "arc_fr",
           "t1_line_condition": "11500 si 65 ans+ au 31 déc. ou rente reçue au décès du conjoint; sinon 13000",
@@ -1039,14 +1041,14 @@
           "tp1_line": null,
           "data_type": "money",
           "keywords_fr": [
-            "bienfaisance",
+            "046",
             "dons",
-            "box 046",
-            "046"
+            "bienfaisance"
           ],
           "keywords_en": [
-            "charitable",
-            "donations"
+            "046",
+            "charitable donations",
+            "046 donations"
           ],
           "label_source": "arc_fr"
         },
@@ -1058,17 +1060,16 @@
           "tp1_line": "164",
           "data_type": "money",
           "keywords_fr": [
-            "autres",
+            "048",
             "honoraires",
-            "rendus",
-            "services",
-            "sommes",
-            "box 048",
-            "048"
+            "sommes pour services",
+            "services rendus"
           ],
           "keywords_en": [
-            "fees",
-            "services"
+            "048",
+            "fees for services",
+            "048 fees",
+            "other amounts"
           ],
           "label_source": "arc_fr",
           "t1_line_condition": "Revenu d'entreprise/profession/commission (T2125 : 13500/13700/13900); sinon 13000",
@@ -1101,21 +1102,16 @@
           "tp1_line": "154",
           "data_type": "money",
           "keywords_fr": [
-            "artiste",
-            "bourse",
-            "bourses",
-            "perfectionnement",
-            "subventions",
-            "études",
-            "box 105",
-            "105"
+            "105",
+            "bourses études",
+            "bourses perfectionnement",
+            "fellowships"
           ],
           "keywords_en": [
-            "artists",
-            "bursaries",
+            "105",
+            "scholarships",
             "fellowships",
-            "grants",
-            "scholarships"
+            "105 bursaries"
           ],
           "label_source": "arc_fr",
           "notes": "Partie imposable seulement"
@@ -1148,20 +1144,15 @@
           "tp1_line": null,
           "data_type": "money",
           "keywords_fr": [
-            "assurance",
+            "107",
             "assurance-salaire",
-            "régime",
-            "salaire",
-            "box 107",
-            "107"
+            "invalidité collective"
           ],
           "keywords_en": [
-            "loss",
-            "payments",
-            "plan",
-            "replacement",
-            "wage",
-            "wage-loss"
+            "107",
+            "salary continuance",
+            "disability",
+            "107 wage"
           ],
           "label_source": "arc_fr"
         },
@@ -1601,7 +1592,21 @@
       ],
       "form_version": "2025-10",
       "family": "pension_other",
-      "notes": "Guide RC4157. Cases 012-061 = haut du feuillet; codes « Autres renseignements » sans position fixe (important pour la segmentation OCR). Codes 026 et 137 N'EXISTENT PAS. Codes 102/108/110/158/180/190 inclus dans 018; 111/115 dans 024; 126/162 dans 032; 122 dans 040; 128 dans 016."
+      "notes": "Guide RC4157. Cases 012-061 = haut du feuillet; codes « Autres renseignements » sans position fixe (important pour la segmentation OCR). Codes 026 et 137 N'EXISTENT PAS. Codes 102/108/110/158/180/190 inclus dans 018; 111/115 dans 024; 126/162 dans 032; 122 dans 040; 128 dans 016.",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "t4aoas",
@@ -1742,7 +1747,21 @@
         }
       ],
       "form_version": "2025-10",
-      "family": "benefits"
+      "family": "benefits",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "t4ap",
@@ -1974,7 +1993,21 @@
       ],
       "form_version": "2025-10",
       "family": "benefits",
-      "notes": "Au Québec, l'équivalent est le relevé 2 (RRQ)."
+      "notes": "Au Québec, l'équivalent est le relevé 2 (RRQ).",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "t4e",
@@ -2324,7 +2357,21 @@
         }
       ],
       "form_version": "2025-10",
-      "family": "benefits"
+      "family": "benefits",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "t5007",
@@ -2429,7 +2476,21 @@
       ],
       "form_version": "2025-10",
       "family": "benefits",
-      "notes": "Équivalent fédéral partiel du relevé 5 du Québec (case C → ligne 148 QC)."
+      "notes": "Équivalent fédéral partiel du relevé 5 du Québec (case C → ligne 148 QC).",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "t4rsp",
@@ -2748,7 +2809,21 @@
       ],
       "form_version": "2025-10",
       "family": "retirement",
-      "notes": "Guide T4079. La case 32 N'EXISTE PAS (la numérotation saute de 30 à 34)."
+      "notes": "Guide T4079. La case 32 N'EXISTE PAS (la numérotation saute de 30 à 34).",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "t4rif",
@@ -3004,7 +3079,21 @@
       ],
       "form_version": "2025-10",
       "family": "retirement",
-      "notes": "Guide T4079. La case 34 N'EXISTE PAS."
+      "notes": "Guide T4079. La case 34 N'EXISTE PAS.",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "t5",
@@ -3382,7 +3471,21 @@
       ],
       "form_version": "2025-10",
       "family": "investment",
-      "notes": "Feuillet bilingue officiel t5-25f. Lignes 12000/12010/12100/40425/40500."
+      "notes": "Feuillet bilingue officiel t5-25f. Lignes 12000/12010/12100/40425/40500.",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "t3",
@@ -3896,7 +3999,21 @@
       ],
       "form_version": "2025-10",
       "family": "investment",
-      "notes": "Guide T4013 + feuillet bilingue t3-19e. Cases 38/45/46/47 partiellement tronquées dans l'extraction — intitulés reconstruits."
+      "notes": "Guide T4013 + feuillet bilingue t3-19e. Cases 38/45/46/47 partiellement tronquées dans l'extraction — intitulés reconstruits.",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "t5008",
@@ -4189,7 +4306,21 @@
       ],
       "form_version": "2025-10",
       "family": "investment",
-      "notes": "Guide T4091 + normes XML T619. Le gain/perte se CALCULE (21−20), il n'est pas imprimé."
+      "notes": "Guide T4091 + normes XML T619. Le gain/perte se CALCULE (21−20), il n'est pas imprimé.",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "t5013",
@@ -4706,7 +4837,21 @@
       ],
       "form_version": "2025-10",
       "family": "investment",
-      "notes": "T5013-INST Rév. 25. Cases 101-109 réservées aux associés commanditaires (limitées au montant à risque). Cases info/contrôle : 010, 105, 106, 108/109 (reports de pertes → 25100), 113 (remboursement de capital → réduit le PBR)."
+      "notes": "T5013-INST Rév. 25. Cases 101-109 réservées aux associés commanditaires (limitées au montant à risque). Cases info/contrôle : 010, 105, 106, 108/109 (reports de pertes → 25100), 113 (remboursement de capital → réduit le PBR).",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "t2202",
@@ -4862,7 +5007,21 @@
       ],
       "form_version": "2025-10",
       "family": "recu",
-      "notes": "Les crédits d'éducation/manuels sont éliminés après 2016 — seuls les frais de scolarité subsistent."
+      "notes": "Les crédits d'éducation/manuels sont éliminés après 2016 — seuls les frais de scolarité subsistent.",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "recu_reer",
@@ -4907,7 +5066,21 @@
       ],
       "form_version": "2025-10",
       "family": "recu",
-      "notes": "Inclut aussi les cotisations au RVER/RPAC via l'employeur (ligne 20810 si cotisation employeur)."
+      "notes": "Inclut aussi les cotisations au RVER/RPAC via l'employeur (ligne 20810 si cotisation employeur).",
+      "meta": {
+        "government": "ARC / Canada Revenue Agency",
+        "authority": "federal",
+        "province": null,
+        "year": 2025,
+        "official_url": "https://www.canada.ca/fr/agence-revenu.html"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_1",
@@ -5513,7 +5686,21 @@
       "form_version": "2025-10",
       "family": "employment",
       "province": "QC",
-      "notes": "Formulaire 2025-10. Pas de cases U/X/Y/Z."
+      "notes": "Formulaire 2025-10. Pas de cases U/X/Y/Z.",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_2",
@@ -5883,7 +6070,21 @@
       "form_version": "2025-10",
       "family": "pension_other",
       "province": "QC",
-      "notes": "Formulaire 2024-10 (pas de 2025-10 repéré). Lignes 122/154/250/451/119."
+      "notes": "Formulaire 2024-10 (pas de 2025-10 repéré). Lignes 122/154/250/451/119.",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_3",
@@ -6116,7 +6317,21 @@
       "form_version": "2025-10",
       "family": "investment",
       "province": "QC",
-      "notes": "Formulaire 2025-10."
+      "notes": "Formulaire 2025-10.",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_5",
@@ -6517,7 +6732,21 @@
       "form_version": "2025-10",
       "family": "benefits",
       "province": "QC",
-      "notes": "Formulaire 2024-10 (pas de 2025-10 repéré). Pas de cases F/G/L/N. Équivalent fédéral : T5007 (partie fédérale → 14400/14500)."
+      "notes": "Formulaire 2024-10 (pas de 2025-10 repéré). Pas de cases F/G/L/N. Équivalent fédéral : T5007 (partie fédérale → 14400/14500).",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_8",
@@ -6592,7 +6821,21 @@
       ],
       "form_version": "2025-10",
       "family": "recu",
-      "province": "QC"
+      "province": "QC",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_15",
@@ -7046,7 +7289,21 @@
       "form_version": "2025-10",
       "family": "investment",
       "province": "QC",
-      "notes": "Formulaire 2025-10 — cases NUMÉROTÉES 1 à 76 (sélection particulier). Équivalent fédéral : T5013."
+      "notes": "Formulaire 2025-10 — cases NUMÉROTÉES 1 à 76 (sélection particulier). Équivalent fédéral : T5013.",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_16",
@@ -7342,7 +7599,21 @@
       "form_version": "2025-10",
       "family": "investment",
       "province": "QC",
-      "notes": "Formulaire 2025-10. Équivalent fédéral : T3."
+      "notes": "Formulaire 2025-10. Équivalent fédéral : T3.",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_22",
@@ -7401,7 +7672,21 @@
       ],
       "form_version": "2025-10",
       "family": "employment",
-      "province": "QC"
+      "province": "QC",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_24",
@@ -7576,7 +7861,21 @@
       "form_version": "2025-10",
       "family": "recu",
       "province": "QC",
-      "notes": "Formulaire 2024-10 (pas de 2025-10 repéré). Pas de case F."
+      "notes": "Formulaire 2024-10 (pas de 2025-10 repéré). Pas de case F.",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_25",
@@ -7781,7 +8080,21 @@
       "form_version": "2025-10",
       "family": "investment",
       "province": "QC",
-      "notes": "Formulaire 2025-10. ATTENTION : ce n'est PAS un relevé REER/FERR (erreur fréquente)."
+      "notes": "Formulaire 2025-10. ATTENTION : ce n'est PAS un relevé REER/FERR (erreur fréquente).",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_27",
@@ -7819,7 +8132,21 @@
       "form_version": "2025-10",
       "family": "recu",
       "province": "QC",
-      "notes": "Cases détaillées non documentées — objet confirmé : paiements gouvernementaux."
+      "notes": "Cases détaillées non documentées — objet confirmé : paiements gouvernementaux.",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_31",
@@ -7891,7 +8218,21 @@
       ],
       "form_version": "2025-10",
       "family": "credits",
-      "province": "QC"
+      "province": "QC",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_13",
@@ -7908,7 +8249,21 @@
       "form_version": "2025-10",
       "family": "recu",
       "province": "QC",
-      "notes": "Objet confirmé; cases non détaillées — rare en déclaration personnelle."
+      "notes": "Objet confirmé; cases non détaillées — rare en déclaration personnelle.",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     },
     {
       "id": "rl_6",
@@ -7945,7 +8300,21 @@
       "form_version": "2025-10",
       "family": "benefits",
       "province": "QC",
-      "notes": "Ligne TP-1 110 (source : tableau lignes TP-1)."
+      "notes": "Ligne TP-1 110 (source : tableau lignes TP-1).",
+      "meta": {
+        "government": "Revenu Québec",
+        "authority": "provincial",
+        "province": "QC",
+        "year": 2025,
+        "official_url": "https://www.revenuquebec.ca"
+      },
+      "fields_to_extract": {
+        "type_feuillet": true,
+        "annee_fiscale": true,
+        "nom_employeur": true,
+        "nas_beneficiaire": true,
+        "montants": true
+      }
     }
   ],
   "t1_lines": {
