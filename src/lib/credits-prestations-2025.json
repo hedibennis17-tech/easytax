@@ -1,0 +1,1963 @@
+{
+  "meta": {
+    "title": "Crédits et prestations pancanadiens 2020-2025 — particuliers",
+    "version": "2025.1.0",
+    "created": "2026-10-05",
+    "scope": "Crédits d'impôt remboursables + prestations gouvernementales versées, permanents et temporaires. Mesures d'urgence COVID EXCLUES.",
+    "sources": [
+      "ARC / canada.ca (fédéral)",
+      "Revenu Québec / budget.finances.gouv.qc.ca (Québec)",
+      "Sites des ministères des finances provinciaux et territoriaux"
+    ],
+    "coverage": {
+      "programmes_federaux": 12,
+      "programmes_provinciaux_territoriaux": 50,
+      "juridictions": [
+        "federal",
+        "AB",
+        "BC",
+        "MB",
+        "NB",
+        "NL",
+        "NS",
+        "NT",
+        "NU",
+        "ON",
+        "PE",
+        "QC",
+        "SK",
+        "YT"
+      ],
+      "annees": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    },
+    "notes": [
+      "Les montants sont ceux vérifiés par la recherche; les années non vérifiées sont signalées dans 'uncertainties' — rien n'est inventé.",
+      "type = prestation (versée, souvent non imposable) | credit_remboursable (à la déclaration) | credit_non_remboursable (inclus pour mémoire seulement).",
+      "Les programmes temporaires ont years_active limité et permanent=false."
+    ]
+  },
+  "federal": [
+    {
+      "id": "ace_ccb",
+      "name_fr": "Allocation canadienne pour enfants",
+      "name_en": "Canada Child Benefit",
+      "type": "prestation",
+      "permanent": true,
+      "years_active": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "frequency": "mensuelle",
+      "taxable": false,
+      "t1_line": null,
+      "tp1_line": null,
+      "form": null,
+      "description": "Prestation mensuelle non imposable, indexée chaque 1er juillet. Aucune ligne T1.",
+      "key_amounts": {
+        "2020-21": {
+          "moins_6_ans": 6765,
+          "6_17_ans": 5708,
+          "seuil_reduction": 31711
+        },
+        "2021-22": {
+          "moins_6_ans": 6833,
+          "6_17_ans": 5765,
+          "seuil_reduction": 32028
+        },
+        "2023-24": {
+          "moins_6_ans": 7437,
+          "6_17_ans": 6275
+        },
+        "2024-25": {
+          "moins_6_ans": 7787,
+          "6_17_ans": 6570,
+          "seuil_reduction": 36502
+        },
+        "peh_2024-25": {
+          "prestation_enfants_handicapes_max_an": 3322
+        }
+      },
+      "notable_changes": [
+        "2021 : supplément temporaire pour jeunes enfants (ACESJE) — jusqu'à 1 200 $ par enfant < 6 ans, 4 versements de 300 $, terminé le 31 déc. 2021.",
+        "Indexation annuelle chaque 1er juillet."
+      ],
+      "uncertainties": [
+        "Montants 2022-23 et 2025-26 non vérifiés dans la recherche."
+      ]
+    },
+    {
+      "id": "tps_tvh",
+      "name_fr": "Crédit pour la TPS/TVH",
+      "name_en": "GST/HST Credit",
+      "type": "credit_remboursable",
+      "permanent": true,
+      "years_active": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "frequency": "trimestrielle",
+      "taxable": false,
+      "t1_line": null,
+      "tp1_line": null,
+      "form": null,
+      "description": "Crédit remboursable versé en juillet/octobre/janvier/avril, combiné aux crédits provinciaux de taxe de vente. Non imposable.",
+      "key_amounts": {
+        "2021-22": {
+          "base_adulte": 299,
+          "par_enfant": 157,
+          "seuil": 38892
+        },
+        "2022-23": {
+          "base_adulte": 306,
+          "par_enfant": 161,
+          "seuil": 39826
+        },
+        "2024-25": {
+          "base_adulte": 340,
+          "par_enfant": 179,
+          "seuil": 44324
+        },
+        "2025-26": {
+          "base_adulte": 349,
+          "par_enfant": 184,
+          "seuil": 45521,
+          "max_celibataire": 533,
+          "max_couple": 698
+        }
+      },
+      "notable_changes": [
+        "Nov. 2022 : doublement temporaire (6 mois) — versement unique : jusqu'à 234 $ célibataire, 306 $ couple, 387 $ monoparental + 1 enfant.",
+        "Réduction de 5 % du revenu au-delà du seuil; versement unique en juillet si ≤ 200 $/an."
+      ],
+      "uncertainties": [
+        "Paramètres détaillés 2023-24 non récupérés."
+      ]
+    },
+    {
+      "id": "act_cwb",
+      "name_fr": "Allocation canadienne pour les travailleurs",
+      "name_en": "Canada Workers Benefit",
+      "type": "credit_remboursable",
+      "permanent": true,
+      "years_active": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "frequency": "annuelle (déclaration)",
+      "taxable": false,
+      "t1_line": "45300",
+      "tp1_line": null,
+      "form": "Annexe 6",
+      "description": "Crédit remboursable pour travailleurs à faible revenu. Revenu de travail minimal 3 000 $. Variantes provinciales : QC, AB, Nunavut.",
+      "key_amounts": {
+        "2022": {
+          "seule": 1428,
+          "famille": 2461,
+          "supplement_handicap": 737
+        },
+        "2023": {
+          "seule": 1518,
+          "famille": 2616,
+          "supplement_handicap": 784
+        },
+        "2024": {
+          "seule": 1590,
+          "famille": 2739,
+          "supplement_handicap": 821
+        },
+        "2025": {
+          "seule": 1633,
+          "famille": 2813,
+          "supplement_handicap": 843,
+          "reduction_seule_des": 26855,
+          "reduction_famille_des": 30639
+        }
+      },
+      "notable_changes": [
+        "2021 : bonification permanente — seuils élargis (~32 244 $ seul / 42 197 $ famille), exemption du 2e salarié jusqu'à 14 000 $.",
+        "2023 : avance de l'ACT (AACT) — jusqu'à 50 % en 3 versements (juil./oct./janv.), réconciliation ligne 41500."
+      ],
+      "uncertainties": [
+        "Montants 2020-2021 pré-bonification non vérifiés."
+      ]
+    },
+    {
+      "id": "caip_ccr",
+      "name_fr": "Paiement de l'incitatif à agir pour le climat / Remise canadienne sur le carbone",
+      "name_en": "Climate Action Incentive Payment / Canada Carbon Rebate",
+      "type": "credit_remboursable",
+      "permanent": false,
+      "years_active": [
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "frequency": "trimestrielle (dès juil. 2022)",
+      "taxable": false,
+      "t1_line": null,
+      "tp1_line": null,
+      "form": null,
+      "description": "Compensation de la redevance fédérale sur les combustibles. Provinces à système provincial (BC, QC) jamais admissibles au volet fédéral.",
+      "key_amounts": {
+        "2024-25_famille_4_annuel": {
+          "AB": 1800,
+          "SK": 1504,
+          "MB": 1200,
+          "ON": 1120,
+          "NB": 760,
+          "NS": 824,
+          "PE": 880,
+          "NL": 1192
+        },
+        "2024-25_trimestriel_1er_adulte": {
+          "AB": 225,
+          "SK": 188,
+          "MB": 150,
+          "ON": 140,
+          "NB": 95,
+          "NS": 103,
+          "PE": 110,
+          "NL": 149
+        }
+      },
+      "notable_changes": [
+        "2022-23 : passage aux versements trimestriels; supplément rural 10 %.",
+        "2023-24 : extension aux provinces de l'Atlantique.",
+        "2024-25 : renommé Remise canadienne sur le carbone; supplément rural doublé à 20 % (C-59).",
+        "Printemps 2025 : redevance fédérale abolie — dernier versement avril 2025, programme en fin de vie."
+      ],
+      "uncertainties": []
+    },
+    {
+      "id": "epicerie_2023",
+      "name_fr": "Remboursement pour l'épicerie",
+      "name_en": "Grocery Rebate",
+      "type": "credit_remboursable",
+      "permanent": false,
+      "years_active": [
+        2023
+      ],
+      "frequency": "unique (5 juil. 2023)",
+      "taxable": false,
+      "t1_line": null,
+      "tp1_line": null,
+      "form": null,
+      "description": "Versement unique = double du paiement TPS/TVH de janvier 2023, basé sur la déclaration 2021. ~11 millions de bénéficiaires.",
+      "key_amounts": {
+        "max_celibataire": 234,
+        "max_couple": 306,
+        "max_4_enfants": 628,
+        "moyenne_aines": 225
+      },
+      "notable_changes": [],
+      "uncertainties": []
+    },
+    {
+      "id": "sv_oas",
+      "name_fr": "Pension de la Sécurité de la vieillesse",
+      "name_en": "Old Age Security pension",
+      "type": "prestation",
+      "permanent": true,
+      "years_active": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "frequency": "mensuelle",
+      "taxable": true,
+      "t1_line": "11300",
+      "tp1_line": null,
+      "form": null,
+      "description": "Pension mensuelle indexée chaque trimestre. Impôt de récupération de 15 % au-delà du seuil.",
+      "key_amounts": {
+        "2024": {
+          "65_74_ans_mois": 713.34,
+          "75_plus_mois": 784.67,
+          "seuil_recuperation": 90997
+        },
+        "2025": {
+          "65_74_ans_mois": 740.09,
+          "75_plus_mois": 814.1,
+          "seuil_recuperation": 93454
+        }
+      },
+      "notable_changes": [
+        "Juil. 2022 : majoration permanente de 10 % pour les 75 ans et plus."
+      ],
+      "uncertainties": []
+    },
+    {
+      "id": "srg_gis",
+      "name_fr": "Supplément de revenu garanti",
+      "name_en": "Guaranteed Income Supplement",
+      "type": "prestation",
+      "permanent": true,
+      "years_active": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "frequency": "mensuelle",
+      "taxable": false,
+      "t1_line": "14600",
+      "tp1_line": null,
+      "form": null,
+      "description": "Supplément mensuel pour aînés à faible revenu recevant la SV. Ligne 14600 puis déduction 25000.",
+      "key_amounts": {
+        "2024": {
+          "celibataire_mois": 1065.47,
+          "seuil": 21624
+        },
+        "2025": {
+          "celibataire_mois": 1105.43,
+          "seuil": 22440,
+          "allocation_60_64_mois": 1405.5,
+          "allocation_survivant_mois": 1675.45
+        }
+      },
+      "notable_changes": [],
+      "uncertainties": []
+    },
+    {
+      "id": "pcph_cdb",
+      "name_fr": "Prestation canadienne pour les personnes handicapées",
+      "name_en": "Canada Disability Benefit",
+      "type": "prestation",
+      "permanent": true,
+      "years_active": [
+        2025
+      ],
+      "frequency": "mensuelle",
+      "taxable": false,
+      "t1_line": null,
+      "tp1_line": null,
+      "form": null,
+      "description": "NOUVEAU 2025. 18-64 ans, CIPH approuvé, déclarations produites. Indexée.",
+      "key_amounts": {
+        "2025-26_max_mois": 200,
+        "2025-26_max_an": 2400
+      },
+      "notable_changes": [
+        "Demandes ouvertes juin 2025; rétroactivité max 24 mois (pas avant juin 2025)."
+      ],
+      "uncertainties": []
+    },
+    {
+      "id": "supp_medical",
+      "name_fr": "Supplément remboursable pour frais médicaux",
+      "name_en": "Refundable Medical Expense Supplement",
+      "type": "credit_remboursable",
+      "permanent": true,
+      "years_active": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "frequency": "annuelle (déclaration)",
+      "taxable": false,
+      "t1_line": "45200",
+      "tp1_line": null,
+      "form": null,
+      "description": "25 % des frais médicaux admissibles; 18 ans+, revenu d'emploi minimal requis.",
+      "key_amounts": {
+        "2025": {
+          "max": "~1500+",
+          "revenu_familial_max": 63374,
+          "revenu_emploi_min": 4390
+        }
+      },
+      "notable_changes": [],
+      "uncertainties": [
+        "Maximum exact 2024/2025 non confirmé sur page ARC à jour."
+      ]
+    },
+    {
+      "id": "ccf",
+      "name_fr": "Crédit canadien pour la formation",
+      "name_en": "Canada Training Credit",
+      "type": "credit_remboursable",
+      "permanent": true,
+      "years_active": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "frequency": "annuelle (déclaration)",
+      "taxable": false,
+      "t1_line": "45350",
+      "tp1_line": null,
+      "form": null,
+      "description": "250 $/an accumulés, max à vie 5 000 $; = 50 % des frais admissibles.",
+      "key_amounts": {
+        "par_an": 250,
+        "max_vie": 5000
+      },
+      "notable_changes": [],
+      "uncertainties": []
+    },
+    {
+      "id": "cirhm",
+      "name_fr": "Crédit pour rénovation d'habitations multigénérationnelles",
+      "name_en": "Multigenerational Home Renovation Tax Credit",
+      "type": "credit_remboursable",
+      "permanent": true,
+      "years_active": [
+        2023,
+        2024,
+        2025
+      ],
+      "frequency": "annuelle (déclaration)",
+      "taxable": false,
+      "t1_line": "45355",
+      "tp1_line": null,
+      "form": "Annexe 12",
+      "description": "15 % des dépenses admissibles. Depuis 2023, permanent.",
+      "key_amounts": {
+        "taux": "15%",
+        "max_credit": 7500,
+        "max_depenses": 50000
+      },
+      "notable_changes": [],
+      "uncertainties": []
+    },
+    {
+      "id": "fournitures_educ",
+      "name_fr": "Fournitures scolaires d'éducateur admissible",
+      "name_en": "Eligible Educator School Supply Tax Credit",
+      "type": "credit_remboursable",
+      "permanent": true,
+      "years_active": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "frequency": "annuelle (déclaration)",
+      "taxable": false,
+      "t1_line": "46900",
+      "tp1_line": null,
+      "form": null,
+      "description": "25 % des dépenses admissibles.",
+      "key_amounts": {
+        "max_depenses": 1000,
+        "max_credit": 250
+      },
+      "notable_changes": [],
+      "uncertainties": []
+    }
+  ],
+  "provinces": {
+    "QC": [
+      {
+        "id": "solidarite",
+        "name_fr": "Crédit d'impôt pour la solidarité",
+        "name_en": "Solidarity Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle/trimestrielle/unique selon montant",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": "395",
+        "form": "Annexe D",
+        "description": "3 composantes : TVQ, logement, villages nordiques (14 villages). Versé mensuellement si > 800 $/an, trimestriellement entre 240 $ et 800 $, en un versement si ≤ 240 $.",
+        "key_amounts": {
+          "2025-26": {
+            "tvq_base_conjoint": 356,
+            "tvq_personne_seule": 169,
+            "logement_seule_mono": 731,
+            "logement_couple": 888,
+            "supplement_enfant": 155,
+            "villages_nordiques_base": 2091,
+            "exemple_couple_2_enfants": 1911,
+            "exemple_personne_seule": 1256
+          }
+        },
+        "notable_changes": [
+          "2020 : simplification pour le conjoint survivant (dès 1er juil. 2020).",
+          "2022 : Programme de revenu de base — max 50 % du crédit affectable aux dettes.",
+          "2023-24 : bonification de la composante logement — indexation doublée (6,44 % → 12,88 %) dès le 1er juil. 2023."
+        ],
+        "uncertainties": [
+          "Seuils de revenu déclenchant la réduction de 6 %/3 % non récupérés par période."
+        ]
+      },
+      {
+        "id": "prime_travail",
+        "name_fr": "Prime au travail (et prime au travail adaptée)",
+        "name_en": "Work Premium",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": "456",
+        "form": "Annexe P",
+        "description": "Crédit pour travailleurs à faible revenu. Adaptée : contraintes sévères à l'emploi ou déficience grave (ligne 376).",
+        "key_amounts": {
+          "2025": {
+            "personne_seule_max": 1185.52,
+            "couple_sans_enfants_max": 1848.34,
+            "monoparentale_max": 3066.0,
+            "couple_avec_enfants_max": 3983.5,
+            "plafond_revenu_travail": 19534,
+            "plafond_adaptee": 26946
+          }
+        },
+        "notable_changes": [
+          "Supplément de transition après aide sociale : 200 $/mois × 12 = 2 400 $ par personne. Versements anticipés possibles."
+        ],
+        "uncertainties": [
+          "Paramètres détaillés 2020-2023 non récupérés."
+        ]
+      },
+      {
+        "id": "frais_garde_qc",
+        "name_fr": "Crédit d'impôt pour frais de garde d'enfants",
+        "name_en": "Childcare Expenses Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": "455",
+        "form": "Annexe C",
+        "description": "Taux selon le revenu familial. RL-24 obligatoire. Enfant < 16 ans (ou infirmité).",
+        "key_amounts": {
+          "2025": {
+            "taux_max_bas_revenus": "78%",
+            "taux_min": "67%",
+            "seuil_78": 24795,
+            "seuil_67": 119835
+          }
+        },
+        "notable_changes": [
+          "Budget 2022 : nouveau palier à 78 % pour bas revenus; taux minimal relevé de 26 % à 67 %; plafonds indexés."
+        ],
+        "uncertainties": []
+      },
+      {
+        "id": "bouclier_fiscal",
+        "name_fr": "Bouclier fiscal",
+        "name_en": "Tax Shield",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": "460",
+        "form": "TP-1029.BF",
+        "description": "Compense la perte de prime au travail ou de crédit pour frais de garde quand le revenu de travail augmente. Permanent depuis 2016.",
+        "key_amounts": {
+          "reduction_augmentation_revenu": "75%",
+          "max_par_travailleur": 4000,
+          "beneficiaires_2022": 143561
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "soutien_aines",
+        "name_fr": "Soutien aux aînés",
+        "name_en": "Senior Assistance Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": "463",
+        "form": "TP-1029.SA",
+        "description": "70 ans ou plus au 31 déc. Calculé automatiquement par Revenu Québec. Partage possible entre conjoints.",
+        "key_amounts": {
+          "2025": {
+            "max_par_aine": 2000,
+            "reduction": "5,40% au-delà de 27835 $ (seule) / 45270 $ (couple)"
+          }
+        },
+        "notable_changes": [
+          "2021 : max 800 $. Depuis 2022 : max 2 000 $ par aîné (bonifié deux fois depuis ~2019)."
+        ],
+        "uncertainties": []
+      },
+      {
+        "id": "maintien_domicile",
+        "name_fr": "Crédit d'impôt pour le maintien à domicile des aînés",
+        "name_en": "Home-Support Services for Seniors",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": "458",
+        "form": "Annexe J",
+        "description": "70 ans ou plus. Versements anticipés possibles.",
+        "key_amounts": {
+          "2025": {
+            "taux": "39%",
+            "depenses_max_seule_autonome": 19500,
+            "credit_max_seule": 7605,
+            "taux_2021": "35%",
+            "taux_2022": "36%",
+            "taux_2023": "37%",
+            "taux_2024": "38%"
+          }
+        },
+        "notable_changes": [
+          "Taux +1 point/an depuis 2021 (35 % → 39 % en 2025; 40 % en 2026)."
+        ],
+        "uncertainties": []
+      },
+      {
+        "id": "allocation_famille_qc",
+        "name_fr": "Allocation famille",
+        "name_en": "Family Allowance",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "trimestrielle (juil./oct./janv./avr.)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Versée par Retraite Québec, non imposable.",
+        "key_amounts": {
+          "2025": {
+            "max_par_enfant": 3006,
+            "min_par_enfant": 1196,
+            "supplement_monoparentale_max": 1055,
+            "supplement_fournitures": 124,
+            "seh_mensuel": 236
+          }
+        },
+        "notable_changes": [],
+        "uncertainties": [
+          "Montants détaillés 2020-2022 non récupérés."
+        ]
+      },
+      {
+        "id": "frais_medicaux_qc",
+        "name_fr": "Crédit remboursable pour frais médicaux",
+        "name_en": "Refundable Medical Expense Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": "462",
+        "form": null,
+        "description": "25 % × ligne 43; revenu de travail ≥ 3 750 $ requis.",
+        "key_amounts": {
+          "2025": {
+            "max": 1466,
+            "reduction": "5% au-delà de 28335 $"
+          }
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "autonomie_aine",
+        "name_fr": "Crédit pour frais engagés par un aîné pour maintenir son autonomie",
+        "name_en": "Senior Autonomy Expenses Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": "462",
+        "form": null,
+        "description": "20 % des dépenses admissibles au-delà d'une franchise de 250 $ (prothèse auditive, fauteuil roulant, barres d'appui…). 70 ans et plus.",
+        "key_amounts": {
+          "taux": "20%",
+          "franchise": 250
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "adoption_qc",
+        "name_fr": "Crédit d'impôt pour frais d'adoption",
+        "name_en": "Adoption Expenses Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": "462",
+        "form": "TP-1029.8.63",
+        "description": "50 % des frais admissibles par enfant (jugement d'adoption rendu ou reconnu au Québec dans l'année).",
+        "key_amounts": {
+          "max_frais_par_enfant": 20000,
+          "max_credit_par_enfant": 10000
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "credit_500_2021",
+        "name_fr": "Crédit d'impôt de 500 $ (année d'imposition 2021)",
+        "name_en": "$500 Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": false,
+        "years_active": [
+          2022
+        ],
+        "frequency": "unique (déclaration 2021)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Budget du 22 mars 2022, automatique, non imposable.",
+        "key_amounts": {
+          "revenu_net_max_500": 100000,
+          "reduction": "10% entre 100000 et 105000"
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "cout_vie_2022",
+        "name_fr": "Montant ponctuel pour le coût de la vie",
+        "name_en": "Cost of Living One-Time Payment",
+        "type": "prestation",
+        "permanent": false,
+        "years_active": [
+          2022
+        ],
+        "frequency": "unique (déc. 2022)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Bulletin 2022-6. 18 ans ou plus au 31 déc. 2022, déclaration 2021 produite. Plus de 6 M de Québécois visés.",
+        "key_amounts": {
+          "revenu_600": 54000,
+          "revenu_400": 104000
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "prolongation_carriere",
+        "name_fr": "Crédit d'impôt pour prolongation de carrière",
+        "name_en": "Career Extension Tax Credit",
+        "type": "credit_non_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": "391",
+        "form": null,
+        "description": "ATTENTION : non remboursable (section 350-398), inclus pour mémoire.",
+        "key_amounts": {
+          "2025": {
+            "max": 1750,
+            "age_min": 65
+          }
+        },
+        "notable_changes": [
+          "2025 : âge minimal 60 → 65 ans (les 60-64 ans exclus dès 2025)."
+        ],
+        "uncertainties": []
+      }
+    ],
+    "ON": [
+      {
+        "id": "otb",
+        "name_fr": "Prestation Trillium de l'Ontario",
+        "name_en": "Ontario Trillium Benefit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle (le 10)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": "ON-BEN",
+        "description": "Versement mensuel combiné de 3 crédits (OSTC, OEPTC, NOEC). Forfaitaire en juillet si ≤ 360 $/an.",
+        "key_amounts": {
+          "2025-26": {
+            "ostc_par_personne": 371,
+            "oeptc_18_64": 1283,
+            "oeptc_aines": 1461,
+            "noec_seule": 185,
+            "noec_famille": 285
+          }
+        },
+        "notable_changes": [],
+        "uncertainties": [
+          "Seuils de réduction détaillés par année non tous vérifiés."
+        ]
+      },
+      {
+        "id": "oshptg",
+        "name_fr": "Subvention aux aînés propriétaires pour l'impôt foncier",
+        "name_en": "Ontario Senior Homeowners' Property Tax Grant",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": "ON-BEN",
+        "description": "64 ans+ au 31 déc. Moindre de 500 $ et l'impôt foncier payé.",
+        "key_amounts": {
+          "max": 500,
+          "reduction": "3,33% au-delà de 35000 $ (seule) / 45000 $ (couple)"
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "ocb",
+        "name_fr": "Prestation ontarienne pour enfants",
+        "name_en": "Ontario Child Benefit",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle (avec l'ACE)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Non imposable, combinée à l'ACE.",
+        "key_amounts": {
+          "2025-26_mois_enfant": 143.91,
+          "2026-27_mois_enfant": 146.66
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "seniors_care_home",
+        "name_fr": "Crédit d'impôt pour les soins à domicile des aînés",
+        "name_en": "Ontario Seniors Care at Home Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Depuis 2022. 70 ans+ au cours de l'année. Cumulable avec les crédits non remboursables pour frais médicaux.",
+        "key_amounts": {
+          "taux": "25%",
+          "max_depenses": 6000,
+          "max_credit": 1500,
+          "reduction": "5% au-delà de 35000 $, éliminé à 65000 $"
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "staycation",
+        "name_fr": "Crédit d'impôt pour les séjours en Ontario",
+        "name_en": "Ontario Staycation Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": false,
+        "years_active": [
+          2022
+        ],
+        "frequency": "annuelle (déclaration 2022)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "2022 seulement. 20 % des frais d'hébergement en Ontario.",
+        "key_amounts": {
+          "max_seule": 200,
+          "max_famille": 400
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "seniors_home_safety",
+        "name_fr": "Crédit d'impôt pour la sécurité à domicile des aînés",
+        "name_en": "Seniors' Home Safety Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": false,
+        "years_active": [
+          2021,
+          2022
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "2021 et 2022 (prolongé en 2022). 25 % des dépenses admissibles.",
+        "key_amounts": {
+          "taux": "25%",
+          "max_depenses_an": 10000,
+          "max_credit_an": 2500
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      }
+    ],
+    "NB": [
+      {
+        "id": "nbctb",
+        "name_fr": "Prestation fiscale pour enfants du Nouveau-Brunswick",
+        "name_en": "New Brunswick Child Tax Benefit",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle (avec l'ACE)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Comprend le supplément de revenu gagné (NBWIS, max 250 $/famille) et le supplément scolaire (NBSS, 100 $/an/enfant en juillet).",
+        "key_amounts": {
+          "par_enfant_an": 250,
+          "reduction": "2,5% au-delà de 20000 $ (1 enfant)"
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "nbhstc",
+        "name_fr": "Crédit de TVH du Nouveau-Brunswick",
+        "name_en": "New Brunswick HST Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "trimestrielle (avec TPS)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Combiné aux versements du crédit TPS/TVH fédéral, calcul automatique.",
+        "key_amounts": {
+          "seule": 300,
+          "conjoint": 300,
+          "par_enfant": 100,
+          "seuil_reduction": 35000
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      }
+    ],
+    "NS": [
+      {
+        "id": "nscb",
+        "name_fr": "Prestation pour enfants de la Nouvelle-Écosse",
+        "name_en": "Nova Scotia Child Benefit",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle (avec l'ACE)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Enfant < 18 ans.",
+        "key_amounts": {
+          "2024-25_mois_enfant": 127.08
+        },
+        "notable_changes": [
+          "Bill 198 (2026) : seuils alignés sur l'ACE et base ≥ 137,50 $/mois au plus tard le 1er janv. 2027."
+        ],
+        "uncertainties": []
+      },
+      {
+        "id": "nsaltc",
+        "name_fr": "Crédit d'impôt pour la vie abordable",
+        "name_en": "Nova Scotia Affordable Living Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "trimestrielle (avec TPS)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Versé avec le crédit TPS/TVH, calcul automatique.",
+        "key_amounts": {
+          "base_an": 255,
+          "par_enfant": 60,
+          "seuil_reduction": 30000
+        },
+        "notable_changes": [
+          "Bill 198 (2026) : seuil ≥ 42 000 $, base ≥ 360 $, ≥ 90 $/enfant au plus tard le 1er janv. 2027."
+        ],
+        "uncertainties": []
+      },
+      {
+        "id": "prc",
+        "name_fr": "Crédit de réduction de la pauvreté",
+        "name_en": "Poverty Reduction Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "trimestrielle",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Sans enfants, bénéficiaire d'aide au revenu toute l'année précédente, revenu rajusté < 16 000 $. Sans demande.",
+        "key_amounts": {
+          "par_an": 500
+        },
+        "notable_changes": [],
+        "uncertainties": [
+          "Reconduction 2026-2027 non confirmée au budget; bill 198 prévoit ≥ 630 $."
+        ]
+      },
+      {
+        "id": "ns479_credits",
+        "name_fr": "Crédits remboursables de la Nouvelle-Écosse (NS479)",
+        "name_en": "Nova Scotia Refundable Credits",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": "NS479",
+        "description": "Sports et arts des enfants (max ~43,95 $/enfant); pompiers volontaires / recherche et sauvetage (500 $); fertilité et gestation pour autrui (40 % jusqu'à 20 000 $/an → max 8 000 $/couple, réclamé séparément après l'avis).",
+        "key_amounts": {},
+        "notable_changes": [],
+        "uncertainties": [
+          "Année d'introduction du crédit fertilité non vérifiée avec certitude."
+        ]
+      }
+    ],
+    "PE": [
+      {
+        "id": "peicb",
+        "name_fr": "Prestation pour enfants de l'Île-du-Prince-Édouard",
+        "name_en": "Prince Edward Island Child Benefit",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle (avec l'ACE)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Calcul automatique.",
+        "key_amounts": {
+          "par_enfant_an": 360,
+          "seuil_plein": 45000,
+          "partiel_240": "45000-80000"
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "peistc",
+        "name_fr": "Crédit de taxe de vente de l'Î.-P.-É.",
+        "name_en": "PEI Sales Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "trimestrielle (avec TPS)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Combiné aux versements du crédit TPS/TVH fédéral.",
+        "key_amounts": {
+          "personne_seule": 165,
+          "parents_seuls_couples": 220
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      }
+    ],
+    "NL": [
+      {
+        "id": "nlis",
+        "name_fr": "Supplément de revenu de Terre-Neuve-et-Labrador",
+        "name_en": "Newfoundland and Labrador Income Supplement",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "trimestrielle (avec TPS)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Permanent depuis 2016 (remplace l'ancien crédit TVH). Combiné au crédit TPS/TVH, sans demande.",
+        "key_amounts": {
+          "2025": {
+            "base": 254,
+            "max": 520,
+            "supplement_conjoint": 69,
+            "par_enfant": 231,
+            "seuil_elimination": 40000
+          }
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "nlsb",
+        "name_fr": "Prestation pour aînés de T.-N.-L.",
+        "name_en": "NL Seniors' Benefit",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "trimestrielle (avec TPS)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "65 ans+ au 31 déc. Versée une seule fois par couple si les deux sont admissibles.",
+        "key_amounts": {
+          "2025": {
+            "max_an": 1551,
+            "reduction": "11,66% au-delà de 30078 $"
+          }
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "nlcb",
+        "name_fr": "Prestation pour enfants de T.-N.-L.",
+        "name_en": "Newfoundland and Labrador Child Benefit",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle (avec l'ACE)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Inclut le supplément nutritionnel prénatal/petite enfance (PECNS) : 150 $/mois + 150 $ unique à la naissance.",
+        "key_amounts": {
+          "2025_mois_enfant": "~150-170",
+          "pecns_mois": 150
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      }
+    ],
+    "YT": [
+      {
+        "id": "ycb",
+        "name_fr": "Prestation pour enfants du Yukon",
+        "name_en": "Yukon Child Benefit",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle (avec l'ACE)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "",
+        "key_amounts": {
+          "2026-27_max_mois_enfant": 80.5
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "yt_carbone",
+        "name_fr": "Remboursement du prix du carbone du Yukon",
+        "name_en": "Yukon Government Carbon Price Rebate",
+        "type": "prestation",
+        "permanent": false,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "trimestrielle",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "TERMINÉ : dernier versement le 4 avril 2025 (programme fédéral annulé le 14 mars 2025). Supplément d'éloignement 10 % puis 20 % dès juil. 2024 (hors Whitehorse).",
+        "key_amounts": {
+          "2024_ordre_grandeur": {
+            "personne": 310,
+            "famille_4": 1240
+          }
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "yt_fertilite",
+        "name_fr": "Crédit remboursable pour fertilité et gestation pour autrui (Yukon)",
+        "name_en": "Yukon Fertility Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "NOUVEAU 2025.",
+        "key_amounts": {
+          "taux": "40%",
+          "max": 10000
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      }
+    ],
+    "NT": [
+      {
+        "id": "nwtcb",
+        "name_fr": "Prestation pour enfants des Territoires du Nord-Ouest",
+        "name_en": "Northwest Territories Child Benefit",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle (avec l'ACE)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "",
+        "key_amounts": {
+          "max_mois": {
+            "moins_6_ans": 67.91,
+            "6_17_ans": 54.33
+          }
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "nt_coltc",
+        "name_fr": "Crédit d'impôt pour le coût de la vie (TNO)",
+        "name_en": "NWT Cost of Living Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": "47900",
+        "tp1_line": null,
+        "form": "NT479",
+        "description": "Remboursable via la déclaration.",
+        "key_amounts": {
+          "base_max": 942,
+          "supplement_conjoint": 350
+        },
+        "notable_changes": [],
+        "uncertainties": [
+          "Indexation annuelle 2020-2025 non vérifiée."
+        ]
+      }
+    ],
+    "NU": [
+      {
+        "id": "nucb",
+        "name_fr": "Prestation pour enfants du Nunavut",
+        "name_en": "Nunavut Child Benefit",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle (avec l'ACE)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Base + supplément territorial pour travailleurs (revenu gagné > 3 955 $).",
+        "key_amounts": {
+          "base_mois_enfant": 29,
+          "supplement_travailleur_mois": {
+            "1_enfant": 24.16,
+            "2_plus": 30.75
+          },
+          "seuil_reduction": 22065
+        },
+        "notable_changes": [],
+        "uncertainties": [
+          "Écart 29 $ vs 58 $/mois selon les versions de la page ARC (29 $ = version la plus récente)."
+        ]
+      },
+      {
+        "id": "nu_coltc",
+        "name_fr": "Crédit d'impôt pour le coût de la vie (Nunavut)",
+        "name_en": "Nunavut Cost of Living Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": "NU479",
+        "description": "",
+        "key_amounts": {
+          "2025": {
+            "taux": "2% du revenu net rajusté",
+            "max": 1500,
+            "supplement_parent_seul_max": 255.12
+          }
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      }
+    ],
+    "AB": [
+      {
+        "id": "acfb",
+        "name_fr": "Prestation pour enfants et familles de l'Alberta",
+        "name_en": "Alberta Child and Family Benefit",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "trimestrielle (août/nov./fév./mai)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Créée le 1er juillet 2020 par fusion de l'Alberta Child Benefit et de l'Alberta Family Employment Tax Credit. Composante de base + composante 'working' (revenu de travail > 2 760 $). Administrée par l'ARC, non imposable.",
+        "key_amounts": {
+          "2025-26": {
+            "base_max_total": 3746,
+            "working_max_total": 1982,
+            "combine_max": 5768,
+            "seuil_base": 27565,
+            "seuil_working_reduction": 46191
+          }
+        },
+        "notable_changes": [
+          "Indexation annuelle; hausses via le plan d'abordabilité."
+        ],
+        "uncertainties": []
+      },
+      {
+        "id": "ab_affordability",
+        "name_fr": "Paiements d'abordabilité de l'Alberta",
+        "name_en": "Alberta Affordability Payments",
+        "type": "prestation",
+        "permanent": false,
+        "years_active": [
+          2023
+        ],
+        "frequency": "6 versements mensuels (janv.-juin 2023)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Inflation Relief Statutes Amendment Act, 2022. Revenu du ménage < 180 000 $.",
+        "key_amounts": {
+          "par_mois": 100,
+          "total": 600,
+          "par": "enfant < 18 ans et aîné 65 ans+"
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "ab_seniors",
+        "name_fr": "Prestation pour aînés de l'Alberta",
+        "name_en": "Alberta Seniors Benefit",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Prestation mensuelle aux 65 ans+ selon le revenu. Programme distinct de l'ACFB.",
+        "key_amounts": {},
+        "notable_changes": [],
+        "uncertainties": [
+          "Montants détaillés non vérifiés année par année."
+        ]
+      }
+    ],
+    "BC": [
+      {
+        "id": "bc_family",
+        "name_fr": "Prestation familiale de la Colombie-Britannique",
+        "name_en": "BC Family Benefit",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle (avec l'ACE)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Administrée par l'ARC, sans demande. Historique : BC Early Childhood Tax Benefit → BC Child Opportunity Benefit (1er oct. 2020) → renommée BC Family Benefit (juil. 2023).",
+        "key_amounts": {
+          "2025-26": {
+            "max_1er_enfant": 1750,
+            "max_2e": 1100,
+            "max_suivants": 900,
+            "supplement_parent_seul": 500
+          }
+        },
+        "notable_changes": [
+          "2024-25 : +25 % + BC Family Benefit Bonus (un an seulement, terminé juin 2025).",
+          "2025-26 : nouvelle bonification (budget 2025), seuils élargis."
+        ],
+        "uncertainties": []
+      },
+      {
+        "id": "bccatc",
+        "name_fr": "Crédit d'impôt pour l'action climatique de la C.-B.",
+        "name_en": "BC Climate Action Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "trimestrielle",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Compense la taxe carbone. Versé avec le crédit TPS/TVH. ~2 millions de bénéficiaires.",
+        "key_amounts": {
+          "2024-25": {
+            "adulte": 504,
+            "conjoint": 252,
+            "par_enfant": 126,
+            "famille_4": 1008,
+            "seuil_seule": 41071,
+            "seuil_couple": 57288
+          }
+        },
+        "notable_changes": [
+          "Budget 2023 puis 2024 : hausses majeures financées par la taxe carbone."
+        ],
+        "uncertainties": []
+      },
+      {
+        "id": "bc_renter",
+        "name_fr": "Crédit d'impôt pour locataires de la C.-B.",
+        "name_en": "BC Renter's Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": "BC479",
+        "description": "En vigueur depuis l'année d'imposition 2023 (budget 2023).",
+        "key_amounts": {
+          "max_an": 400,
+          "2025": {
+            "seuil_plein": 64764,
+            "seuil_elimination": 84764
+          }
+        },
+        "notable_changes": [
+          "Seuils indexés : 60 000 $/80 000 $ (2023) → 64 764 $/84 764 $ (2025)."
+        ],
+        "uncertainties": []
+      },
+      {
+        "id": "bc_electricity",
+        "name_fr": "Crédit d'abordabilité pour l'électricité",
+        "name_en": "BC Electricity Affordability Credit",
+        "type": "credit_remboursable",
+        "permanent": false,
+        "years_active": [
+          2024,
+          2025
+        ],
+        "frequency": "12 mois dès avril 2024",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Budget 2024. Rabais sur les factures d'électricité.",
+        "key_amounts": {
+          "economie_moyenne_menage": 100
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      }
+    ],
+    "MB": [
+      {
+        "id": "rentassist",
+        "name_fr": "RentAssist — Prestation de logement du Manitoba",
+        "name_en": "Manitoba RentAssist",
+        "type": "prestation",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "mensuelle",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Prestation de logement non imposable (un T5007 est émis — à déclarer comme assistance sociale, lignes 14500/25000). Comble l'écart entre 30 % du revenu et 75 % du loyer médian. Indexée chaque juillet.",
+        "key_amounts": {
+          "plafond": "75% du loyer médian du marché"
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "cmhb",
+        "name_fr": "Prestation canadienne-manitobaine pour le logement",
+        "name_en": "Canada-Manitoba Housing Benefit",
+        "type": "prestation",
+        "permanent": false,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025,
+          2026,
+          2027
+        ],
+        "frequency": "mensuelle",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Supplément à RentAssist. Se termine le 31 mars 2028. T5007 émis.",
+        "key_amounts": {
+          "max_mois": 350,
+          "fin": "2028-03-31"
+        },
+        "notable_changes": [],
+        "uncertainties": []
+      },
+      {
+        "id": "mb479_credits",
+        "name_fr": "Crédits remboursables du Manitoba (MB479)",
+        "name_en": "Manitoba Refundable Tax Credits",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": "MB479",
+        "description": "Crédit personnel (195 $ base + montants âge/conjoint/invalidité/enfants, réduit de 1 % du revenu familial); crédit d'impôt foncier pour l'éducation; remboursement d'impôt scolaire pour aînés (jusqu'à 235 $, 65 ans+); crédit supplémentaire pour aînés à faible revenu (jusqu'à 250 $).",
+        "key_amounts": {
+          "credit_personnel_base": 195,
+          "seniors_school_rebate_max": 235,
+          "aide_aines_faible_revenu_max": 250
+        },
+        "notable_changes": [],
+        "uncertainties": [
+          "Montants tirés des trousses 2022/2024 — à revalider par année."
+        ]
+      }
+    ],
+    "SK": [
+      {
+        "id": "slitc",
+        "name_fr": "Crédit d'impôt pour faible revenu de la Saskatchewan",
+        "name_en": "Saskatchewan Low-Income Tax Credit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "trimestrielle (avec TPS)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Entièrement remboursable, non imposable. ARC détermine l'admissibilité. Indexé annuellement.",
+        "key_amounts": {
+          "2025-26": {
+            "adulte": 429,
+            "conjoint": 429,
+            "par_enfant": 169,
+            "max_an": 1196,
+            "seuil": 38590,
+            "reduction": "2,88%"
+          }
+        },
+        "notable_changes": [
+          "Saskatchewan Affordability Act : +5 % par an pendant 4 ans (2025-2028) en plus de l'indexation."
+        ],
+        "uncertainties": []
+      },
+      {
+        "id": "active_families",
+        "name_fr": "Prestation pour les familles actives",
+        "name_en": "Active Families Benefit",
+        "type": "credit_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "Frais d'activités culturelles, récréatives ou sportives des enfants.",
+        "key_amounts": {
+          "2025": {
+            "par_enfant": 300,
+            "par_enfant_handicape": 400,
+            "seuil_revenu": 120000
+          }
+        },
+        "notable_changes": [
+          "2025 : montants doublés et seuil doublé (60 000 $ → 120 000 $)."
+        ],
+        "uncertainties": []
+      },
+      {
+        "id": "grp",
+        "name_fr": "Programme de rétention des diplômés",
+        "name_en": "Graduate Retention Program",
+        "type": "credit_non_remboursable",
+        "permanent": true,
+        "years_active": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "frequency": "annuelle (déclaration)",
+        "taxable": false,
+        "t1_line": null,
+        "tp1_line": null,
+        "form": null,
+        "description": "ATTENTION : non remboursable mais reportable (7 ans, jusqu'à 10 ans après le diplôme). Inclus pour mémoire.",
+        "key_amounts": {
+          "plafond_vie": 24000
+        },
+        "notable_changes": [
+          "2025 : plafond à vie 20 000 $ → 24 000 $ (+20 %) pour les diplômés du 1er oct. 2024 ou après."
+        ],
+        "uncertainties": []
+      }
+    ]
+  }
+}

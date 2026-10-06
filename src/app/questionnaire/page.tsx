@@ -475,6 +475,7 @@ function DocumentUploadSection({
 
 // ── Import RevenusSection ────────────────────────────────────
 import RevenusSection from "@/components/RevenusSection";
+import CreditsSection from "@/components/CreditsSection";
 
 // ── MIGRATION v2: vider immédiatement les brouillons v1 ─────
 // S'exécute une seule fois au chargement du module, avant tout render
@@ -873,8 +874,23 @@ export default function QuestionnairePage() {
           </div>
         )}
 
+        {/* ── ÉTAPE 6: CRÉDITS & PRESTATIONS ───────────────────── */}
+        {triageDone && currentSection?.code === "credits" && qIdx === 0 && (
+          <div style={{ background: "var(--bg-card,#fff)", border: "1px solid var(--border,#dde8e5)", borderRadius: 14, padding: "16px", marginBottom: 12, boxShadow: "0 1px 8px rgba(0,0,0,0.04)" }}>
+            <CreditsSection
+              lang={lang}
+              province={String(answers["t0"] ?? "QC")}
+              answers={answers}
+              onComplete={(selectedIds) => {
+                setAnswers(prev => ({ ...prev, credits_selected: selectedIds, credits_validated: true }));
+                setQIdx(1);
+              }}
+            />
+          </div>
+        )}
+
         {/* ── Carte question ───────────────────────────────────── */}
-        {(triageDone ? (currentSection?.code !== "revenus" || qIdx > 0) : true) && currentQ ? (
+        {(triageDone ? (currentSection?.code !== "revenus" || qIdx > 0) && (currentSection?.code !== "credits" || qIdx > 0) : true) && currentQ ? (
           <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "22px 20px", boxShadow: "0 1px 8px rgba(0,0,0,0.04)", marginBottom: 12 }}>
 
             {/* Indicateur */}
