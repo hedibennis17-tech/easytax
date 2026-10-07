@@ -25,6 +25,13 @@ type QuestionnaireAnswerSummary = {
   displayValue: string;
   validated: boolean;
 };
+type NoticeReference = {
+  taxYear: number;
+  noticeDate: string | null;
+  lines: Record<string, { amountCents: number; creditDebit: string; labelFr: string; labelEn: string }>;
+  rrsp: unknown;
+  flags: { refundHeldForGstHstReturn: boolean; noBalanceOwing: boolean };
+} | null;
 
 function loadDict(): DictType {
   const p = path.join(process.cwd(), "src/lib/ocr/dictionnaire-fiscal-complet-2025.json");
@@ -73,6 +80,16 @@ function readQuestionnaireAnswers(raw: string | null | undefined, province: stri
       .filter(answer => answer.section !== "ma_province" || (questions.get(answer.id)?.provinceOnly ?? []).includes(province));
   } catch {
     return [];
+  }
+}
+
+function readNoticeReference(raw: string | null | undefined): NoticeReference {
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw) as { noticeOfAssessment?: NoticeReference };
+    return data.noticeOfAssessment ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -163,6 +180,7 @@ export async function GET() {
   const questionnaireProgress = readQuestionnaireProgress(profile.pancanadianData);
   const questionnaireDatabase = await readQuestionnaireDatabaseSummary(userId, taxReturn?.id);
   const questionnaireAnswers = readQuestionnaireAnswers(profile.pancanadianData, province);
+  const noticeOfAssessment = readNoticeReference(profile.pancanadianData);
 
   // Données DB
   const incomes    = taxReturn ? await db.select().from(incomeEntries).where(and(eq(incomeEntries.userId, userId), eq(incomeEntries.taxReturnId, taxReturn.id))) : [];
@@ -218,7 +236,14 @@ export async function GET() {
 
   // Depuis le moteur fiscal (si disponible)
   if (calc) {
-    if (cents(calc.federalTaxPayableCents) > 0)   addT1("40500",  0, "calculated");
+    addT1("42000", cents(calc.federalTaxPayableCents), "calculated");
+    addT1("43500", cents(calc.federalTaxPayableCents), "calculated");
+    addT1("35000", cents(calc.federalNonRefundableCreditsCents), "calculated");
+    addT1("43700", cents(calc.federalTaxWithheldCents), "calculated");
+    addT1("45300", cents(calc.federalRefundableCreditsCents), "calculated");
+    addT1("48200", cents(calc.federalNonRefundableCreditsCents) + cents(calc.federalRefundableCreditsCents), "calculated");
+    const balance = cents(calc.totalBalanceCents);
+    addT1(balance < 0 ? "48400" : "48500", Math.abs(balance), "calculated");
     if (cents(calc.provincialTaxPayableCents) > 0 && isQC) addTp1("430", cents(calc.provincialTaxPayableCents), "calculated");
   }
 
@@ -325,6 +350,7 @@ export async function GET() {
     questionnaireProgress,
     questionnaireDatabase,
     questionnaireAnswers,
+    noticeOfAssessment,
     t1: t1Lines,
     tp1: tp1Lines,
     summary: {

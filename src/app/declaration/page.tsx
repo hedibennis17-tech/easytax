@@ -72,6 +72,13 @@ interface DeclarationData {
     displayValue: string;
     validated: boolean;
   }>;
+  noticeOfAssessment: {
+    taxYear: number;
+    noticeDate: string | null;
+    lines: Record<string, { amountCents: number; creditDebit: string; labelFr: string; labelEn: string }>;
+    rrsp: unknown;
+    flags: { refundHeldForGstHstReturn: boolean; noBalanceOwing: boolean };
+  } | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -195,6 +202,26 @@ function QuestionnaireAnswersAccordion({ answers, progress, provinceName, lang }
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "4px 2px 8px" }}><strong style={{ color: "#0f1f1e", fontSize: 15 }}>{T("Réponses du rapport fiscal", "Tax report answers")}</strong><span style={{ color: "#7a9c97", fontSize: 11 }}>{rows.length} {T("réponses", "answers")}</span></div>
     {renderSector("federal", federal, federalAnswered, federalProgress, federalProgress ? Math.round((federalAnswered / federalProgress) * 100) : 0)}
     {renderSector("provincial", provincial, provincialProgress?.answered ?? provincial.length, provincialProgress?.total ?? provincial.length, provincialProgress?.percent ?? (provincial.length ? 100 : 0))}
+  </section>;
+}
+
+function AssessmentReferenceCard({ assessment, lang }: { assessment: DeclarationData["noticeOfAssessment"]; lang: string }) {
+  const [open, setOpen] = useState(false);
+  if (!assessment) return null;
+  const T = (fr: string, en: string) => lang === "en" ? en : fr;
+  const lines = Object.entries(assessment.lines);
+  const money = (cents: number) => `${(cents / 100).toLocaleString(lang === "en" ? "en-CA" : "fr-CA", { minimumFractionDigits: 2 })} $`;
+  return <section style={{ border: "1px solid #cfe2df", borderRadius: 12, overflow: "hidden", marginBottom: 14, background: "#f8fcfb" }}>
+    <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} style={{ width: "100%", border: 0, background: "transparent", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", textAlign: "left" }}>
+      <span><strong style={{ color: "#0b6b67" }}>📄 {T("Avis de cotisation ARC", "CRA Notice of Assessment")}</strong><span style={{ display: "block", color: "#7a9c97", fontSize: 11, marginTop: 3 }}>{T(`Année ${assessment.taxYear} · ${assessment.noticeDate ?? "date non lue"}`, `Tax year ${assessment.taxYear} · ${assessment.noticeDate ?? "date unavailable"}`)}</span></span>
+      <span style={{ color: "#0b6b67", fontSize: 20 }}>{open ? "⌃" : "⌄"}</span>
+    </button>
+    {open && <div style={{ borderTop: "1px solid #e3efed", padding: "8px 14px 12px" }}>
+      <div style={{ fontSize: 11, color: "#526865", marginBottom: 8 }}>{T("Référence de contrôle seulement : elle doit être rapprochée des feuillets validés, du questionnaire et du moteur. Elle ne remplace pas une validation officielle.", "Control reference only: it must be reconciled with validated slips, the questionnaire and the engine. It does not replace official validation.")}</div>
+      {lines.map(([code, line]) => <div key={code} style={{ display: "grid", gridTemplateColumns: "52px 1fr auto", gap: 8, padding: "6px 0", borderTop: "1px solid #edf4f2", fontSize: 11 }}><strong style={{ color: "#0b6b67" }}>{code}</strong><span>{lang === "en" ? line.labelEn : line.labelFr}</span><strong>{money(line.amountCents)} {line.creditDebit === "credit" ? "CT" : line.creditDebit === "debit" ? "DT" : ""}</strong></div>)}
+      {assessment.rrsp !== null && <div style={{ marginTop: 10, padding: 8, background: "#fff", borderRadius: 8, fontSize: 11, color: "#526865" }}>{T("Droits REER détectés et conservés dans le dossier fiscal.", "RRSP contribution room detected and retained in the tax file.")}</div>}
+      {assessment.flags.refundHeldForGstHstReturn && <div style={{ marginTop: 8, color: "#92400e", fontSize: 11 }}>⚠️ {T("L’avis indique que le remboursement est retenu à cause d’une déclaration TPS/TVH en attente.", "The notice says the refund is held because a GST/HST return is outstanding.")}</div>}
+    </div>}
   </section>;
 }
 
@@ -582,6 +609,7 @@ export default function DeclarationPage() {
           <div>
             <QuestionnaireProgressCard progress={data.questionnaireProgress} database={data.questionnaireDatabase} lang={lang} />
             <QuestionnaireAnswersAccordion answers={data.questionnaireAnswers} progress={data.questionnaireProgress} provinceName={data.meta.provinceName} lang={lang} />
+            <AssessmentReferenceCard assessment={data.noticeOfAssessment} lang={lang} />
             <ResultsNotices
               lang={lang}
               taxYear={data.meta.taxYear}

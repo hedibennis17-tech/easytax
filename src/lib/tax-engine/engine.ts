@@ -47,7 +47,8 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
     taxableIncomeCents,
     rules.federalBrackets,
     rules.federalBasicPersonalConfig?.fullAmountCents ?? rules.federalBasicPersonalCents,
-    input.credits
+    input.credits,
+    "CA"
   );
 
   // 6. Calcul provincial
@@ -57,15 +58,16 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
           taxableIncomeCents,
           rules.provincialBrackets,
           rules.provincialBasicPersonalConfig?.fullAmountCents ?? rules.provincialBasicPersonalCents,
-          input.credits
+          input.credits,
+          input.province
         )
       : emptyTaxCalc();
 
   // 7. Balances (négatif = remboursement, positif = montant dû)
   const federalBalanceCents =
-    federalCalc.taxPayableCents - input.taxWithheldFederalCents;
+    federalCalc.taxPayableCents - input.taxWithheldFederalCents - federalCalc.refundableCreditsCents;
   const provincialBalanceCents =
-    provincialCalc.taxPayableCents - input.taxWithheldProvincialCents;
+    provincialCalc.taxPayableCents - input.taxWithheldProvincialCents - provincialCalc.refundableCreditsCents;
   const totalBalanceCents = federalBalanceCents + provincialBalanceCents;
 
   return {
@@ -85,9 +87,10 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
     federalTaxPayableCents: federalCalc.taxPayableCents,
     federalTaxWithheldCents: input.taxWithheldFederalCents,
     federalBalanceCents,
+    federalRefundableCreditsCents: federalCalc.refundableCreditsCents,
 
     provincialSurtaxCents: 0,
-    provincialRefundableCreditsCents: 0,
+    provincialRefundableCreditsCents: provincialCalc.refundableCreditsCents,
     provincialTaxBeforeCreditsCents: provincialCalc.taxBeforeCreditsCents,
     provincialBasicPersonalCreditCents: provincialCalc.basicPersonalCreditCents,
     provincialOtherCreditsCents: provincialCalc.otherCreditsCents,
@@ -96,6 +99,16 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
     provincialBalanceCents,
 
     totalBalanceCents,
+    lines: {
+      "15000": totalIncomeCents,
+      "23600": netIncomeCents,
+      "26000": taxableIncomeCents,
+      "35000": federalCalc.basicPersonalCreditCents + federalCalc.otherCreditsCents,
+      "42000": federalCalc.taxPayableCents,
+      "43500": federalCalc.taxPayableCents,
+      "43700": input.taxWithheldFederalCents,
+      "48200": federalCalc.basicPersonalCreditCents + federalCalc.otherCreditsCents + federalCalc.refundableCreditsCents,
+    },
 
     breakdown: {
       incomeByCategory: input.incomes.map((i) => ({
@@ -114,6 +127,11 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
           amountCents: federalCalc.basicPersonalCreditCents,
           isRefundable: false,
         },
+        ...input.credits.filter(c => c.isRefundable).map(c => ({
+          name: c.description ?? c.category,
+          amountCents: c.claimedAmountCents,
+          isRefundable: true,
+        })),
         ...(rules.provincialBrackets.length > 0
           ? [
               {
@@ -136,13 +154,15 @@ interface TaxLevelResult {
   otherCreditsCents: number;
   taxPayableCents: number;
   bracketApplication: BracketApplication[];
+  refundableCreditsCents: number;
 }
 
 function calculateTax(
   taxableIncomeCents: number,
   brackets: TaxBracket[],
   basicPersonalCents: number,
-  credits: TaxEngineInput["credits"]
+  credits: TaxEngineInput["credits"],
+  jurisdiction: TaxEngineInput["province"] | "CA"
 ): TaxLevelResult {
   // Application des paliers d'imposition
   let remaining = taxableIncomeCents;
@@ -179,11 +199,13 @@ function calculateTax(
   );
 
   // Autres crédits (non remboursables) — montant réclamé × taux minimum
+  const applicableCredits = credits.filter(c => !c.jurisdiction || c.jurisdiction === jurisdiction || (jurisdiction === "CA" && c.jurisdiction === "CA"));
   const otherCreditsCents = sumCents(
-    credits.map((c) =>
+    applicableCredits.filter(c => !c.isRefundable).map((c) =>
       Math.floor((c.claimedAmountCents * lowestRate) / 10000)
     )
   );
+  const refundableCreditsCents = sumCents(applicableCredits.filter(c => c.isRefundable).map(c => c.claimedAmountCents));
 
   const totalCreditsCents = basicPersonalCreditCents + otherCreditsCents;
   const taxPayableCents = Math.max(
@@ -197,6 +219,7 @@ function calculateTax(
     otherCreditsCents,
     taxPayableCents,
     bracketApplication,
+    refundableCreditsCents,
   };
 }
 
@@ -207,6 +230,7 @@ function emptyTaxCalc(): TaxLevelResult {
     otherCreditsCents: 0,
     taxPayableCents: 0,
     bracketApplication: [],
+    refundableCreditsCents: 0,
   };
 }
 

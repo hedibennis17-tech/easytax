@@ -140,6 +140,9 @@ export interface ValidatedCredit {
   claimedAmountCents: number;
   sourceType: "validated_ocr" | "manual";
   description?: string;
+  isRefundable?: boolean;
+  jurisdiction?: "CA" | "QC" | "ON" | "BC" | "AB" | "SK" | "MB" | "NB" | "NS" | "PE" | "NL" | "NT" | "NU" | "YT";
+  line?: string;
 }
 
 // ─── Input du moteur ─────────────────────────────────────────
@@ -174,6 +177,7 @@ export interface TaxCalculationResult {
   federalTaxPayableCents: number;
   federalTaxWithheldCents: number;
   federalBalanceCents: number;
+  federalRefundableCreditsCents: number;
 
   // Provincial
   provincialTaxBeforeCreditsCents: number;
@@ -186,6 +190,7 @@ export interface TaxCalculationResult {
   provincialBalanceCents: number;
 
   totalBalanceCents: number;
+  lines: Partial<Record<string, number>>;
   breakdown: CalculationBreakdown;
 }
 
