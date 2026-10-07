@@ -216,6 +216,7 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
   const IND_STEPS_EN = ["Identity","Contacts","Tax profile","Family","Consents","Review"];
   const [step, setStep] = useState(0);
   const [err, setErr] = useState("");
+  const [prefillLoaded, setPrefillLoaded] = useState(false);
 
   // Étape 1
   const [firstName, setFirstName]       = useState(prefill.firstName ?? "");
@@ -250,13 +251,50 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
   const [departDate,   setDepartDate] = useState("");
   const [situations,   setSituations] = useState<string[]>([]);
 
-  // Étape 4
+  // Étape 4 — question famille
+  const [hasFamily,  setHasFamily]  = useState<"oui"|"non"|"">("");
   const [members, setMembers] = useState<Member[]>([]);
 
   // Étape 5
   const [preparer,  setPreparer]  = useState("");
   const [consent1,  setConsent1]  = useState(false);
   const [consent2,  setConsent2]  = useState(false);
+
+  // ── Pré-remplissage depuis le profil existant ──────────────
+  useEffect(() => {
+    if (prefillLoaded) return;
+    fetch("/api/profile")
+      .then(r => r.ok ? r.json() : null)
+      .then((p: Record<string,string|boolean|null> | null) => {
+        if (!p) return;
+        // Map province code → nom complet
+        const codeToName: Record<string,string> = {
+          AB:"Alberta",BC:"Colombie-Britannique",PE:"Île-du-Prince-Édouard",
+          MB:"Manitoba",NB:"Nouveau-Brunswick",NS:"Nouvelle-Écosse",ON:"Ontario",
+          QC:"Québec",SK:"Saskatchewan",NL:"Terre-Neuve-et-Labrador",
+          NT:"Territoires du Nord-Ouest",NU:"Nunavut",YT:"Yukon",
+        };
+        const maritalMap: Record<string,string> = {
+          single:"Célibataire", married:"Marié(e)", common_law:"Conjoint(e) de fait",
+          separated:"Séparé(e)", divorced:"Divorcé(e)", widowed:"Veuf ou veuve",
+        };
+        if (p.firstName)      setFirstName(String(p.firstName));
+        if (p.lastName)       setLastName(String(p.lastName));
+        if (p.dateOfBirth)    setBirthDate(String(p.dateOfBirth));
+        if (p.email)          setEmail(String(p.email));
+        if (p.phone)          setPhone(String(p.phone));
+        if (p.address)        setAddress(String(p.address));
+        if (p.city)           setCity(String(p.city));
+        if (p.postalCode)     setPostal(String(p.postalCode).trim());
+        if (p.province)       setProvince(codeToName[String(p.province)] ?? String(p.province));
+        if (p.fiscalResidence)setTaxProvince(codeToName[String(p.fiscalResidence)] ?? String(p.fiscalResidence));
+        if (p.maritalStatus)  setMarital(maritalMap[String(p.maritalStatus)] ?? "");
+        if (p.isCanadianCitizen === true) setCanStatus("Citoyen canadien");
+        else if (p.isCanadianCitizen === false) setCanStatus("Résident permanent");
+        setPrefillLoaded(true);
+      })
+      .catch(() => setPrefillLoaded(true));
+  }, [prefillLoaded]);
 
   const toggle = (v:string) => setSituations(s => s.includes(v) ? s.filter(x=>x!==v) : [...s,v]);
   const addMember = () => setMembers(m => [...m, { id:Date.now(), relation:"", firstName:"", lastName:"", birthDate:"", nas:"", income:"", custody:"" }]);
@@ -268,14 +306,25 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
     if (step===0 && (!firstName||!lastName||!birthDate||!canStatus)) { setErr("Veuillez remplir les champs obligatoires avant de continuer."); return false; }
     if (step===1 && (!email||!address||!city||!province||!postal)) { setErr("Veuillez remplir l’adresse complète avant de continuer."); return false; }
     if (step===2 && (!marital||!taxProvince||!taxYear)) { setErr("Veuillez remplir les champs obligatoires avant de continuer."); return false; }
+    if (step===3 && !hasFamily) { setErr("Veuillez indiquer si vous avez des membres de la famille à ajouter."); return false; }
     if (step===4 && (!consent1||!consent2||!preparer)) { setErr("Veuillez confirmer les deux déclarations et votre choix de préparation."); return false; }
     return true;
   };
 
-  const next = () => { if (!validate()) return; if (step<5) setStep(s=>s+1); };
-  const back = () => { setErr(""); if (step===0) onBack(); else setStep(s=>s-1); };
+  // Si "non famille" → sauter l’étape 3 (famille)
+  const next = () => {
+    if (!validate()) return;
+    if (step===3 && hasFamily==="non") { setStep(4); return; }
+    if (step<5) setStep(s=>s+1);
+  };
+  const back = () => {
+    setErr("");
+    if (step===0) onBack();
+    else if (step===4 && hasFamily==="non") setStep(3);
+    else setStep(s=>s-1);
+  };
 
-  const allData = { type:"INDIVIDUAL", firstName, lastName, otherNames, usageName, birthDate, nas, canStatus, gender, email, phone, address, city, province, postal, country, language, contactPref, marital, maritalDate, taxProvince, provChange, prevProvince, nordZone, taxYear, arrivalDate, departDate, situations, members, preparer };
+  const allData = { type:"INDIVIDUAL", firstName, lastName, otherNames, usageName, birthDate, nas, canStatus, gender, email, phone, address, city, province, postal, country, language, contactPref, marital, maritalDate, taxProvince, provChange, prevProvince, nordZone, taxYear, arrivalDate, departDate, situations, hasFamily, members, preparer };
 
   const provCode = PROVINCES_CODE[taxProvince] ?? PROVINCES_CODE[province] ?? "QC";
 
@@ -471,11 +520,35 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
 
           {/* 04 Famille */}
           {step===3 && (
-            <StepCard num={4} title={lang === "en" ? "Family members" : "Membres de la famille"} desc="Ajoutez un conjoint, des enfants ou d'autres personnes à charge. Cette étape est facultative.">
-              <div style={{ marginBottom:16 }}>
+            <StepCard num={4} title={lang === "en" ? "Family members" : "Membres de la famille"} desc="Avez-vous un conjoint, des enfants ou d'autres personnes à charge à inclure dans votre dossier ?">
+              {/* Question Oui / Non */}
+              <div style={{ marginBottom:20 }}>
+                <p style={{ fontWeight:700, fontSize:14, margin:"0 0 10px", color:"var(--text-primary)" }}>
+                  Avez-vous des membres de la famille à ajouter à votre dossier ? *
+                </p>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
+                  {[
+                    { val:"oui" as const, label:"Oui — j'ai des membres à ajouter", icon:"👨‍👩‍👧" },
+                    { val:"non" as const, label:"Non — aucun membre à ajouter", icon:"👤" },
+                  ].map(opt => (
+                    <label key={opt.val} style={{ display:"flex", gap:10, alignItems:"center", padding:"13px 16px", border:`2px solid ${hasFamily===opt.val?"#0b6b67":"var(--border)"}`, borderRadius:12, cursor:"pointer", fontSize:13, fontWeight:600, background:hasFamily===opt.val?"rgba(11,107,103,0.06)":"var(--bg-base)", transition:"all 150ms" }}>
+                      <input type="radio" name="hasFamily" checked={hasFamily===opt.val} onChange={()=>{ setHasFamily(opt.val); if(opt.val==="non") setMembers([]); }} style={{ accentColor:"#0b6b67", width:16 }} />
+                      <span style={{ fontSize:18 }}>{opt.icon}</span>
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+                {hasFamily==="non" && (
+                  <div style={{ background:"rgba(11,107,103,0.08)", border:"1px solid rgba(11,107,103,0.2)", borderRadius:10, padding:"11px 14px", fontSize:13, color:"var(--text-secondary)" }}>
+                    ✓ Aucun membre ajouté. Vous pourrez en ajouter plus tard depuis votre dossier.
+                  </div>
+                )}
+              </div>
+              {/* Liste des membres — visible seulement si Oui */}
+              {hasFamily==="oui" && <div style={{ marginBottom:16 }}>
                 {members.length===0 && (
                   <div style={{ textAlign:"center", padding:"22px 16px", border:"1px dashed var(--border)", borderRadius:12, color:"var(--text-muted)", background:"var(--bg-base)", fontSize:13 }}>
-                    Aucun membre ajouté pour le moment.
+                    Cliquez sur « + Ajouter » pour commencer.
                   </div>
                 )}
                 {members.map((m, i) => (
@@ -509,8 +582,8 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
                   </div>
                 ))}
                 <button onClick={addMember} className="add-btn">+ Ajouter un membre de la famille</button>
-              </div>
-              <Actions onBack={back} onNext={next} />
+              </div>}
+              <Actions onBack={back} onNext={next} nextLabel={hasFamily==="non" ? "Passer cette étape →" : "Continuer →"} />
             </StepCard>
           )}
 
@@ -979,6 +1052,7 @@ function OnboardingContent() {
   const [saving,      setSaving]         = useState(false);
   const [error,       setError]          = useState("");
   const [done,        setDone]           = useState(false);
+  const [taxReturnId, setTaxReturnId]    = useState<string|null>(null);
 
   useEffect(() => {
     const t = searchParams.get("type");
@@ -1006,9 +1080,11 @@ function OnboardingContent() {
         body: JSON.stringify(formData),
       });
       if (!res.ok) { const d = await res.json() as {error?:string}; throw new Error(d.error ?? "Erreur création profil"); }
+      const d = await res.json() as { profileId?: string; taxReturnId?: string; organizationId?: string };
       await fetch("/api/auth/complete-onboarding", { method:"POST" });
+      if (d.taxReturnId) setTaxReturnId(d.taxReturnId);
       setDone(true);
-      setTimeout(() => router.push(formData.type==="BUSINESS" ? "/business" : "/dossier"), 1500);
+      setTimeout(() => router.push(formData.type==="BUSINESS" ? "/business" : "/dossier"), 4000);
     } catch(e) { setError((e as Error).message); setSaving(false); }
   };
 
@@ -1020,12 +1096,28 @@ function OnboardingContent() {
   );
 
   if (done) return (
-    <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background:"var(--bg-base)" }}>
-      <div style={{ textAlign:"center" }}>
+    <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background:"var(--bg-base)", padding:"24px 16px" }}>
+      <div style={{ textAlign:"center", maxWidth:440 }}>
         <div style={{ fontSize:60, marginBottom:16 }}>🎉</div>
         <h1 style={{ fontFamily:"Georgia,serif", fontSize:28, color:"var(--text-primary)", margin:"0 0 8px" }}>Bienvenue sur EasyTax !</h1>
-        <p style={{ color:"var(--text-secondary)", fontSize:15 }}>Votre espace est prêt. Redirection...</p>
-        <div style={{ width:32, height:32, border:"3px solid #dee", borderTopColor:"#0b6b67", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"20px auto 0" }} />
+        <p style={{ color:"var(--text-secondary)", fontSize:15, margin:"0 0 24px" }}>Votre dossier fiscal a été créé avec succès.</p>
+
+        {taxReturnId && (
+          <div style={{ background:"rgba(11,107,103,0.08)", border:"2px solid rgba(11,107,103,0.3)", borderRadius:16, padding:"20px 24px", marginBottom:24, textAlign:"left" }}>
+            <div style={{ fontSize:12, fontWeight:700, color:"#0b6b67", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8 }}>
+              🪪 Votre identifiant fiscal EasyTax
+            </div>
+            <div style={{ fontFamily:"monospace", fontSize:18, fontWeight:800, color:"var(--text-primary)", letterSpacing:"0.05em", marginBottom:6 }}>
+              ET-{taxReturnId.slice(0,8).toUpperCase()}
+            </div>
+            <div style={{ fontSize:12, color:"var(--text-muted)" }}>
+              Conservez cet identifiant — il est associé à votre déclaration 2025.
+            </div>
+          </div>
+        )}
+
+        <p style={{ color:"var(--text-muted)", fontSize:13 }}>Redirection vers votre dossier...</p>
+        <div style={{ width:32, height:32, border:"3px solid #dee", borderTopColor:"#0b6b67", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"16px auto 0" }} />
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     </div>
