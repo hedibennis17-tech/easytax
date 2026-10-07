@@ -44,6 +44,18 @@ export async function POST(req: NextRequest) {
   const credits = await db.select().from(creditEntries)
     .where(and(eq(creditEntries.userId, clerkUserId), eq(creditEntries.taxReturnId, taxReturnId), eq(creditEntries.isValidated, true)));
 
+  // Les retenues des feuillets sont conservées comme entrées auditables, mais
+  // ne sont ni un revenu ni une déduction. Elles alimentent les lignes 43700/451.
+  const federalWithheldFromSlips = deductions
+    .filter(d => /impôt fédéral|federal income tax withheld|income tax deducted/i.test(d.description ?? ""))
+    .reduce((sum, d) => sum + (d.amountCents ?? 0), 0);
+  const provincialWithheldFromSlips = deductions
+    .filter(d => /impôt du québec|provincial income tax withheld|provincial tax withheld/i.test(d.description ?? ""))
+    .reduce((sum, d) => sum + (d.amountCents ?? 0), 0);
+  const taxableDeductions = deductions.filter(d =>
+    !/impôt fédéral|federal income tax withheld|income tax deducted|impôt du québec|provincial income tax withheld|provincial tax withheld/i.test(d.description ?? "")
+  );
+
   const input: TaxEngineInput = {
     taxYear: year,
     province: province as TaxEngineInput["province"],
@@ -54,7 +66,7 @@ export async function POST(req: NextRequest) {
       employerName: i.employerName ?? undefined,
       description: i.description ?? undefined,
     })),
-    deductions: deductions.map((d) => ({
+    deductions: taxableDeductions.map((d) => ({
       category: d.category,
       amountCents: d.amountCents ?? 0,
       sourceType: (d.sourceType as "validated_ocr" | "manual"),
@@ -67,8 +79,8 @@ export async function POST(req: NextRequest) {
       description: c.description ?? undefined,
       isRefundable: /remboursable|prestation|allocation|benefit|act_cwb|acfb/i.test(`${c.category} ${c.description ?? ""}`),
     })),
-    taxWithheldFederalCents: body.taxWithheldFederalCents ?? 0,
-    taxWithheldProvincialCents: body.taxWithheldProvincialCents ?? 0,
+    taxWithheldFederalCents: (body.taxWithheldFederalCents ?? 0) + federalWithheldFromSlips,
+    taxWithheldProvincialCents: (body.taxWithheldProvincialCents ?? 0) + provincialWithheldFromSlips,
     hasSpouse: body.hasSpouse ?? false,
   };
 

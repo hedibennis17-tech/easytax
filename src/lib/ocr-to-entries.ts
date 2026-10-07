@@ -105,8 +105,8 @@ const T4_FIELD_MAP: Record<string, FieldMapping> = {
   // Retenues (stockées comme withheld sur le taxReturn)
   box_22:   { type: "withheld_federal",    labelFr: "Impôt fédéral retenu (T4 case 22)",      labelEn: "Federal income tax withheld (T4 box 22)" },
   // Déductions
-  box_16:   { type: "deduction",           category: "other_deductions",    labelFr: "Cotisations RPC/RRQ employé (T4 case 16)", labelEn: "CPP/QPP employee contributions (T4 box 16)" },
-  box_18:   { type: "deduction",           category: "other_deductions",    labelFr: "Cotisations AE employé (T4 case 18)",     labelEn: "EI premiums employee (T4 box 18)" },
+  box_16:   { type: "credit",              category: "other_credits",        labelFr: "Cotisations RPC/RRQ employé (T4 case 16)", labelEn: "CPP/QPP employee contributions (T4 box 16)" },
+  box_18:   { type: "credit",              category: "other_credits",        labelFr: "Cotisations AE employé (T4 case 18)",     labelEn: "EI premiums employee (T4 box 18)" },
   box_44:   { type: "deduction",           category: "union_dues",          labelFr: "Cotisations syndicales (T4 case 44)",     labelEn: "Union dues (T4 box 44)" },
   // Crédits
   box_46:   { type: "credit",              category: "donations",           labelFr: "Dons de bienfaisance (T4 case 46)",       labelEn: "Charitable donations (T4 box 46)" },

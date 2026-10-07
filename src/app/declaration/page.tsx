@@ -621,6 +621,7 @@ export default function DeclarationPage() {
               taxableIncomeCents={data.summary.revenuImposableCents}
               federal={data.summary.federal}
               provincial={data.summary.provincial}
+              t1Lines={data.t1}
             />
 
             {/* Légende sources */}

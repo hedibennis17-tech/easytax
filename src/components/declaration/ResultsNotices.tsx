@@ -21,6 +21,7 @@ interface ResultsNoticesProps {
   taxableIncomeCents: number;
   federal: ResultBreakdown;
   provincial: ResultBreakdown;
+  t1Lines: Array<{ line: string; label_fr: string; label_en: string; amountCents: number }>;
 }
 
 function money(cents: number): string {
@@ -66,6 +67,32 @@ function NoticeRow({
       </span>
     </div>
   );
+}
+
+function AssessmentSummaryTable({ lines, federal, isEn }: { lines: ResultsNoticesProps["t1Lines"]; federal: ResultBreakdown; isEn: boolean }) {
+  const byCode = new Map(lines.map(line => [line.line, line]));
+  const value = (code: string) => byCode.get(code)?.amountCents ?? 0;
+  const rows = [
+    ["15000", isEn ? "Total income" : "Revenu total", value("15000")],
+    ["23600", isEn ? "Net income" : "Revenu net", value("23600")],
+    ["26000", isEn ? "Taxable income" : "Revenu imposable", value("26000")],
+    ["35000", isEn ? "Total non-refundable tax credits" : "Total des crédits d'impôt non remboursables", value("35000")],
+    ["42000", isEn ? "Net federal tax" : "Impôt fédéral net", value("42000")],
+    ["43500", isEn ? "Total payable" : "Total à payer", value("43500")],
+    ["43700", isEn ? "Total income tax deducted" : "Impôt total retenu", value("43700")],
+    ["45300", isEn ? "Canada Workers Benefit" : "Allocation canadienne pour les travailleurs", value("45300")],
+    ["48200", isEn ? "Total credits" : "Total des crédits", value("48200")],
+  ] as const;
+  const afterCredits = value("43500") - value("48200");
+  const signed = (amount: number) => `${(Math.abs(amount) / 100).toLocaleString(isEn ? "en-CA" : "fr-CA", { minimumFractionDigits: 2 })} $`;
+  return <section style={{ border: "1px solid #cbd8e8", borderRadius: 12, overflow: "hidden", marginBottom: 14, background: "#fff" }}>
+    <div style={{ background: "#12233d", color: "#fff", padding: "12px 14px", fontWeight: 800, fontSize: 13 }}>{isEn ? "Assessment summary" : "Sommaire de cotisation"}</div>
+    <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}><thead><tr style={{ background: "#f2f6fb", color: "#506078", textAlign: "left" }}><th style={{ padding: "8px 10px" }}>Ligne</th><th style={{ padding: "8px 10px" }}>Description</th><th style={{ padding: "8px 10px", textAlign: "right" }}>{isEn ? "Final amount $" : "Montant final $"}</th><th style={{ padding: "8px 10px", textAlign: "center" }}>CT/DT</th></tr></thead><tbody>
+      {rows.map(([code, label, amount]) => <tr key={code} style={{ borderTop: "1px solid #e7edf4" }}><td style={{ padding: "8px 10px", color: "#2764a8", fontWeight: 700 }}>{code}</td><td style={{ padding: "8px 10px", color: "#334155" }}>{label}</td><td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700 }}>{signed(amount)}</td><td style={{ padding: "8px 10px", textAlign: "center" }}>—</td></tr>)}
+      <tr style={{ borderTop: "1px solid #e7edf4" }}><td style={{ padding: "8px 10px" }}>—</td><td style={{ padding: "8px 10px", color: "#334155" }}>{isEn ? "Total payable less total credits" : "Total à payer moins Total des crédits"}</td><td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700 }}>{signed(afterCredits)}</td><td style={{ padding: "8px 10px", textAlign: "center", fontWeight: 700 }}>{afterCredits < 0 ? "CT" : afterCredits > 0 ? "DT" : "—"}</td></tr>
+      <tr style={{ borderTop: "1px solid #e7edf4", background: "#f8fafc" }}><td style={{ padding: "8px 10px" }}>—</td><td style={{ padding: "8px 10px", fontWeight: 800, color: "#12233d" }}>{isEn ? "Assessment balance" : "Solde de cette cotisation"}</td><td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 800 }}>{signed(federal.balance)}</td><td style={{ padding: "8px 10px", textAlign: "center", fontWeight: 800 }}>{federal.balance < 0 ? "CT" : federal.balance > 0 ? "DT" : "—"}</td></tr>
+    </tbody></table></div>
+  </section>;
 }
 
 function NoticeCard({
@@ -183,6 +210,7 @@ export function ResultsNotices({
   taxableIncomeCents,
   federal,
   provincial,
+  t1Lines,
 }: ResultsNoticesProps) {
   const isEn = lang === "en";
   const federalLabels = isEn
@@ -215,6 +243,7 @@ export function ResultsNotices({
           ? `Two preliminary ${taxYear} summaries, calculated from your validated information.`
           : `Deux résumés préliminaires ${taxYear}, calculés à partir de vos informations validées.`}
       </div>
+      <AssessmentSummaryTable lines={t1Lines} federal={federal} isEn={isEn} />
       <NoticeCard
         eyebrow={isEn ? "Canada Revenue Agency" : "Agence du revenu du Canada"}
         title={isEn ? "Federal assessment-style result" : "Résultat fédéral — style avis de cotisation"}

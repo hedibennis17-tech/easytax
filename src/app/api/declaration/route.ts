@@ -226,7 +226,10 @@ export async function GET() {
 
   // Crédits non remboursables
   for (const cr of creds) {
-    const t1l = CAT_CREDIT_T1[cr.category ?? "other_credits"];
+    const description = cr.description ?? "";
+    const t1l = /RPC|RRQ|CPP|QPP/i.test(description) ? "30800"
+      : /AE|assurance-emploi|EI/i.test(description) ? "31200"
+      : CAT_CREDIT_T1[cr.category ?? "other_credits"];
     if (t1l) addT1(t1l, cents(cr.claimedAmountCents), "ocr");
   }
 
