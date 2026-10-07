@@ -479,6 +479,28 @@
       },
       "notable_changes": [],
       "uncertainties": []
+    },
+    {
+      "id": "cgeb",
+      "name_fr": "Prestation canadienne pour l’épicerie et les produits essentiels",
+      "name_en": "Canada Groceries and Essentials Benefit",
+      "type": "prestation",
+      "permanent": true,
+      "years_active": [
+        2026
+      ],
+      "frequency": "trimestrielle",
+      "taxable": false,
+      "t1_line": null,
+      "tp1_line": null,
+      "form": null,
+      "description": "Remplace le crédit pour la TPS/TVH à compter de juillet 2026. Prestation non imposable, sans ligne T1; elle ne doit pas être ajoutée à une déclaration de revenus 2025.",
+      "key_amounts": {},
+      "aliases": [
+        "Prestation canadienne de l’épicerie",
+        "Canada Groceries Benefit",
+        "CGEB"
+      ]
     }
   ],
   "provinces": {
