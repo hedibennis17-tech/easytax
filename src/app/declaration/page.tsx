@@ -140,7 +140,7 @@ function QuestionnaireAnswersAccordion({ answers, progress, provinceName, lang }
 }) {
   const T = (fr: string, en: string) => lang === "en" ? en : fr;
   const [rows, setRows] = useState(answers);
-  const [openSector, setOpenSector] = useState<"federal" | "provincial">("federal");
+  const [openSectors, setOpenSectors] = useState<Record<string, boolean>>({});
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -148,15 +148,15 @@ function QuestionnaireAnswersAccordion({ answers, progress, provinceName, lang }
   useEffect(() => setRows(answers), [answers]);
   const provincial = rows.filter(row => row.section === "ma_province");
   const federal = rows.filter(row => row.section !== "ma_province");
-  const sections = (items: typeof rows) => Array.from(new Set(items.map(row => row.section))).map(code => ({
+  const getSections = (items: typeof rows) => Array.from(new Set(items.map(row => row.section))).map(code => ({
     code,
     rows: items.filter(row => row.section === code),
     titleFr: items.find(row => row.section === code)?.sectionFr ?? code,
     titleEn: items.find(row => row.section === code)?.sectionEn ?? code,
   }));
-  const federalProgress = progress?.sections.filter(section => section.code !== "ma_province").reduce((sum, section) => sum + section.total, 0) ?? federal.length;
-  const federalAnswered = progress?.sections.filter(section => section.code !== "ma_province").reduce((sum, section) => sum + section.answered, 0) ?? federal.length;
-  const provincialProgress = progress?.sections.find(section => section.code === "ma_province");
+  const federalProgress = progress?.sections.filter(s => s.code !== "ma_province").reduce((sum, s) => sum + s.total, 0) ?? federal.length;
+  const federalAnswered = progress?.sections.filter(s => s.code !== "ma_province").reduce((sum, s) => sum + s.answered, 0) ?? federal.length;
+  const provincialProgress = progress?.sections.find(s => s.code === "ma_province");
 
   const updateRow = async (id: string, value: unknown, validated?: boolean) => {
     const response = await fetch("/api/questionnaire/answer", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ questionId: id, value, validated }) });
@@ -168,41 +168,310 @@ function QuestionnaireAnswersAccordion({ answers, progress, provinceName, lang }
     if (!response.ok) throw new Error("delete failed");
     setRows(current => current.filter(row => row.id !== id));
   };
-  const renderSector = (sector: "federal" | "provincial", items: typeof rows, answered: number, total: number, percent: number) => (
-    <div style={{ border: "1px solid #dde8e5", borderRadius: 12, overflow: "hidden", marginBottom: 10 }}>
-      <button type="button" onClick={() => setOpenSector(openSector === sector ? "federal" : sector)} aria-expanded={openSector === sector}
-        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 14px", background: "#fff", border: 0, cursor: "pointer", textAlign: "left" }}>
-        <span><strong style={{ color: "#0f1f1e" }}>{sector === "federal" ? "🇨🇦 " + T("Fédéral", "Federal") : `🏛️ ${provinceName}`}</strong><span style={{ display: "block", color: "#7a9c97", fontSize: 11, marginTop: 3 }}>{answered}/{total} {T("questions", "questions")} · {percent}% · {items.length} {T("réponses sauvegardées", "saved answers")}</span></span>
-        <span style={{ color: "#0b6b67", fontSize: 20, transform: openSector === sector ? "rotate(180deg)" : "none", transition: "transform 160ms" }}>⌄</span>
-      </button>
-      {openSector === sector && <div style={{ padding: "0 10px 10px", background: "#fbfdfc" }}>
-        {sections(items).map(section => {
-          const open = openSections[`${sector}-${section.code}`] ?? true;
-          return <div key={section.code} style={{ borderTop: "1px solid #eef4f2" }}>
-            <button type="button" onClick={() => setOpenSections(current => ({ ...current, [`${sector}-${section.code}`]: !open }))} aria-expanded={open}
-              style={{ width: "100%", display: "flex", justifyContent: "space-between", padding: "10px 4px", background: "transparent", border: 0, cursor: "pointer", textAlign: "left" }}>
-              <strong style={{ fontSize: 12, color: "#526865" }}>{section.titleFr === section.titleEn ? section.titleFr : lang === "en" ? section.titleEn : section.titleFr} <span style={{ color: "#9fd4cc" }}>({section.rows.length})</span></strong><span style={{ color: "#0b6b67" }}>{open ? "−" : "+"}</span>
-            </button>
-            {open && section.rows.map(row => <div key={row.id} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(150px,0.8fr) auto", gap: 8, alignItems: "center", padding: "9px 4px", borderTop: "1px solid #f0f4f3" }}>
-              <div><div style={{ fontSize: 12, color: "#0f1f1e" }}>{lang === "en" ? row.questionEn : row.questionFr}</div><div style={{ fontFamily: "monospace", fontSize: 9, color: "#9fd4cc", marginTop: 2 }}>{row.id}</div></div>
-              {editing === row.id ? <input autoFocus value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { updateRow(row.id, draft).then(() => setEditing(null)).catch(() => {}); } }} style={{ width: "100%", padding: "6px 8px", border: "1px solid #0b6b67", borderRadius: 6, fontSize: 12 }} /> : <div style={{ fontSize: 12, color: "#0f1f1e", background: "#fff", borderRadius: 6, padding: "6px 8px", border: "1px solid #eef4f2", wordBreak: "break-word" }}>{row.displayValue}</div>}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 4, flexWrap: "wrap" }}>
-                {editing === row.id ? <button type="button" onClick={() => { updateRow(row.id, draft).then(() => setEditing(null)).catch(() => {}); }} style={{ color: "#fff", background: "#0b6b67", border: 0, borderRadius: 5, padding: "5px 7px", cursor: "pointer", fontSize: 10 }}>{T("Enregistrer", "Save")}</button> : <button type="button" onClick={() => { setEditing(row.id); setDraft(row.displayValue); }} style={{ color: "#0b6b67", background: "#fff", border: "1px solid #9fd4cc", borderRadius: 5, padding: "5px 7px", cursor: "pointer", fontSize: 10 }}>{T("Modifier", "Edit")}</button>}
-                <button type="button" onClick={() => updateRow(row.id, row.value, true).catch(() => {})} style={{ color: row.validated ? "#059669" : "#526865", background: row.validated ? "#ecfdf5" : "#fff", border: "1px solid #d1e8df", borderRadius: 5, padding: "5px 7px", cursor: "pointer", fontSize: 10 }}>{row.validated ? "✓ " + T("Validée", "Validated") : T("Valider", "Validate")}</button>
-                <button type="button" onClick={() => { if (window.confirm(T("Supprimer cette réponse ?", "Delete this answer?"))) removeRow(row.id).catch(() => {}); }} style={{ color: "#b91c1c", background: "#fff", border: "1px solid #fecaca", borderRadius: 5, padding: "5px 7px", cursor: "pointer", fontSize: 10 }}>{T("Supprimer", "Delete")}</button>
+
+  // Section icon map
+  const sectionIconMap: Record<string, string> = {
+    revenus: "💰", declaration: "📄", triage: "🗂️", profil: "👤",
+    credits: "✨", ma_province: "🏛️", crédits: "✨",
+  };
+  const getSectionIcon = (code: string) => {
+    const k = code.toLowerCase().replace(/[_-]/g, "");
+    for (const [key, icon] of Object.entries(sectionIconMap)) {
+      if (k.includes(key.replace(/[_-]/g, ""))) return icon;
+    }
+    return "📋";
+  };
+
+  const renderSector = (
+    sector: "federal" | "provincial",
+    items: typeof rows,
+    answered: number,
+    total: number,
+    percent: number,
+  ) => {
+    const isOpen = openSectors[sector] ?? false;
+    const isFederal = sector === "federal";
+    const clampedPct = Math.min(100, Math.max(0, percent));
+    const isComplete = clampedPct === 100;
+    const accentColor = isFederal ? "#1a5fa8" : "#8b1a4a";
+    const accentLight = isFederal ? "rgba(26,95,168,0.08)" : "rgba(139,26,74,0.08)";
+    const accentMid = isFederal ? "rgba(26,95,168,0.18)" : "rgba(139,26,74,0.18)";
+    const gradientBg = isFederal
+      ? "linear-gradient(135deg, #f0f6ff 0%, #e8f4f8 100%)"
+      : "linear-gradient(135deg, #fff0f5 0%, #f8eef4 100%)";
+
+    return (
+      <div style={{
+        borderRadius: 18,
+        marginBottom: 12,
+        overflow: "hidden",
+        boxShadow: isOpen
+          ? `0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06)`
+          : `0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)`,
+        border: `1.5px solid ${isOpen ? accentColor + "33" : "#e8eded"}`,
+        transition: "box-shadow 220ms, border-color 220ms",
+        background: "#fff",
+      }}>
+        {/* ── Sector header ─────────────────────────────── */}
+        <button
+          type="button"
+          onClick={() => setOpenSectors(cur => ({ ...cur, [sector]: !isOpen }))}
+          aria-expanded={isOpen}
+          style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "0", background: "transparent", border: 0, cursor: "pointer", textAlign: "left",
+          }}
+        >
+          {/* Gradient top strip */}
+          <div style={{ width: "100%", display: "flex", alignItems: "stretch" }}>
+            {/* Left accent bar */}
+            <div style={{ width: 5, flexShrink: 0, background: `linear-gradient(180deg, ${accentColor} 0%, ${accentColor}88 100%)`, borderRadius: "18px 0 0 0" }} />
+
+            {/* Main header content */}
+            <div style={{ flex: 1, padding: "16px 18px 14px", background: gradientBg, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {/* Title row */}
+                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
+                  <span style={{ fontSize: 20 }}>{isFederal ? "🇨🇦" : "⚜️"}</span>
+                  <span style={{ fontWeight: 800, fontSize: 15, color: "#0f1f1e", letterSpacing: "-0.01em" }}>
+                    {isFederal ? T("Fédéral", "Federal") : provinceName}
+                  </span>
+                  {isComplete && (
+                    <span style={{
+                      background: "#dcfce7", color: "#166534", fontSize: 10, fontWeight: 700,
+                      padding: "2px 8px", borderRadius: 99, letterSpacing: "0.04em",
+                    }}>✓ {T("Complété", "Complete")}</span>
+                  )}
+                </div>
+
+                {/* Progress bar */}
+                <div style={{ height: 7, background: accentMid, borderRadius: 99, overflow: "hidden", marginBottom: 8 }}>
+                  <div style={{
+                    height: "100%", borderRadius: 99,
+                    width: `${clampedPct}%`,
+                    background: isComplete
+                      ? "linear-gradient(90deg, #059669, #10b981)"
+                      : `linear-gradient(90deg, ${accentColor}, ${accentColor}cc)`,
+                    transition: "width 600ms cubic-bezier(.4,0,.2,1)",
+                  }} />
+                </div>
+
+                {/* Meta pills */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  <span style={{ background: accentLight, color: accentColor, fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 99, border: `1px solid ${accentMid}` }}>
+                    {answered}/{total} {T("questions", "questions")}
+                  </span>
+                  <span style={{ background: "rgba(15,31,30,0.06)", color: "#526865", fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 99 }}>
+                    {items.length} {T("réponses", "réponses")}
+                  </span>
+                  <span style={{ background: isComplete ? "rgba(5,150,105,0.1)" : accentLight, color: isComplete ? "#059669" : accentColor, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 99 }}>
+                    {clampedPct}%
+                  </span>
+                </div>
               </div>
-            </div>)}
-          </div>;
-        })}
-        {items.length === 0 && <div style={{ padding: "12px 4px", color: "#9ca3af", fontSize: 11 }}>{T("Aucune réponse enregistrée dans ce secteur.", "No answer saved in this sector.")}</div>}
-      </div>}
-    </div>
+
+              {/* Chevron */}
+              <div style={{
+                width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                background: isOpen ? accentColor : accentLight,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "background 200ms, transform 200ms",
+                transform: isOpen ? "rotate(180deg)" : "none",
+              }}>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M3 5l4 4 4-4" stroke={isOpen ? "#fff" : accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </button>
+
+        {/* ── Sub-sections ──────────────────────────────── */}
+        {isOpen && (
+          <div style={{ padding: "12px 14px 14px", background: "#fafcfb", borderTop: `1px solid ${accentColor}22` }}>
+            {getSections(items).length === 0 ? (
+              <div style={{ textAlign: "center", padding: "20px 0", color: "#9ca3af", fontSize: 12 }}>
+                {T("Aucune réponse enregistrée dans ce secteur.", "No answer saved in this sector.")}
+              </div>
+            ) : getSections(items).map((section, idx) => {
+              const secKey = `${sector}-${section.code}`;
+              const secOpen = openSections[secKey] ?? false;
+              const secIcon = getSectionIcon(String(section.code));
+              const secTitle = lang === "en" ? section.titleEn : section.titleFr;
+              return (
+                <div key={section.code} style={{
+                  borderRadius: 13, marginBottom: idx < getSections(items).length - 1 ? 8 : 0,
+                  overflow: "hidden", border: "1.5px solid #e8eded",
+                  boxShadow: secOpen ? "0 2px 10px rgba(0,0,0,0.06)" : "0 1px 3px rgba(0,0,0,0.04)",
+                  transition: "box-shadow 200ms, border-color 200ms",
+                  borderColor: secOpen ? accentColor + "44" : "#e8eded",
+                  background: "#fff",
+                }}>
+                  {/* Sub-section header */}
+                  <button
+                    type="button"
+                    onClick={() => setOpenSections(cur => ({ ...cur, [secKey]: !secOpen }))}
+                    aria-expanded={secOpen}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "11px 14px", background: "transparent", border: 0, cursor: "pointer", textAlign: "left", gap: 10,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      <span style={{
+                        width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+                        background: secOpen ? accentLight : "rgba(15,31,30,0.05)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 15, transition: "background 160ms",
+                      }}>{secIcon}</span>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 12.5, color: "#0f1f1e", lineHeight: 1.3 }}>{secTitle}</div>
+                        <div style={{ fontSize: 10.5, color: "#7a9c97", marginTop: 1 }}>
+                          {section.rows.length} {T("réponse", "answer")}{section.rows.length > 1 ? "s" : ""}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        background: accentLight, color: accentColor,
+                        fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 99,
+                        border: `1px solid ${accentMid}`,
+                      }}>{section.rows.length}</span>
+                      <div style={{
+                        width: 26, height: 26, borderRadius: "50%",
+                        background: secOpen ? accentColor + "22" : "rgba(15,31,30,0.05)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transition: "transform 200ms, background 200ms",
+                        transform: secOpen ? "rotate(180deg)" : "none",
+                      }}>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <path d="M2.5 4.5l3.5 3.5 3.5-3.5" stroke={accentColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Answer rows */}
+                  {secOpen && (
+                    <div style={{ borderTop: `1px solid ${accentColor}18`, background: "#fafcfb" }}>
+                      {section.rows.map((row, rIdx) => (
+                        <div key={row.id} style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0,1fr) minmax(140px,0.7fr) auto",
+                          gap: 10, alignItems: "start",
+                          padding: "11px 14px",
+                          borderBottom: rIdx < section.rows.length - 1 ? "1px solid #f0f4f3" : "none",
+                          background: editing === row.id ? `${accentLight}` : "transparent",
+                          transition: "background 160ms",
+                        }}>
+                          {/* Question */}
+                          <div>
+                            <div style={{ fontSize: 12, color: "#1a2827", lineHeight: 1.5 }}>
+                              {lang === "en" ? row.questionEn : row.questionFr}
+                            </div>
+                            <div style={{ fontFamily: "monospace", fontSize: 9, color: "#b0c8c4", marginTop: 2 }}>{row.id}</div>
+                          </div>
+
+                          {/* Value */}
+                          {editing === row.id ? (
+                            <input
+                              autoFocus value={draft}
+                              onChange={event => setDraft(event.target.value)}
+                              onKeyDown={event => {
+                                if (event.key === "Enter") updateRow(row.id, draft).then(() => setEditing(null)).catch(() => {});
+                                if (event.key === "Escape") setEditing(null);
+                              }}
+                              style={{
+                                width: "100%", padding: "7px 10px",
+                                border: `1.5px solid ${accentColor}`, borderRadius: 8,
+                                fontSize: 12, outline: "none", background: "#fff",
+                                boxShadow: `0 0 0 3px ${accentColor}22`,
+                              }}
+                            />
+                          ) : (
+                            <div style={{
+                              fontSize: 12, color: "#0f1f1e", background: "#fff",
+                              borderRadius: 8, padding: "7px 10px",
+                              border: "1px solid #e8eded", wordBreak: "break-word",
+                              lineHeight: 1.4,
+                            }}>
+                              {row.displayValue}
+                              {row.validated && (
+                                <span style={{ marginLeft: 6, color: "#059669", fontSize: 10 }}>✓</span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Actions */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+                            {editing === row.id ? (
+                              <button type="button"
+                                onClick={() => { updateRow(row.id, draft).then(() => setEditing(null)).catch(() => {}); }}
+                                style={{ color: "#fff", background: accentColor, border: 0, borderRadius: 7, padding: "5px 10px", cursor: "pointer", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>
+                                {T("Enregistrer", "Save")}
+                              </button>
+                            ) : (
+                              <button type="button"
+                                onClick={() => { setEditing(row.id); setDraft(row.displayValue); }}
+                                style={{ color: accentColor, background: accentLight, border: `1px solid ${accentMid}`, borderRadius: 7, padding: "5px 10px", cursor: "pointer", fontSize: 10, fontWeight: 600, whiteSpace: "nowrap" }}>
+                                ✏️ {T("Modifier", "Edit")}
+                              </button>
+                            )}
+                            <button type="button"
+                              onClick={() => updateRow(row.id, row.value, true).catch(() => {})}
+                              style={{
+                                color: row.validated ? "#059669" : "#526865",
+                                background: row.validated ? "#f0fdf4" : "rgba(15,31,30,0.04)",
+                                border: `1px solid ${row.validated ? "#86efac" : "#d1e8df"}`,
+                                borderRadius: 7, padding: "5px 10px", cursor: "pointer", fontSize: 10, fontWeight: 600, whiteSpace: "nowrap",
+                              }}>
+                              {row.validated ? "✓ " + T("Validée", "Validated") : T("Valider", "Validate")}
+                            </button>
+                            <button type="button"
+                              onClick={() => { if (window.confirm(T("Supprimer cette réponse ?", "Delete this answer?"))) removeRow(row.id).catch(() => {}); }}
+                              style={{ color: "#b91c1c", background: "#fff", border: "1px solid #fecaca", borderRadius: 7, padding: "5px 10px", cursor: "pointer", fontSize: 10, whiteSpace: "nowrap" }}>
+                              {T("Supprimer", "Delete")}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <section aria-label={T("Réponses du rapport fiscal", "Tax report answers")} style={{ marginBottom: 16 }}>
+      {/* Section header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 2px 12px" }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 15, color: "#0f1f1e", letterSpacing: "-0.01em" }}>
+            {T("Réponses du rapport fiscal", "Tax report answers")}
+          </div>
+          <div style={{ fontSize: 11, color: "#7a9c97", marginTop: 2 }}>
+            {T("Cliquez sur un bloc pour voir le détail", "Click a block to view details")}
+          </div>
+        </div>
+        <div style={{
+          background: "linear-gradient(135deg, #0b6b67, #0a5a56)",
+          color: "#fff", fontSize: 12, fontWeight: 800,
+          padding: "5px 13px", borderRadius: 99,
+          boxShadow: "0 2px 8px rgba(11,107,103,0.3)",
+        }}>
+          {rows.length} {T("réponses", "answers")}
+        </div>
+      </div>
+
+      {renderSector("federal", federal, federalAnswered, federalProgress, federalProgress ? Math.round((federalAnswered / federalProgress) * 100) : 0)}
+      {renderSector("provincial", provincial, provincialProgress?.answered ?? provincial.length, provincialProgress?.total ?? provincial.length, provincialProgress?.percent ?? (provincial.length ? 100 : 0))}
+    </section>
   );
-  return <section aria-label={T("Réponses du rapport fiscal", "Tax report answers")} style={{ marginBottom: 14 }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "4px 2px 8px" }}><strong style={{ color: "#0f1f1e", fontSize: 15 }}>{T("Réponses du rapport fiscal", "Tax report answers")}</strong><span style={{ color: "#7a9c97", fontSize: 11 }}>{rows.length} {T("réponses", "answers")}</span></div>
-    {renderSector("federal", federal, federalAnswered, federalProgress, federalProgress ? Math.round((federalAnswered / federalProgress) * 100) : 0)}
-    {renderSector("provincial", provincial, provincialProgress?.answered ?? provincial.length, provincialProgress?.total ?? provincial.length, provincialProgress?.percent ?? (provincial.length ? 100 : 0))}
-  </section>;
 }
 
 function AssessmentReferenceCard({ assessment, lang }: { assessment: DeclarationData["noticeOfAssessment"]; lang: string }) {
