@@ -151,9 +151,9 @@ function F({ label, opt, hint, children }: { label:string; opt?:boolean; hint?:s
   );
 }
 
-function ProvinceSelect({ value, onChange, name="province" }: { value:string; onChange:(v:string)=>void; name?:string }) {
+function ProvinceSelect({ value, onChange, name="province", disabled=false }: { value:string; onChange:(v:string)=>void; name?:string; disabled?:boolean }) {
   return (
-    <select name={name} value={value} onChange={e=>onChange(e.target.value)}>
+    <select name={name} value={value} onChange={e=>onChange(e.target.value)} disabled={disabled} style={{ opacity:disabled?0.72:1 }}>
       <option value="">Sélectionner</option>
       {PROVINCES_FR.map(p => <option key={p} value={p}>{p}</option>)}
     </select>
@@ -217,6 +217,10 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
   const [step, setStep] = useState(0);
   const [err, setErr] = useState("");
   const [prefillLoaded, setPrefillLoaded] = useState(false);
+  const [profileExists, setProfileExists] = useState(false);
+  const [editingStep,   setEditingStep]   = useState<number|null>(null);
+  const [saving,        setSaving]        = useState(false);
+  const [saveMsg,       setSaveMsg]       = useState("");
 
   // Étape 1
   const [firstName, setFirstName]       = useState(prefill.firstName ?? "");
@@ -267,6 +271,7 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
       .then(r => r.ok ? r.json() : null)
       .then((p: Record<string,string|boolean|null> | null) => {
         if (!p) return;
+        setProfileExists(true);
         // Map province code → nom complet
         const codeToName: Record<string,string> = {
           AB:"Alberta",BC:"Colombie-Britannique",PE:"Île-du-Prince-Édouard",
@@ -326,6 +331,31 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
 
   const allData = { type:"INDIVIDUAL", firstName, lastName, otherNames, usageName, birthDate, nas, canStatus, gender, email, phone, address, city, province, postal, country, language, contactPref, marital, maritalDate, taxProvince, provChange, prevProvince, nordZone, taxYear, arrivalDate, departDate, situations, hasFamily, members, preparer };
 
+  // Lecture seule si le profil existe et qu'on n'est pas en train d'éditer cette étape
+  const ro = (s: number) => profileExists && editingStep !== s;
+
+  const saveStep = async (s: number) => {
+    setSaving(true); setSaveMsg("");
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(allData),
+      });
+      if (!res.ok) {
+        const d = await res.json() as { error?: string };
+        throw new Error(d.error ?? "Erreur de sauvegarde");
+      }
+      setSaveMsg("✓ Modifications enregistrées");
+      setEditingStep(null);
+      setTimeout(() => setSaveMsg(""), 3000);
+    } catch (e) {
+      setSaveMsg("❌ " + (e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const provCode = PROVINCES_CODE[taxProvince] ?? PROVINCES_CODE[province] ?? "QC";
 
   return (
@@ -342,32 +372,41 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
         <div className="wz-rail"><StepRail steps={lang === "en" ? IND_STEPS_EN : IND_STEPS_FR} current={step} /></div>
         <div>
           {err && <div style={{ background:"rgba(229,52,42,0.08)", border:"1px solid rgba(229,52,42,0.3)", borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:13, color:"#E5342A" }}>⚠️ {err}</div>}
+          {saveMsg && <div style={{ background:saveMsg.startsWith("✓")?"rgba(11,107,103,0.1)":"rgba(229,52,42,0.08)", border:`1px solid ${saveMsg.startsWith("✓")?"rgba(11,107,103,0.3)":"rgba(229,52,42,0.3)"}`, borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:13, color:saveMsg.startsWith("✓")?"#0b6b67":"#E5342A", fontWeight:600 }}>{saveMsg}</div>}
 
           {/* 01 Identité */}
           {step===0 && (
             <StepCard num={1} title={lang === "en" ? "Account holder identity" : "Identité du titulaire"} desc={lang === "en" ? "Information as it appears on your official documents." : "Les renseignements tels qu'ils figurent sur vos documents officiels."}>
+              {profileExists && (
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:14 }}>
+                  {editingStep===0 ? (
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={()=>{ setEditingStep(null); setSaveMsg(""); }} style={{ padding:"7px 16px", borderRadius:9, border:"1px solid var(--border)", background:"var(--bg-base)", fontSize:13, fontWeight:600, cursor:"pointer", color:"var(--text-secondary)" }}>Annuler</button>
+                      <button onClick={()=>saveStep(0)} disabled={saving} style={{ padding:"7px 18px", borderRadius:9, border:"none", background:"#0b6b67", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", opacity:saving?0.7:1 }}>{saving?"Enregistrement...":"💾 Enregistrer"}</button>
+                    </div>
+                  ) : (
+                    <button onClick={()=>setEditingStep(0)} style={{ padding:"7px 18px", borderRadius:9, border:"1px solid #0b6b67", background:"transparent", color:"#0b6b67", fontSize:13, fontWeight:700, cursor:"pointer" }}>✏️ Modifier</button>
+                  )}
+                </div>
+              )}
               <div className="grid2" style={{ gap:16, marginBottom:16 }}>
-                <F label={lang === "en" ? "Legal first name *" : "Prénom légal *"}><input value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="Marie" autoFocus /></F>
-                <F label={lang === "en" ? "Legal last name *" : "Nom de famille légal *"}><input value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="Tremblay" /></F>
-                <F label="Autres prénoms" opt><input value={otherNames} onChange={e=>setOtherNames(e.target.value)} placeholder="Anne" /></F>
-                <F label="Nom d'usage" opt><input value={usageName} onChange={e=>setUsageName(e.target.value)} placeholder="Si différent" /></F>
-                <F label={lang === "en" ? "Date of birth *" : "Date de naissance *"}><input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)} /></F>
-                <F label="Numéro d'assurance sociale" opt hint="9 chiffres. Sera chiffré lors de l'intégration sécurisée."><input value={nas} onChange={e=>setNas(e.target.value)} placeholder="••• ••• •••" maxLength={11} /></F>
+                <F label={lang === "en" ? "Legal first name *" : "Prénom légal *"}><input value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="Marie" autoFocus disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }} /></F>
+                <F label={lang === "en" ? "Legal last name *" : "Nom de famille légal *"}><input value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="Tremblay" disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }} /></F>
+                <F label="Autres prénoms" opt><input value={otherNames} onChange={e=>setOtherNames(e.target.value)} placeholder="Anne" disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }} /></F>
+                <F label="Nom d'usage" opt><input value={usageName} onChange={e=>setUsageName(e.target.value)} placeholder="Si différent" disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }} /></F>
+                <F label={lang === "en" ? "Date of birth *" : "Date de naissance *"}><input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)} disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }} /></F>
+                <F label="Numéro d'assurance sociale" opt hint="9 chiffres. Sera chiffré lors de l'intégration sécurisée."><input value={nas} onChange={e=>setNas(e.target.value)} placeholder="••• ••• •••" maxLength={11} disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }} /></F>
                 <F label={lang === "en" ? "Status in Canada *" : "Statut au Canada *"}>
-                  <select value={canStatus} onChange={e=>setCanStatus(e.target.value)}>
+                  <select value={canStatus} onChange={e=>setCanStatus(e.target.value)} disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }}>
                     <option value="">Sélectionner</option>
-                    <option>Citoyen canadien</option>
-                    <option>Résident permanent</option>
-                    <option>Résident temporaire</option>
-                    <option>Personne protégée</option>
-                    <option>Autre statut</option>
+                    <option>Citoyen canadien</option><option>Résident permanent</option>
+                    <option>Résident temporaire</option><option>Personne protégée</option><option>Autre statut</option>
                   </select>
                 </F>
                 <F label="Genre" opt>
-                  <select value={gender} onChange={e=>setGender(e.target.value)}>
+                  <select value={gender} onChange={e=>setGender(e.target.value)} disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }}>
                     <option value="">Préférer ne pas répondre</option>
-                    <option>Femme</option><option>Homme</option>
-                    <option>Non binaire</option><option>Autre</option>
+                    <option>Femme</option><option>Homme</option><option>Non binaire</option><option>Autre</option>
                   </select>
                 </F>
               </div>
@@ -378,10 +417,22 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
           {/* 02 Coordonnées */}
           {step===1 && (
             <StepCard num={2} title={lang === "en" ? "Contact information" : "Coordonnées"} desc="Votre adresse principale et les moyens de vous joindre.">
+              {profileExists && (
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:14 }}>
+                  {editingStep===1 ? (
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={()=>{ setEditingStep(null); setSaveMsg(""); }} style={{ padding:"7px 16px", borderRadius:9, border:"1px solid var(--border)", background:"var(--bg-base)", fontSize:13, fontWeight:600, cursor:"pointer", color:"var(--text-secondary)" }}>Annuler</button>
+                      <button onClick={()=>saveStep(1)} disabled={saving} style={{ padding:"7px 18px", borderRadius:9, border:"none", background:"#0b6b67", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", opacity:saving?0.7:1 }}>{saving?"Enregistrement...":"💾 Enregistrer"}</button>
+                    </div>
+                  ) : (
+                    <button onClick={()=>setEditingStep(1)} style={{ padding:"7px 18px", borderRadius:9, border:"1px solid #0b6b67", background:"transparent", color:"#0b6b67", fontSize:13, fontWeight:700, cursor:"pointer" }}>✏️ Modifier</button>
+                  )}
+                </div>
+              )}
               <div className="grid2" style={{ gap:16, marginBottom:16 }}>
-                <F label={lang === "en" ? "Email address *" : "Adresse courriel *"}><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="vous@exemple.ca" autoFocus /></F>
-                <F label="Téléphone principal" opt><input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="(514) 555-0000" /></F>
-                <div className="span2"><F label="Adresse"><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="123, rue Principale" /></F></div>
+                <F label={lang === "en" ? "Email address *" : "Adresse courriel *"}><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="vous@exemple.ca" autoFocus disabled={ro(1)} style={{ opacity:ro(1)?0.72:1 }} /></F>
+                <F label="Téléphone principal" opt><input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="(514) 555-0000" disabled={ro(1)} style={{ opacity:ro(1)?0.72:1 }} /></F>
+                <div className="span2"><F label="Adresse"><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="123, rue Principale" disabled={ro(1)} style={{ opacity:ro(1)?0.72:1 }} /></F></div>
                 <F label="Ville"><input value={city} onChange={e=>setCity(e.target.value)} placeholder="Montréal" /></F>
                 <F label={lang === "en" ? "Province or territory *" : "Province ou territoire *"}>
                   <ProvinceSelect value={province} onChange={value=>{ setProvince(value); if (!taxProvince) setTaxProvince(value); }} name="addr_province" />
@@ -415,9 +466,21 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
           {/* 03 Profil fiscal */}
           {step===2 && (
             <StepCard num={3} title={lang === "en" ? "Tax profile" : "Profil fiscal"} desc="Quelques repères pour configurer votre dossier correctement.">
+              {profileExists && (
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:14 }}>
+                  {editingStep===2 ? (
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={()=>{ setEditingStep(null); setSaveMsg(""); }} style={{ padding:"7px 16px", borderRadius:9, border:"1px solid var(--border)", background:"var(--bg-base)", fontSize:13, fontWeight:600, cursor:"pointer", color:"var(--text-secondary)" }}>Annuler</button>
+                      <button onClick={()=>saveStep(2)} disabled={saving} style={{ padding:"7px 18px", borderRadius:9, border:"none", background:"#0b6b67", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", opacity:saving?0.7:1 }}>{saving?"Enregistrement...":"💾 Enregistrer"}</button>
+                    </div>
+                  ) : (
+                    <button onClick={()=>setEditingStep(2)} style={{ padding:"7px 18px", borderRadius:9, border:"1px solid #0b6b67", background:"transparent", color:"#0b6b67", fontSize:13, fontWeight:700, cursor:"pointer" }}>✏️ Modifier</button>
+                  )}
+                </div>
+              )}
               <div className="grid2" style={{ gap:16, marginBottom:16 }}>
                 <F label={lang === "en" ? "Marital status *" : "État civil *"}>
-                  <select value={marital} onChange={e=>setMarital(e.target.value)} autoFocus>
+                  <select value={marital} onChange={e=>setMarital(e.target.value)} autoFocus disabled={ro(2)} style={{ opacity:ro(2)?0.72:1 }}>
                     <option value="">Sélectionner</option>
                     <option>Célibataire</option><option>Marié(e)</option>
                     <option>Conjoint(e) de fait</option><option>Séparé(e)</option>
@@ -425,15 +488,15 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
                   </select>
                 </F>
                 <F label="Date du changement d'état civil" opt hint="S'il y a lieu">
-                  <input type="date" value={maritalDate} onChange={e=>setMaritalDate(e.target.value)} />
+                  <input type="date" value={maritalDate} onChange={e=>setMaritalDate(e.target.value)} disabled={ro(2)} style={{ opacity:ro(2)?0.72:1 }} />
                 </F>
                 <div className="span2">
                   <F label={lang === "en" ? "Province of fiscal residence on December 31 *" : "Province de résidence fiscale au 31 décembre *"}>
-                    <ProvinceSelect value={taxProvince} onChange={setTaxProvince} name="tax_province" />
+                    <ProvinceSelect value={taxProvince} onChange={setTaxProvince} name="tax_province" disabled={ro(2)} />
                   </F>
                 </div>
                 <F label="Changement de province/territoire en cours d'année">
-                  <select value={provChange} onChange={e=>setProvChange(e.target.value)}>
+                  <select value={provChange} onChange={e=>setProvChange(e.target.value)} disabled={ro(2)} style={{ opacity:ro(2)?0.72:1 }}>
                     <option value="non">Non</option>
                     <option value="oui">Oui</option>
                   </select>
