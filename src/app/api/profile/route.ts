@@ -28,6 +28,7 @@ export async function GET() {
       fiscalResidence: taxProfiles.fiscalResidence,
       isCanadianCitizen: taxProfiles.isCanadianCitizen,
       isQuebecResident: taxProfiles.isQuebecResident,
+      pancanadianData: taxProfiles.pancanadianData,
       createdAt: taxProfiles.createdAt,
       updatedAt: taxProfiles.updatedAt,
     })
@@ -60,29 +61,38 @@ export async function PUT(req: NextRequest) {
   const maritalRaw = String(body.marital ?? "");
   const maritalStatus = (maritalMap[maritalRaw] ?? maritalRaw) as "single"|"married"|"common_law"|"separated"|"divorced"|"widowed"|null;
 
-  const isCanadianCitizen = (() => {
-    const s = String(body.canStatus ?? "").toLowerCase();
-    if (s.includes("citoyen")) return true;
-    if (s.includes("permanent") || s.includes("temporaire") || s.includes("protégée") || s.includes("autre")) return false;
-    return null;
-  })();
+  const canStatusStr = String(body.canStatus ?? "").toLowerCase();
+  const isCanadianCitizen: boolean | null =
+    canStatusStr.includes("citoyen") ? true :
+    (canStatusStr.includes("permanent") || canStatusStr.includes("temporaire") ||
+     canStatusStr.includes("protégée") || canStatusStr.includes("autre") ||
+     canStatusStr.includes("nouvel")) ? false : null;
+
+  const safeExtra = JSON.stringify({
+    canStatus: body.canStatus, gender: body.gender,
+    arrivalDate: body.arrivalDate, departDate: body.departDate,
+    situations: body.situations, hasFamily: body.hasFamily,
+    language: body.language, contactPref: body.contactPref,
+    provChange: body.provChange, prevProvince: body.prevProvince, nordZone: body.nordZone,
+  });
 
   await db.update(taxProfiles).set({
-    firstName: body.firstName ? String(body.firstName) : undefined,
-    lastName:  body.lastName  ? String(body.lastName)  : undefined,
-    dateOfBirth: body.birthDate ? String(body.birthDate) : undefined,
-    sinLastFour: body.nas ? String(body.nas).replace(/\s/g,"").slice(-4) || undefined : undefined,
-    phone:    body.phone    ? String(body.phone)    : undefined,
-    email:    body.email    ? String(body.email)    : undefined,
-    address:  body.address  ? String(body.address)  : undefined,
-    city:     body.city     ? String(body.city)     : undefined,
-    postalCode: body.postal ? String(body.postal)   : undefined,
+    firstName:         body.firstName  ? String(body.firstName)  : undefined,
+    lastName:          body.lastName   ? String(body.lastName)   : undefined,
+    dateOfBirth:       body.birthDate  ? String(body.birthDate)  : undefined,
+    sinLastFour:       body.nas ? (String(body.nas).replace(/\s/g,"").slice(-4) || undefined) : undefined,
+    phone:             body.phone   ? String(body.phone)   : undefined,
+    email:             body.email   ? String(body.email)   : undefined,
+    address:           body.address ? String(body.address) : undefined,
+    city:              body.city    ? String(body.city)    : undefined,
+    postalCode:        body.postal  ? String(body.postal)  : undefined,
     province,
     fiscalResidence,
-    isQuebecResident: fiscalResidence === "QC",
-    maritalStatus: maritalStatus || undefined,
-    isCanadianCitizen: isCanadianCitizen ?? undefined,
-    updatedAt: new Date(),
+    isQuebecResident:  fiscalResidence === "QC",
+    maritalStatus:     maritalStatus || undefined,
+    isCanadianCitizen: isCanadianCitizen !== null ? isCanadianCitizen : undefined,
+    pancanadianData:   safeExtra,
+    updatedAt:         new Date(),
   }).where(eq(taxProfiles.userId, ctx.clerkUserId));
 
   return NextResponse.json({ updated: true });

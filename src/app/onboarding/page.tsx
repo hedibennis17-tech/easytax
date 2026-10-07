@@ -272,6 +272,9 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
       .then((p: Record<string,string|boolean|null> | null) => {
         if (!p) return;
         setProfileExists(true);
+        // Lire pancanadianData pour les champs wizard non mappés en DB
+        let extra: Record<string, string> = {};
+        try { extra = JSON.parse(String(p.pancanadianData ?? "{}")) as Record<string,string>; } catch { /* ignore */ }
         // Map province code → nom complet
         const codeToName: Record<string,string> = {
           AB:"Alberta",BC:"Colombie-Britannique",PE:"Île-du-Prince-Édouard",
@@ -294,8 +297,20 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
         if (p.province)       setProvince(codeToName[String(p.province)] ?? String(p.province));
         if (p.fiscalResidence)setTaxProvince(codeToName[String(p.fiscalResidence)] ?? String(p.fiscalResidence));
         if (p.maritalStatus)  setMarital(maritalMap[String(p.maritalStatus)] ?? "");
-        if (p.isCanadianCitizen === true) setCanStatus("Citoyen canadien");
+        // canStatus: priorité pancanadianData (valeur exacte du wizard), sinon fallback boolean
+        if (extra.canStatus) setCanStatus(extra.canStatus);
+        else if (p.isCanadianCitizen === true) setCanStatus("Citoyen canadien");
         else if (p.isCanadianCitizen === false) setCanStatus("Résident permanent");
+        // autres champs wizard depuis pancanadianData
+        if (extra.gender)       setGender(extra.gender);
+        if (extra.arrivalDate)  setArrivalDate(extra.arrivalDate);
+        if (extra.departDate)   setDepartDate(extra.departDate);
+        if (extra.language)     setLanguage(extra.language);
+        if (extra.contactPref)  setContactPref(extra.contactPref);
+        if (extra.provChange)   setProvChange(extra.provChange);
+        if (extra.prevProvince) setPrevProvince(extra.prevProvince);
+        if (extra.nordZone)     setNordZone(extra.nordZone);
+        if (extra.situations)   { try { setSituations(JSON.parse(extra.situations) as string[]); } catch { /* ignore */ } }
         setPrefillLoaded(true);
       })
       .catch(() => setPrefillLoaded(true));
@@ -308,6 +323,8 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
 
   const validate = () => {
     setErr("");
+    // En mode consultation (profil existant, pas en édition), navigation libre
+    if (profileExists && editingStep === null) return true;
     if (step===0 && (!firstName||!lastName||!birthDate||!canStatus)) { setErr("Veuillez remplir les champs obligatoires avant de continuer."); return false; }
     if (step===1 && (!email||!address||!city||!province||!postal)) { setErr("Veuillez remplir l’adresse complète avant de continuer."); return false; }
     if (step===2 && (!marital||!taxProvince||!taxYear)) { setErr("Veuillez remplir les champs obligatoires avant de continuer."); return false; }
@@ -527,16 +544,34 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
                     <option value="other">Année antérieure</option>
                   </select>
                 </F>
-                <F label="Date d'arrivée au Canada" opt hint="S'il y a lieu">
-                  <input type="date" value={arrivalDate} onChange={e=>setArrivalDate(e.target.value)} />
-                </F>
-                <F label="Date de départ du Canada" opt hint="S'il y a lieu">
-                  <input type="date" value={departDate} onChange={e=>setDepartDate(e.target.value)} />
-                </F>
+                {/* Questions immigration — seulement si pas citoyen canadien */}
+                {canStatus !== "Citoyen canadien" && (<>
+                  <F label="Date d'arrivée au Canada" opt hint={canStatus ? "Requis si vous avez immigré cette année" : "S'il y a lieu"}>
+                    <input type="date" value={arrivalDate} onChange={e=>setArrivalDate(e.target.value)} disabled={ro(2)} style={{ opacity:ro(2)?0.72:1 }} />
+                  </F>
+                  <F label="Date de départ du Canada" opt hint="S'il y a lieu">
+                    <input type="date" value={departDate} onChange={e=>setDepartDate(e.target.value)} disabled={ro(2)} style={{ opacity:ro(2)?0.72:1 }} />
+                  </F>
+                </>)}
               </div>
+
+              {/* Bannière statut immigration */}
+              {canStatus && canStatus !== "Citoyen canadien" && (
+                <div style={{ background:"rgba(229,52,42,0.07)", border:"1px solid rgba(229,52,42,0.25)", borderRadius:11, padding:"12px 15px", marginBottom:14, fontSize:13 }}>
+                  <strong style={{ color:"var(--et-red)" }}>📋 {canStatus}</strong>
+                  <p style={{ margin:"6px 0 0", color:"var(--text-secondary)", lineHeight:1.5 }}>
+                    En tant que {canStatus.toLowerCase()}, vous devrez possiblement indiquer votre date d&apos;arrivée au Canada et votre statut d&apos;immigration sur votre déclaration T1.
+                    {(canStatus === "Résident permanent" || canStatus === "Résident temporaire") && " Certains crédits et déductions peuvent être limités selon votre date d'établissement."}
+                  </p>
+                </div>
+              )}
+
               <p className="section-title">Situations applicables <span className="opt">(facultatif)</span></p>
               <div className="check-grid" style={{ gap:9, marginBottom:16 }}>
-                {["Travailleur autonome","Propriétaire d'immeuble locatif","Étudiant","Nouvel arrivant","Biens ou revenus à l'étranger","Crédit pour personnes handicapées"].map(s => (
+                {(canStatus === "Citoyen canadien"
+                  ? ["Travailleur autonome","Propriétaire d'immeuble locatif","Étudiant","Biens ou revenus à l'étranger","Crédit pour personnes handicapées"]
+                  : ["Travailleur autonome","Propriétaire d'immeuble locatif","Étudiant","Nouvel arrivant","Biens ou revenus à l'étranger","Crédit pour personnes handicapées"]
+                ).map(s => (
                   <label key={s} className="check-opt" style={{ cursor:"pointer" }}>
                     <input type="checkbox" checked={situations.includes(s)} onChange={()=>toggle(s)} />
                     {s}
