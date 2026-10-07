@@ -151,9 +151,9 @@ function F({ label, opt, hint, children }: { label:string; opt?:boolean; hint?:s
   );
 }
 
-function ProvinceSelect({ value, onChange, name="province" }: { value:string; onChange:(v:string)=>void; name?:string }) {
+function ProvinceSelect({ value, onChange, name="province", disabled=false }: { value:string; onChange:(v:string)=>void; name?:string; disabled?:boolean }) {
   return (
-    <select name={name} value={value} onChange={e=>onChange(e.target.value)}>
+    <select name={name} value={value} onChange={e=>onChange(e.target.value)} disabled={disabled} style={{ opacity:disabled?0.72:1 }}>
       <option value="">Sélectionner</option>
       {PROVINCES_FR.map(p => <option key={p} value={p}>{p}</option>)}
     </select>
@@ -216,6 +216,11 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
   const IND_STEPS_EN = ["Identity","Contacts","Tax profile","Family","Consents","Review"];
   const [step, setStep] = useState(0);
   const [err, setErr] = useState("");
+  const [prefillLoaded, setPrefillLoaded] = useState(false);
+  const [profileExists, setProfileExists] = useState(false);
+  const [editingStep,   setEditingStep]   = useState<number|null>(null);
+  const [saving,        setSaving]        = useState(false);
+  const [saveMsg,       setSaveMsg]       = useState("");
 
   // Étape 1
   const [firstName, setFirstName]       = useState(prefill.firstName ?? "");
@@ -250,13 +255,66 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
   const [departDate,   setDepartDate] = useState("");
   const [situations,   setSituations] = useState<string[]>([]);
 
-  // Étape 4
+  // Étape 4 — question famille
+  const [hasFamily,  setHasFamily]  = useState<"oui"|"non"|"">("");
   const [members, setMembers] = useState<Member[]>([]);
 
   // Étape 5
   const [preparer,  setPreparer]  = useState("");
   const [consent1,  setConsent1]  = useState(false);
   const [consent2,  setConsent2]  = useState(false);
+
+  // ── Pré-remplissage depuis le profil existant ──────────────
+  useEffect(() => {
+    if (prefillLoaded) return;
+    fetch("/api/profile")
+      .then(r => r.ok ? r.json() : null)
+      .then((p: Record<string,string|boolean|null> | null) => {
+        if (!p) return;
+        setProfileExists(true);
+        // Lire pancanadianData pour les champs wizard non mappés en DB
+        let extra: Record<string, string> = {};
+        try { extra = JSON.parse(String(p.pancanadianData ?? "{}")) as Record<string,string>; } catch { /* ignore */ }
+        // Map province code → nom complet
+        const codeToName: Record<string,string> = {
+          AB:"Alberta",BC:"Colombie-Britannique",PE:"Île-du-Prince-Édouard",
+          MB:"Manitoba",NB:"Nouveau-Brunswick",NS:"Nouvelle-Écosse",ON:"Ontario",
+          QC:"Québec",SK:"Saskatchewan",NL:"Terre-Neuve-et-Labrador",
+          NT:"Territoires du Nord-Ouest",NU:"Nunavut",YT:"Yukon",
+        };
+        const maritalMap: Record<string,string> = {
+          single:"Célibataire", married:"Marié(e)", common_law:"Conjoint(e) de fait",
+          separated:"Séparé(e)", divorced:"Divorcé(e)", widowed:"Veuf ou veuve",
+        };
+        if (p.firstName)      setFirstName(String(p.firstName));
+        if (p.lastName)       setLastName(String(p.lastName));
+        if (p.dateOfBirth)    setBirthDate(String(p.dateOfBirth));
+        if (p.email)          setEmail(String(p.email));
+        if (p.phone)          setPhone(String(p.phone));
+        if (p.address)        setAddress(String(p.address));
+        if (p.city)           setCity(String(p.city));
+        if (p.postalCode)     setPostal(String(p.postalCode).trim());
+        if (p.province)       setProvince(codeToName[String(p.province)] ?? String(p.province));
+        if (p.fiscalResidence)setTaxProvince(codeToName[String(p.fiscalResidence)] ?? String(p.fiscalResidence));
+        if (p.maritalStatus)  setMarital(maritalMap[String(p.maritalStatus)] ?? "");
+        // canStatus: priorité pancanadianData (valeur exacte du wizard), sinon fallback boolean
+        if (extra.canStatus) setCanStatus(extra.canStatus);
+        else if (p.isCanadianCitizen === true) setCanStatus("Citoyen canadien");
+        else if (p.isCanadianCitizen === false) setCanStatus("Résident permanent");
+        // autres champs wizard depuis pancanadianData
+        if (extra.gender)       setGender(extra.gender);
+        if (extra.arrivalDate)  setArrivalDate(extra.arrivalDate);
+        if (extra.departDate)   setDepartDate(extra.departDate);
+        if (extra.language)     setLanguage(extra.language);
+        if (extra.contactPref)  setContactPref(extra.contactPref);
+        if (extra.provChange)   setProvChange(extra.provChange);
+        if (extra.prevProvince) setPrevProvince(extra.prevProvince);
+        if (extra.nordZone)     setNordZone(extra.nordZone);
+        if (extra.situations)   { try { setSituations(JSON.parse(extra.situations) as string[]); } catch { /* ignore */ } }
+        setPrefillLoaded(true);
+      })
+      .catch(() => setPrefillLoaded(true));
+  }, [prefillLoaded]);
 
   const toggle = (v:string) => setSituations(s => s.includes(v) ? s.filter(x=>x!==v) : [...s,v]);
   const addMember = () => setMembers(m => [...m, { id:Date.now(), relation:"", firstName:"", lastName:"", birthDate:"", nas:"", income:"", custody:"" }]);
@@ -265,17 +323,55 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
 
   const validate = () => {
     setErr("");
+    // En mode consultation (profil existant, pas en édition), navigation libre
+    if (profileExists && editingStep === null) return true;
     if (step===0 && (!firstName||!lastName||!birthDate||!canStatus)) { setErr("Veuillez remplir les champs obligatoires avant de continuer."); return false; }
     if (step===1 && (!email||!address||!city||!province||!postal)) { setErr("Veuillez remplir l’adresse complète avant de continuer."); return false; }
     if (step===2 && (!marital||!taxProvince||!taxYear)) { setErr("Veuillez remplir les champs obligatoires avant de continuer."); return false; }
+    if (step===3 && !hasFamily) { setErr("Veuillez indiquer si vous avez des membres de la famille à ajouter."); return false; }
     if (step===4 && (!consent1||!consent2||!preparer)) { setErr("Veuillez confirmer les deux déclarations et votre choix de préparation."); return false; }
     return true;
   };
 
-  const next = () => { if (!validate()) return; if (step<5) setStep(s=>s+1); };
-  const back = () => { setErr(""); if (step===0) onBack(); else setStep(s=>s-1); };
+  // Si "non famille" → sauter l’étape 3 (famille)
+  const next = () => {
+    if (!validate()) return;
+    if (step===3 && hasFamily==="non") { setStep(4); return; }
+    if (step<5) setStep(s=>s+1);
+  };
+  const back = () => {
+    setErr("");
+    if (step===0) onBack();
+    else if (step===4 && hasFamily==="non") setStep(3);
+    else setStep(s=>s-1);
+  };
 
-  const allData = { type:"INDIVIDUAL", firstName, lastName, otherNames, usageName, birthDate, nas, canStatus, gender, email, phone, address, city, province, postal, country, language, contactPref, marital, maritalDate, taxProvince, provChange, prevProvince, nordZone, taxYear, arrivalDate, departDate, situations, members, preparer };
+  const allData = { type:"INDIVIDUAL", firstName, lastName, otherNames, usageName, birthDate, nas, canStatus, gender, email, phone, address, city, province, postal, country, language, contactPref, marital, maritalDate, taxProvince, provChange, prevProvince, nordZone, taxYear, arrivalDate, departDate, situations, hasFamily, members, preparer };
+
+  // Lecture seule si le profil existe et qu'on n'est pas en train d'éditer cette étape
+  const ro = (s: number) => profileExists && editingStep !== s;
+
+  const saveStep = async (s: number) => {
+    setSaving(true); setSaveMsg("");
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(allData),
+      });
+      if (!res.ok) {
+        const d = await res.json() as { error?: string };
+        throw new Error(d.error ?? "Erreur de sauvegarde");
+      }
+      setSaveMsg("✓ Modifications enregistrées");
+      setEditingStep(null);
+      setTimeout(() => setSaveMsg(""), 3000);
+    } catch (e) {
+      setSaveMsg("❌ " + (e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const provCode = PROVINCES_CODE[taxProvince] ?? PROVINCES_CODE[province] ?? "QC";
 
@@ -293,32 +389,41 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
         <div className="wz-rail"><StepRail steps={lang === "en" ? IND_STEPS_EN : IND_STEPS_FR} current={step} /></div>
         <div>
           {err && <div style={{ background:"rgba(229,52,42,0.08)", border:"1px solid rgba(229,52,42,0.3)", borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:13, color:"#E5342A" }}>⚠️ {err}</div>}
+          {saveMsg && <div style={{ background:saveMsg.startsWith("✓")?"rgba(11,107,103,0.1)":"rgba(229,52,42,0.08)", border:`1px solid ${saveMsg.startsWith("✓")?"rgba(11,107,103,0.3)":"rgba(229,52,42,0.3)"}`, borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:13, color:saveMsg.startsWith("✓")?"#0b6b67":"#E5342A", fontWeight:600 }}>{saveMsg}</div>}
 
           {/* 01 Identité */}
           {step===0 && (
             <StepCard num={1} title={lang === "en" ? "Account holder identity" : "Identité du titulaire"} desc={lang === "en" ? "Information as it appears on your official documents." : "Les renseignements tels qu'ils figurent sur vos documents officiels."}>
+              {profileExists && (
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:14 }}>
+                  {editingStep===0 ? (
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={()=>{ setEditingStep(null); setSaveMsg(""); }} style={{ padding:"7px 16px", borderRadius:9, border:"1px solid var(--border)", background:"var(--bg-base)", fontSize:13, fontWeight:600, cursor:"pointer", color:"var(--text-secondary)" }}>Annuler</button>
+                      <button onClick={()=>saveStep(0)} disabled={saving} style={{ padding:"7px 18px", borderRadius:9, border:"none", background:"#0b6b67", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", opacity:saving?0.7:1 }}>{saving?"Enregistrement...":"💾 Enregistrer"}</button>
+                    </div>
+                  ) : (
+                    <button onClick={()=>setEditingStep(0)} style={{ padding:"7px 18px", borderRadius:9, border:"1px solid #0b6b67", background:"transparent", color:"#0b6b67", fontSize:13, fontWeight:700, cursor:"pointer" }}>✏️ Modifier</button>
+                  )}
+                </div>
+              )}
               <div className="grid2" style={{ gap:16, marginBottom:16 }}>
-                <F label={lang === "en" ? "Legal first name *" : "Prénom légal *"}><input value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="Marie" autoFocus /></F>
-                <F label={lang === "en" ? "Legal last name *" : "Nom de famille légal *"}><input value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="Tremblay" /></F>
-                <F label="Autres prénoms" opt><input value={otherNames} onChange={e=>setOtherNames(e.target.value)} placeholder="Anne" /></F>
-                <F label="Nom d'usage" opt><input value={usageName} onChange={e=>setUsageName(e.target.value)} placeholder="Si différent" /></F>
-                <F label={lang === "en" ? "Date of birth *" : "Date de naissance *"}><input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)} /></F>
-                <F label="Numéro d'assurance sociale" opt hint="9 chiffres. Sera chiffré lors de l'intégration sécurisée."><input value={nas} onChange={e=>setNas(e.target.value)} placeholder="••• ••• •••" maxLength={11} /></F>
+                <F label={lang === "en" ? "Legal first name *" : "Prénom légal *"}><input value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="Marie" autoFocus disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }} /></F>
+                <F label={lang === "en" ? "Legal last name *" : "Nom de famille légal *"}><input value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="Tremblay" disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }} /></F>
+                <F label="Autres prénoms" opt><input value={otherNames} onChange={e=>setOtherNames(e.target.value)} placeholder="Anne" disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }} /></F>
+                <F label="Nom d'usage" opt><input value={usageName} onChange={e=>setUsageName(e.target.value)} placeholder="Si différent" disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }} /></F>
+                <F label={lang === "en" ? "Date of birth *" : "Date de naissance *"}><input type="date" value={birthDate} onChange={e=>setBirthDate(e.target.value)} disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }} /></F>
+                <F label="Numéro d'assurance sociale" opt hint="9 chiffres. Sera chiffré lors de l'intégration sécurisée."><input value={nas} onChange={e=>setNas(e.target.value)} placeholder="••• ••• •••" maxLength={11} disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }} /></F>
                 <F label={lang === "en" ? "Status in Canada *" : "Statut au Canada *"}>
-                  <select value={canStatus} onChange={e=>setCanStatus(e.target.value)}>
+                  <select value={canStatus} onChange={e=>setCanStatus(e.target.value)} disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }}>
                     <option value="">Sélectionner</option>
-                    <option>Citoyen canadien</option>
-                    <option>Résident permanent</option>
-                    <option>Résident temporaire</option>
-                    <option>Personne protégée</option>
-                    <option>Autre statut</option>
+                    <option>Citoyen canadien</option><option>Résident permanent</option>
+                    <option>Résident temporaire</option><option>Personne protégée</option><option>Autre statut</option>
                   </select>
                 </F>
                 <F label="Genre" opt>
-                  <select value={gender} onChange={e=>setGender(e.target.value)}>
+                  <select value={gender} onChange={e=>setGender(e.target.value)} disabled={ro(0)} style={{ opacity:ro(0)?0.72:1 }}>
                     <option value="">Préférer ne pas répondre</option>
-                    <option>Femme</option><option>Homme</option>
-                    <option>Non binaire</option><option>Autre</option>
+                    <option>Femme</option><option>Homme</option><option>Non binaire</option><option>Autre</option>
                   </select>
                 </F>
               </div>
@@ -329,10 +434,22 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
           {/* 02 Coordonnées */}
           {step===1 && (
             <StepCard num={2} title={lang === "en" ? "Contact information" : "Coordonnées"} desc="Votre adresse principale et les moyens de vous joindre.">
+              {profileExists && (
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:14 }}>
+                  {editingStep===1 ? (
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={()=>{ setEditingStep(null); setSaveMsg(""); }} style={{ padding:"7px 16px", borderRadius:9, border:"1px solid var(--border)", background:"var(--bg-base)", fontSize:13, fontWeight:600, cursor:"pointer", color:"var(--text-secondary)" }}>Annuler</button>
+                      <button onClick={()=>saveStep(1)} disabled={saving} style={{ padding:"7px 18px", borderRadius:9, border:"none", background:"#0b6b67", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", opacity:saving?0.7:1 }}>{saving?"Enregistrement...":"💾 Enregistrer"}</button>
+                    </div>
+                  ) : (
+                    <button onClick={()=>setEditingStep(1)} style={{ padding:"7px 18px", borderRadius:9, border:"1px solid #0b6b67", background:"transparent", color:"#0b6b67", fontSize:13, fontWeight:700, cursor:"pointer" }}>✏️ Modifier</button>
+                  )}
+                </div>
+              )}
               <div className="grid2" style={{ gap:16, marginBottom:16 }}>
-                <F label={lang === "en" ? "Email address *" : "Adresse courriel *"}><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="vous@exemple.ca" autoFocus /></F>
-                <F label="Téléphone principal" opt><input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="(514) 555-0000" /></F>
-                <div className="span2"><F label="Adresse"><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="123, rue Principale" /></F></div>
+                <F label={lang === "en" ? "Email address *" : "Adresse courriel *"}><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="vous@exemple.ca" autoFocus disabled={ro(1)} style={{ opacity:ro(1)?0.72:1 }} /></F>
+                <F label="Téléphone principal" opt><input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="(514) 555-0000" disabled={ro(1)} style={{ opacity:ro(1)?0.72:1 }} /></F>
+                <div className="span2"><F label="Adresse"><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="123, rue Principale" disabled={ro(1)} style={{ opacity:ro(1)?0.72:1 }} /></F></div>
                 <F label="Ville"><input value={city} onChange={e=>setCity(e.target.value)} placeholder="Montréal" /></F>
                 <F label={lang === "en" ? "Province or territory *" : "Province ou territoire *"}>
                   <ProvinceSelect value={province} onChange={value=>{ setProvince(value); if (!taxProvince) setTaxProvince(value); }} name="addr_province" />
@@ -366,9 +483,21 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
           {/* 03 Profil fiscal */}
           {step===2 && (
             <StepCard num={3} title={lang === "en" ? "Tax profile" : "Profil fiscal"} desc="Quelques repères pour configurer votre dossier correctement.">
+              {profileExists && (
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:14 }}>
+                  {editingStep===2 ? (
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={()=>{ setEditingStep(null); setSaveMsg(""); }} style={{ padding:"7px 16px", borderRadius:9, border:"1px solid var(--border)", background:"var(--bg-base)", fontSize:13, fontWeight:600, cursor:"pointer", color:"var(--text-secondary)" }}>Annuler</button>
+                      <button onClick={()=>saveStep(2)} disabled={saving} style={{ padding:"7px 18px", borderRadius:9, border:"none", background:"#0b6b67", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", opacity:saving?0.7:1 }}>{saving?"Enregistrement...":"💾 Enregistrer"}</button>
+                    </div>
+                  ) : (
+                    <button onClick={()=>setEditingStep(2)} style={{ padding:"7px 18px", borderRadius:9, border:"1px solid #0b6b67", background:"transparent", color:"#0b6b67", fontSize:13, fontWeight:700, cursor:"pointer" }}>✏️ Modifier</button>
+                  )}
+                </div>
+              )}
               <div className="grid2" style={{ gap:16, marginBottom:16 }}>
                 <F label={lang === "en" ? "Marital status *" : "État civil *"}>
-                  <select value={marital} onChange={e=>setMarital(e.target.value)} autoFocus>
+                  <select value={marital} onChange={e=>setMarital(e.target.value)} autoFocus disabled={ro(2)} style={{ opacity:ro(2)?0.72:1 }}>
                     <option value="">Sélectionner</option>
                     <option>Célibataire</option><option>Marié(e)</option>
                     <option>Conjoint(e) de fait</option><option>Séparé(e)</option>
@@ -376,15 +505,15 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
                   </select>
                 </F>
                 <F label="Date du changement d'état civil" opt hint="S'il y a lieu">
-                  <input type="date" value={maritalDate} onChange={e=>setMaritalDate(e.target.value)} />
+                  <input type="date" value={maritalDate} onChange={e=>setMaritalDate(e.target.value)} disabled={ro(2)} style={{ opacity:ro(2)?0.72:1 }} />
                 </F>
                 <div className="span2">
                   <F label={lang === "en" ? "Province of fiscal residence on December 31 *" : "Province de résidence fiscale au 31 décembre *"}>
-                    <ProvinceSelect value={taxProvince} onChange={setTaxProvince} name="tax_province" />
+                    <ProvinceSelect value={taxProvince} onChange={setTaxProvince} name="tax_province" disabled={ro(2)} />
                   </F>
                 </div>
                 <F label="Changement de province/territoire en cours d'année">
-                  <select value={provChange} onChange={e=>setProvChange(e.target.value)}>
+                  <select value={provChange} onChange={e=>setProvChange(e.target.value)} disabled={ro(2)} style={{ opacity:ro(2)?0.72:1 }}>
                     <option value="non">Non</option>
                     <option value="oui">Oui</option>
                   </select>
@@ -415,16 +544,34 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
                     <option value="other">Année antérieure</option>
                   </select>
                 </F>
-                <F label="Date d'arrivée au Canada" opt hint="S'il y a lieu">
-                  <input type="date" value={arrivalDate} onChange={e=>setArrivalDate(e.target.value)} />
-                </F>
-                <F label="Date de départ du Canada" opt hint="S'il y a lieu">
-                  <input type="date" value={departDate} onChange={e=>setDepartDate(e.target.value)} />
-                </F>
+                {/* Questions immigration — seulement si pas citoyen canadien */}
+                {canStatus !== "Citoyen canadien" && (<>
+                  <F label="Date d'arrivée au Canada" opt hint={canStatus ? "Requis si vous avez immigré cette année" : "S'il y a lieu"}>
+                    <input type="date" value={arrivalDate} onChange={e=>setArrivalDate(e.target.value)} disabled={ro(2)} style={{ opacity:ro(2)?0.72:1 }} />
+                  </F>
+                  <F label="Date de départ du Canada" opt hint="S'il y a lieu">
+                    <input type="date" value={departDate} onChange={e=>setDepartDate(e.target.value)} disabled={ro(2)} style={{ opacity:ro(2)?0.72:1 }} />
+                  </F>
+                </>)}
               </div>
+
+              {/* Bannière statut immigration */}
+              {canStatus && canStatus !== "Citoyen canadien" && (
+                <div style={{ background:"rgba(229,52,42,0.07)", border:"1px solid rgba(229,52,42,0.25)", borderRadius:11, padding:"12px 15px", marginBottom:14, fontSize:13 }}>
+                  <strong style={{ color:"var(--et-red)" }}>📋 {canStatus}</strong>
+                  <p style={{ margin:"6px 0 0", color:"var(--text-secondary)", lineHeight:1.5 }}>
+                    En tant que {canStatus.toLowerCase()}, vous devrez possiblement indiquer votre date d&apos;arrivée au Canada et votre statut d&apos;immigration sur votre déclaration T1.
+                    {(canStatus === "Résident permanent" || canStatus === "Résident temporaire") && " Certains crédits et déductions peuvent être limités selon votre date d'établissement."}
+                  </p>
+                </div>
+              )}
+
               <p className="section-title">Situations applicables <span className="opt">(facultatif)</span></p>
               <div className="check-grid" style={{ gap:9, marginBottom:16 }}>
-                {["Travailleur autonome","Propriétaire d'immeuble locatif","Étudiant","Nouvel arrivant","Biens ou revenus à l'étranger","Crédit pour personnes handicapées"].map(s => (
+                {(canStatus === "Citoyen canadien"
+                  ? ["Travailleur autonome","Propriétaire d'immeuble locatif","Étudiant","Biens ou revenus à l'étranger","Crédit pour personnes handicapées"]
+                  : ["Travailleur autonome","Propriétaire d'immeuble locatif","Étudiant","Nouvel arrivant","Biens ou revenus à l'étranger","Crédit pour personnes handicapées"]
+                ).map(s => (
                   <label key={s} className="check-opt" style={{ cursor:"pointer" }}>
                     <input type="checkbox" checked={situations.includes(s)} onChange={()=>toggle(s)} />
                     {s}
@@ -471,11 +618,35 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
 
           {/* 04 Famille */}
           {step===3 && (
-            <StepCard num={4} title={lang === "en" ? "Family members" : "Membres de la famille"} desc="Ajoutez un conjoint, des enfants ou d'autres personnes à charge. Cette étape est facultative.">
-              <div style={{ marginBottom:16 }}>
+            <StepCard num={4} title={lang === "en" ? "Family members" : "Membres de la famille"} desc="Avez-vous un conjoint, des enfants ou d'autres personnes à charge à inclure dans votre dossier ?">
+              {/* Question Oui / Non */}
+              <div style={{ marginBottom:20 }}>
+                <p style={{ fontWeight:700, fontSize:14, margin:"0 0 10px", color:"var(--text-primary)" }}>
+                  Avez-vous des membres de la famille à ajouter à votre dossier ? *
+                </p>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
+                  {[
+                    { val:"oui" as const, label:"Oui — j'ai des membres à ajouter", icon:"👨‍👩‍👧" },
+                    { val:"non" as const, label:"Non — aucun membre à ajouter", icon:"👤" },
+                  ].map(opt => (
+                    <label key={opt.val} style={{ display:"flex", gap:10, alignItems:"center", padding:"13px 16px", border:`2px solid ${hasFamily===opt.val?"#0b6b67":"var(--border)"}`, borderRadius:12, cursor:"pointer", fontSize:13, fontWeight:600, background:hasFamily===opt.val?"rgba(11,107,103,0.06)":"var(--bg-base)", transition:"all 150ms" }}>
+                      <input type="radio" name="hasFamily" checked={hasFamily===opt.val} onChange={()=>{ setHasFamily(opt.val); if(opt.val==="non") setMembers([]); }} style={{ accentColor:"#0b6b67", width:16 }} />
+                      <span style={{ fontSize:18 }}>{opt.icon}</span>
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+                {hasFamily==="non" && (
+                  <div style={{ background:"rgba(11,107,103,0.08)", border:"1px solid rgba(11,107,103,0.2)", borderRadius:10, padding:"11px 14px", fontSize:13, color:"var(--text-secondary)" }}>
+                    ✓ Aucun membre ajouté. Vous pourrez en ajouter plus tard depuis votre dossier.
+                  </div>
+                )}
+              </div>
+              {/* Liste des membres — visible seulement si Oui */}
+              {hasFamily==="oui" && <div style={{ marginBottom:16 }}>
                 {members.length===0 && (
                   <div style={{ textAlign:"center", padding:"22px 16px", border:"1px dashed var(--border)", borderRadius:12, color:"var(--text-muted)", background:"var(--bg-base)", fontSize:13 }}>
-                    Aucun membre ajouté pour le moment.
+                    Cliquez sur « + Ajouter » pour commencer.
                   </div>
                 )}
                 {members.map((m, i) => (
@@ -509,8 +680,8 @@ function IndividualWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=
                   </div>
                 ))}
                 <button onClick={addMember} className="add-btn">+ Ajouter un membre de la famille</button>
-              </div>
-              <Actions onBack={back} onNext={next} />
+              </div>}
+              <Actions onBack={back} onNext={next} nextLabel={hasFamily==="non" ? "Passer cette étape →" : "Continuer →"} />
             </StepCard>
           )}
 
@@ -979,6 +1150,7 @@ function OnboardingContent() {
   const [saving,      setSaving]         = useState(false);
   const [error,       setError]          = useState("");
   const [done,        setDone]           = useState(false);
+  const [taxReturnId, setTaxReturnId]    = useState<string|null>(null);
 
   useEffect(() => {
     const t = searchParams.get("type");
@@ -1006,9 +1178,11 @@ function OnboardingContent() {
         body: JSON.stringify(formData),
       });
       if (!res.ok) { const d = await res.json() as {error?:string}; throw new Error(d.error ?? "Erreur création profil"); }
+      const d = await res.json() as { profileId?: string; taxReturnId?: string; organizationId?: string };
       await fetch("/api/auth/complete-onboarding", { method:"POST" });
+      if (d.taxReturnId) setTaxReturnId(d.taxReturnId);
       setDone(true);
-      setTimeout(() => router.push(formData.type==="BUSINESS" ? "/business" : "/dossier"), 1500);
+      setTimeout(() => router.push(formData.type==="BUSINESS" ? "/business" : "/dossier"), 4000);
     } catch(e) { setError((e as Error).message); setSaving(false); }
   };
 
@@ -1020,12 +1194,28 @@ function OnboardingContent() {
   );
 
   if (done) return (
-    <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background:"var(--bg-base)" }}>
-      <div style={{ textAlign:"center" }}>
+    <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background:"var(--bg-base)", padding:"24px 16px" }}>
+      <div style={{ textAlign:"center", maxWidth:440 }}>
         <div style={{ fontSize:60, marginBottom:16 }}>🎉</div>
         <h1 style={{ fontFamily:"Georgia,serif", fontSize:28, color:"var(--text-primary)", margin:"0 0 8px" }}>Bienvenue sur EasyTax !</h1>
-        <p style={{ color:"var(--text-secondary)", fontSize:15 }}>Votre espace est prêt. Redirection...</p>
-        <div style={{ width:32, height:32, border:"3px solid #dee", borderTopColor:"#0b6b67", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"20px auto 0" }} />
+        <p style={{ color:"var(--text-secondary)", fontSize:15, margin:"0 0 24px" }}>Votre dossier fiscal a été créé avec succès.</p>
+
+        {taxReturnId && (
+          <div style={{ background:"rgba(11,107,103,0.08)", border:"2px solid rgba(11,107,103,0.3)", borderRadius:16, padding:"20px 24px", marginBottom:24, textAlign:"left" }}>
+            <div style={{ fontSize:12, fontWeight:700, color:"#0b6b67", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8 }}>
+              🪪 Votre identifiant fiscal EasyTax
+            </div>
+            <div style={{ fontFamily:"monospace", fontSize:18, fontWeight:800, color:"var(--text-primary)", letterSpacing:"0.05em", marginBottom:6 }}>
+              ET-{taxReturnId.slice(0,8).toUpperCase()}
+            </div>
+            <div style={{ fontSize:12, color:"var(--text-muted)" }}>
+              Conservez cet identifiant — il est associé à votre déclaration 2025.
+            </div>
+          </div>
+        )}
+
+        <p style={{ color:"var(--text-muted)", fontSize:13 }}>Redirection vers votre dossier...</p>
+        <div style={{ width:32, height:32, border:"3px solid #dee", borderTopColor:"#0b6b67", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"16px auto 0" }} />
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     </div>

@@ -511,6 +511,8 @@ export default function QuestionnairePage() {
   const [multiVal, setMultiVal]   = useState<string[]>([]);
   const [secIdx,   setSecIdx]     = useState(0);
   const [qIdx,     setQIdx]       = useState(0);
+  const [pageIdx,  setPageIdx]    = useState(0);
+  const QUESTIONS_PER_PAGE = 10;
   const [saving,     setSaving]     = useState(false);
   const [done,       setDone]       = useState(false);
   const [lastSaved,  setLastSaved]  = useState<string>("");
@@ -772,9 +774,49 @@ export default function QuestionnairePage() {
     }
   }, [answers, triageQs, currentSection, secIdx, profileProvince, userId, qIdx]);
 
+  // saveAnswer: sauvegarde sans naviguer (mode bloc)
+  const saveAnswer = (qId: string, value: unknown) => {
+    const newAnswers = { ...answers, [qId]: value };
+    setAnswers(newAnswers);
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    saveTimeout.current = setTimeout(() => {
+      saveDraftLocal(userId, TAX_YEAR, {
+        answers: newAnswers, sectionIdx: secIdx, questionIdx: 0,
+        triageDone: triageQs.every(q => newAnswers[q.id] !== undefined),
+      });
+      setLastSaved("À l'instant");
+    }, 400);
+  };
+
+  // goNextPage: avancer au prochain bloc ou à la section suivante
+  const goNextPage = () => {
+    const newTriageDone = triageQs.every(q => answers[q.id] !== undefined);
+    const blockQs = !newTriageDone ? triageQs
+      : ALL_INDIVIDUAL_QUESTIONS.filter(q =>
+          q.section === currentSection?.code &&
+          evalCond(q.showIf, answers) &&
+          isQuestionApplicable(q)
+        ).sort((a, b) => a.order - b.order);
+    const totalPages = Math.ceil(blockQs.length / QUESTIONS_PER_PAGE);
+    if (pageIdx + 1 < totalPages) {
+      setPageIdx(p => p + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (newTriageDone) {
+      saveToDb(answers, currentSection?.code);
+      const newVisibleSecs = INDIVIDUAL_SECTIONS.filter(s =>
+        s.code !== "triage" && ((s as { alwaysShow?: boolean }).alwaysShow || evalCond((s as { showIf?: string }).showIf, answers))
+      );
+      const nextSecIdx = secIdx + 1;
+      if (nextSecIdx < newVisibleSecs.length) { setSecIdx(nextSecIdx); setQIdx(0); setPageIdx(0); }
+      else setDone(true);
+    } else {
+      setSecIdx(0); setQIdx(0); setPageIdx(0);
+    }
+  };
+
   const handleBack = () => {
-    if (qIdx > 0) { setQIdx(i => i - 1); resetInput(); }
-    else if (secIdx > 0) { setSecIdx(s => s - 1); setQIdx(0); resetInput(); }
+    if (pageIdx > 0) { setPageIdx(p => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    else if (secIdx > 0) { setSecIdx(s => s - 1); setQIdx(0); setPageIdx(0); }
   };
 
   // ── ÉCRAN FIN ────────────────────────────────────────────────────────────
@@ -915,137 +957,114 @@ export default function QuestionnairePage() {
           </div>
         )}
 
-        {/* ── Carte question ───────────────────────────────────── */}
-        {(triageDone ? (currentSection?.code !== "revenus" || qIdx > 0) && (currentSection?.code !== "credits" || qIdx > 0) : true) && currentQ ? (
-          <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "22px 20px", boxShadow: "0 1px 8px rgba(0,0,0,0.04)", marginBottom: 12 }}>
-
-            {/* Indicateur */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#9fd4cc", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                {!triageDone ? "Triage" : (currentSection?.fr ?? "")}
-                {currentQ.required && <span style={{ color: "#dc2626", marginLeft: 3 }}>*</span>}
-              </span>
-              <span style={{ fontSize: 11, color: "#a0b4b0" }}>
-                {qIdx + 1} / {displayQs.length}
-              </span>
-            </div>
-
-            {/* Question */}
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: "#0f1f1e", margin: "0 0 8px", lineHeight: 1.4 }}>
-              {lang === "en" ? currentQ.en : currentQ.fr}
-            </h2>
-            {/* Badge OCR si la réponse vient de l'OCR */}
-            {ocrAnswers[currentQ.id] !== undefined && (
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, color: "#0b6b67", background: "rgba(11,107,103,0.08)", border: "1px solid rgba(11,107,103,0.2)", borderRadius: 100, padding: "2px 8px", marginBottom: 8 }}>
-                📄 {lang === "en" ? "Pre-filled from your slip" : "Pré-rempli depuis vos feuillets"}
+        {/* ── BLOC QUESTIONS — toutes les questions du bloc ─── */}
+        {(triageDone ? (currentSection?.code !== "revenus" || qIdx > 0) && (currentSection?.code !== "credits" || qIdx > 0) : true) && (() => {
+          const blockQs = !triageDone ? triageQs
+            : ALL_INDIVIDUAL_QUESTIONS
+                .filter(q => q.section === currentSection?.code && evalCond(q.showIf, answers) && isQuestionApplicable(q))
+                .sort((a, b) => a.order - b.order);
+          const totalPages = Math.ceil(blockQs.length / QUESTIONS_PER_PAGE);
+          const pageQs = blockQs.slice(pageIdx * QUESTIONS_PER_PAGE, (pageIdx + 1) * QUESTIONS_PER_PAGE);
+          const sectionLabel = !triageDone ? "Triage" : (currentSection?.fr ?? "");
+          if (blockQs.length === 0) return null;
+          return (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#9fd4cc", textTransform: "uppercase", letterSpacing: "0.07em" }}>{sectionLabel}</span>
+                {totalPages > 1 && <span style={{ fontSize: 11, color: "#a0b4b0" }}>Bloc {pageIdx + 1} / {totalPages}</span>}
               </div>
-            )}
-
-            {/* Hint */}
-            {(lang === "en" ? (currentQ.hintEn ?? currentQ.hint) : currentQ.hint) && (
-              <p style={{ fontSize: 12, color: "#7a9c97", margin: "0 0 16px", lineHeight: 1.5 }}>{lang === "en" ? (currentQ.hintEn ?? currentQ.hint) : currentQ.hint}</p>
-            )}
-
-            {/* Badge document requis */}
-            {currentQ.documentRequired && currentQ.type !== "DOCUMENT" && (
-              <div style={{
-                display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: "#0b6b67",
-                background: "#f0faf8", border: "1px solid #b6ddd6", borderRadius: 8,
-                padding: "7px 12px", marginBottom: 14,
+              {pageQs.map((q, i) => {
+                const val = answers[q.id];
+                const hasAnswer = val !== undefined && val !== "";
+                return (
+                  <div key={q.id} style={{
+                    background: "#fff",
+                    border: `1.5px solid ${hasAnswer ? "#b6ddd6" : "#dde8e5"}`,
+                    borderRadius: 14, padding: "18px 18px 14px", marginBottom: 10,
+                    boxShadow: hasAnswer ? "0 2px 8px rgba(11,107,103,0.06)" : "0 1px 4px rgba(0,0,0,0.03)",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#9fd4cc", textTransform: "uppercase" }}>
+                        Q{pageIdx * QUESTIONS_PER_PAGE + i + 1}
+                      </span>
+                      {q.required && <span style={{ fontSize: 10, color: "#dc2626", fontWeight: 700 }}>*</span>}
+                      {ocrAnswers[q.id] !== undefined && (
+                        <span style={{ fontSize: 10, color: "#0b6b67", background: "rgba(11,107,103,0.08)", border: "1px solid rgba(11,107,103,0.2)", borderRadius: 100, padding: "1px 7px" }}>📄 Pré-rempli</span>
+                      )}
+                      {hasAnswer && <span style={{ fontSize: 10, color: "#059669", fontWeight: 700 }}>✓</span>}
+                    </div>
+                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "#0f1f1e", margin: "0 0 6px", lineHeight: 1.4 }}>
+                      {lang === "en" ? q.en : q.fr}
+                    </h3>
+                    {q.hint && <p style={{ fontSize: 11, color: "#7a9c97", margin: "0 0 10px", lineHeight: 1.4 }}>{q.hint}</p>}
+                    {q.documentRequired && q.type !== "DOCUMENT" && (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "#0b6b67", background: "#f0faf8", border: "1px solid #b6ddd6", borderRadius: 6, padding: "3px 8px", marginBottom: 8 }}>
+                        📎 {q.documentRequired}
+                      </div>
+                    )}
+                    {q.type === "BOOLEAN" && (
+                      <FieldBoolean value={val === true ? true : val === false ? false : null} onChange={v => saveAnswer(q.id, v)} />
+                    )}
+                    {q.type === "SINGLE_CHOICE" && (
+                      <FieldSingle q={q} value={String(val ?? "")} onChange={v => saveAnswer(q.id, v)} lang={lang} />
+                    )}
+                    {q.type === "MULTI_CHOICE" && (() => {
+                      const mv: string[] = Array.isArray(val) ? val as string[] : typeof val === "string" && val ? val.split(",") : [];
+                      return <FieldMulti q={q} value={mv} onChange={v => saveAnswer(q.id, v.join(","))} lang={lang} />;
+                    })()}
+                    {q.type === "TEXT" && (
+                      <FieldText q={q} value={typeof val === "string" ? val : ""} onChange={v => saveAnswer(q.id, v)} onConfirm={() => {}} />
+                    )}
+                    {q.type === "MONEY" && (
+                      <FieldMoney value={typeof val === "string" ? val : ""} onChange={v => saveAnswer(q.id, v)} onConfirm={() => {}} />
+                    )}
+                    {q.type === "NUMBER" && (
+                      <FieldNumber q={q} value={typeof val === "string" ? val : ""} onChange={v => saveAnswer(q.id, v)} onConfirm={() => {}} />
+                    )}
+                    {q.type === "DATE" && (
+                      <FieldDate value={typeof val === "string" ? val : ""} onChange={v => saveAnswer(q.id, v)} onConfirm={() => {}} />
+                    )}
+                    {q.type === "ADDRESS" && (
+                      <FieldAddress required={q.required} initialValue={typeof val === "string" ? val : undefined} onConfirm={v => saveAnswer(q.id, v)} />
+                    )}
+                    {q.type === "PERSON" && (
+                      <FieldPerson q={q} onConfirm={() => saveAnswer(q.id, "personne_ajoutée")} />
+                    )}
+                    {!q.required && !hasAnswer && !["BOOLEAN","SINGLE_CHOICE","MULTI_CHOICE"].includes(q.type) && (
+                      <button onClick={() => saveAnswer(q.id, "skipped")}
+                        style={{ width: "100%", padding: "6px 0", borderRadius: 7, fontSize: 11, marginTop: 8, background: "transparent", color: "#a0b4b0", border: "1px dashed #dde8e5", cursor: "pointer" }}>
+                        Passer
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+              <button onClick={goNextPage} style={{
+                width: "100%", padding: "13px 0", borderRadius: 10, fontSize: 14, fontWeight: 700,
+                background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer", marginTop: 4,
               }}>
-                <span>📎</span> Document requis : <strong>{currentQ.documentRequired}</strong>
-              </div>
-            )}
-
-            {/* Champ selon le type */}
-            {currentQ.type === "BOOLEAN" && (
-              <FieldBoolean
-                value={answers[currentQ.id] === true ? true : answers[currentQ.id] === false ? false : null}
-                onChange={v => saveAndNext(currentQ.id, v)}
-              />
-            )}
-            {currentQ.type === "SINGLE_CHOICE" && (
-              <FieldSingle q={currentQ} value={String(answers[currentQ.id] ?? "")} onChange={v => saveAndNext(currentQ.id, v)} />
-            )}
-            {currentQ.type === "MULTI_CHOICE" && (
-              <div>
-                <FieldMulti q={currentQ} value={multiVal} onChange={setMultiVal} />
-                <button
-                  onClick={() => { if (multiVal.length > 0) saveAndNext(currentQ.id, multiVal.join(",")); }}
-                  disabled={multiVal.length === 0}
-                  style={{
-                    width: "100%", padding: "11px 0", borderRadius: 9, fontSize: 14, fontWeight: 600, marginTop: 12,
-                    background: multiVal.length > 0 ? "#0b6b67" : "#edf2f0",
-                    color: multiVal.length > 0 ? "#fff" : "#a0b4b0",
-                    border: "none", cursor: "pointer",
-                  }}
-                >
-                  Confirmer ({multiVal.length})
-                </button>
-              </div>
-            )}
-            {currentQ.type === "TEXT" && (
-              <FieldText q={currentQ} value={textVal} onChange={setTextVal} onConfirm={() => { if (textVal.trim()) saveAndNext(currentQ.id, textVal.trim()); }} />
-            )}
-            {currentQ.type === "MONEY" && (
-              <FieldMoney value={numVal} onChange={setNumVal} onConfirm={() => saveAndNext(currentQ.id, numVal || "0")} />
-            )}
-            {currentQ.type === "NUMBER" && (
-              <FieldNumber q={currentQ} value={numVal} onChange={setNumVal} onConfirm={() => { if (numVal) saveAndNext(currentQ.id, numVal); }} />
-            )}
-            {currentQ.type === "DATE" && (
-              <FieldDate value={dateVal} onChange={setDateVal} onConfirm={() => { if (dateVal) saveAndNext(currentQ.id, dateVal); }} />
-            )}
-            {currentQ.type === "ADDRESS" && (
-              <FieldAddress
-                required={currentQ.required}
-                initialValue={typeof answers[currentQ.id] === "string" ? String(answers[currentQ.id]) : undefined}
-                onConfirm={value => saveAndNext(currentQ.id, value)}
-              />
-            )}
-            {currentQ.type === "PERSON" && (
-              <FieldPerson q={currentQ} onConfirm={() => saveAndNext(currentQ.id, "personne_ajoutée")} />
-            )}
-
-            {/* Passer si optionnel */}
-            {!currentQ.required && !["BOOLEAN", "SINGLE_CHOICE"].includes(currentQ.type) && (
-              <button
-                onClick={() => saveAndNext(currentQ.id, "skipped")}
-                style={{
-                  width: "100%", padding: "8px 0", borderRadius: 8, fontSize: 12, marginTop: 8,
-                  background: "transparent", color: "#a0b4b0",
-                  border: "1px dashed #dde8e5", cursor: "pointer",
-                }}
-              >
-                Passer cette question
+                {totalPages > 1 && pageIdx + 1 < totalPages
+                  ? `Continuer (${pageIdx + 1}/${totalPages}) →`
+                  : triageDone ? "Section suivante →" : "Commencer →"}
               </button>
-            )}
-
-            {saving && (
-              <div style={{ textAlign: "center", fontSize: 11, color: "#9fd4cc", marginTop: 8 }}>
-                Sauvegarde...
-              </div>
-            )}
-          </div>
-        ) : (
-          currentSection?.code === "revenus" && !triageDone ? false : true ? (
+            </div>
+          );
+        })()}
+        {/* Section complète ou non applicable */}
+        {triageDone && (currentSection?.code === "revenus" ? qIdx > 0 : true) && (currentSection?.code === "credits" ? qIdx > 0 : true) && (() => {
+          const bQs = ALL_INDIVIDUAL_QUESTIONS.filter(q => q.section === currentSection?.code && evalCond(q.showIf, answers) && isQuestionApplicable(q));
+          if (bQs.length > 0) return null;
+          return (
             <div style={{ background: "#fff", border: "1px solid #dde8e5", borderRadius: 14, padding: "28px 20px", textAlign: "center", marginBottom: 12 }}>
               <div style={{ fontSize: 20, color: "#9fd4cc", marginBottom: 8 }}>✓</div>
-              <p style={{ color: "#526865", fontSize: 14 }}>{lang === "en" ? "Section complete or not applicable." : "Section complète ou non applicable."}</p>
-              <button
-                onClick={() => {
-                  const next = secIdx + 1;
-                  if (next < visibleSections.length) { setSecIdx(next); setQIdx(0); }
-                  else setDone(true);
-                }}
-                style={{ padding: "10px 22px", borderRadius: 9, fontSize: 13, fontWeight: 600, marginTop: 12, background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer" }}
-              >
-                {lang === "en" ? "Next section →" : "Section suivante →"}
+              <p style={{ color: "#526865", fontSize: 14 }}>Section complète ou non applicable.</p>
+              <button onClick={() => { const n = secIdx+1; if (n < visibleSections.length) { setSecIdx(n); setQIdx(0); setPageIdx(0); } else setDone(true); }}
+                style={{ padding: "10px 22px", borderRadius: 9, fontSize: 13, fontWeight: 600, marginTop: 12, background: "#0b6b67", color: "#fff", border: "none", cursor: "pointer" }}>
+                Section suivante →
               </button>
             </div>
-          ) : null
-        )}
-
+          );
+        })()}
         {/* ── Navigation ───────────────────────────────────────── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <button
