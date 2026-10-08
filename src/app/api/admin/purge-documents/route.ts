@@ -20,26 +20,43 @@ export async function POST(req: NextRequest) {
 
     const log: string[] = [];
 
-    // ── 1. Supprimer dans l'ordre FK ─────────────────────────────────────────
+    // ── 1. Trouver toutes les tables avec FK vers fiscal_documents ────────────
+    const fkRows = await sql.query(`
+      SELECT DISTINCT tc.table_name
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.referential_constraints rc
+        ON tc.constraint_name = rc.constraint_name
+      JOIN information_schema.table_constraints tc2
+        ON rc.unique_constraint_name = tc2.constraint_name
+      WHERE tc.constraint_type = 'FOREIGN KEY'
+        AND tc2.table_name = 'fiscal_documents'
+    `);
+    const fkTables = fkRows.map((r: any) => r.table_name as string);
+    log.push(`Tables FK → fiscal_documents: ${fkTables.join(", ") || "aucune"}`);
 
-    const tables = [
+    // ── 2. Supprimer dans l'ordre FK ─────────────────────────────────────────
+    // D'abord les tables qui référencent fiscal_documents
+    const childFirst = [
       "extraction_fields",
       "document_extractions",
       "document_audit_logs",
       "document_pages",
       "document_parties",
-      "income_entries",        // FK → fiscal_documents
-      "deduction_entries",     // FK → fiscal_documents (si existe)
-      "tax_line_entries",      // FK → fiscal_documents (si existe)
+      "document_requests",
+      ...fkTables, // income_entries, credit_entries, etc. détectés dynamiquement
       "fiscal_documents",
     ];
 
-    for (const table of tables) {
+    // Dédupliquer
+    const seen = new Set<string>();
+    const purgeOrder = childFirst.filter(t => { if (seen.has(t)) return false; seen.add(t); return true; });
+
+    for (const table of purgeOrder) {
       try {
         await sql.query(`DELETE FROM ${table}`);
         log.push(`✓ ${table} purgé`);
       } catch (e: any) {
-        if (e.message?.includes("does not exist")) {
+        if (e.message?.includes("does not exist") || e.message?.includes("relation") && e.message?.includes("does not exist")) {
           log.push(`⚠ ${table} n'existe pas — ignoré`);
         } else {
           throw e;
@@ -47,15 +64,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── document_requests (optionnel) ─────────────────────────────────────────
-    try {
-      await sql.query(`DELETE FROM document_requests`);
-      log.push("✓ document_requests purgé");
-    } catch {
-      log.push("⚠ document_requests absent — ignoré");
-    }
-
-    // ── 2. Purger document_types ──────────────────────────────────────────────
+    // ── 3. Purger document_types ──────────────────────────────────────────────
     await sql.query(`DELETE FROM document_types`);
     log.push("✓ document_types purgé");
 
