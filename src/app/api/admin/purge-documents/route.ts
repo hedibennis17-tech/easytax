@@ -86,81 +86,75 @@ export async function POST(req: NextRequest) {
       : cols.includes("isActive") ? "isActive" : null;
 
     // ── 4. Re-seeder document_types ───────────────────────────────────────────
-    const types = [
+    // Schéma réel: code, label_fr, label_en, category, is_federal, is_quebec, is_active, sort_order
+    const types: Array<{ code: string; fr: string; en: string; cat: string; fed: boolean; qc: boolean; sort: number }> = [
       // ── Federal ──────────────────────────────────────────────────────────────
-      { code: "T3",           name: "État des revenus de fiducie",                              jurisdiction: "CA", category: "FEDERAL", sort: 1 },
-      { code: "T4",           name: "État de la rémunération payée",                            jurisdiction: "CA", category: "FEDERAL", sort: 2 },
-      { code: "T4A",          name: "État du revenu de pension, de retraite, de rente",         jurisdiction: "CA", category: "FEDERAL", sort: 3 },
-      { code: "T4A_OAS",      name: "État des prestations de la Sécurité de la vieillesse",     jurisdiction: "CA", category: "FEDERAL", sort: 4 },
-      { code: "T4A_P",        name: "État des prestations du Régime de pensions du Canada",     jurisdiction: "CA", category: "FEDERAL", sort: 5 },
-      { code: "T4E",          name: "État des prestations d'assurance-emploi",                  jurisdiction: "CA", category: "FEDERAL", sort: 6 },
-      { code: "T4FHSA",       name: "Compte d'épargne libre d'impôt pour l'achat d'une maison",jurisdiction: "CA", category: "FEDERAL", sort: 7 },
-      { code: "T4RIF",        name: "Revenu d'un fonds enregistré de revenu de retraite",       jurisdiction: "CA", category: "FEDERAL", sort: 8 },
-      { code: "T4RSP",        name: "Revenu d'un REER",                                         jurisdiction: "CA", category: "FEDERAL", sort: 9 },
-      { code: "T5",           name: "État des revenus de placements",                           jurisdiction: "CA", category: "FEDERAL", sort: 10 },
-      { code: "T5007",        name: "État des prestations",                                     jurisdiction: "CA", category: "FEDERAL", sort: 11 },
-      { code: "T5008",        name: "État des opérations sur titres",                           jurisdiction: "CA", category: "FEDERAL", sort: 12 },
-      { code: "T5013",        name: "État des revenus d'une société de personnes",              jurisdiction: "CA", category: "FEDERAL", sort: 13 },
-      { code: "T5018",        name: "État des paiements contractuels",                          jurisdiction: "CA", category: "FEDERAL", sort: 14 },
-      { code: "T1204",        name: "Paiements de services gouvernementaux",                    jurisdiction: "CA", category: "FEDERAL", sort: 15 },
-      { code: "T2202",        name: "Certificat pour frais de scolarité et d'inscription",      jurisdiction: "CA", category: "FEDERAL", sort: 16 },
-      { code: "NR4",          name: "État des sommes payées ou créditées à des non-résidents",  jurisdiction: "CA", category: "FEDERAL", sort: 17 },
-      { code: "RC62",         name: "État de la prestation universelle pour la garde d'enfants",jurisdiction: "CA", category: "FEDERAL", sort: 18 },
-      { code: "RRSP_RECEIPT", name: "Reçu de cotisation REER",                                  jurisdiction: "CA", category: "FEDERAL", sort: 19 },
-      { code: "PRPP_RECEIPT", name: "Reçu de cotisation RPAC",                                  jurisdiction: "CA", category: "FEDERAL", sort: 20 },
-      { code: "TFSA",         name: "Compte d'épargne libre d'impôt",                           jurisdiction: "CA", category: "FEDERAL", sort: 21 },
+      { code: "T3",           fr: "État des revenus de fiducie",                              en: "Statement of Trust Income Allocations",          cat: "investment",  fed: true,  qc: false, sort: 1 },
+      { code: "T4",           fr: "État de la rémunération payée",                            en: "Statement of Remuneration Paid",                  cat: "employment",  fed: true,  qc: false, sort: 2 },
+      { code: "T4A",          fr: "État du revenu de pension, de retraite, de rente",         en: "Statement of Pension, Retirement, Annuity",       cat: "pension",     fed: true,  qc: false, sort: 3 },
+      { code: "T4A_OAS",      fr: "État des prestations de la Sécurité de la vieillesse",     en: "Statement of Old Age Security",                   cat: "pension",     fed: true,  qc: false, sort: 4 },
+      { code: "T4A_P",        fr: "État des prestations du Régime de pensions du Canada",     en: "Statement of Canada Pension Plan Benefits",       cat: "pension",     fed: true,  qc: false, sort: 5 },
+      { code: "T4E",          fr: "État des prestations d'assurance-emploi",                  en: "Statement of Employment Insurance Benefits",      cat: "employment",  fed: true,  qc: false, sort: 6 },
+      { code: "T4FHSA",       fr: "Compte d'épargne libre d'impôt pour l'achat d'une maison",en: "First Home Savings Account",                      cat: "investment",  fed: true,  qc: false, sort: 7 },
+      { code: "T4RIF",        fr: "Revenu d'un fonds enregistré de revenu de retraite",       en: "Income from a Registered Retirement Income Fund", cat: "pension",     fed: true,  qc: false, sort: 8 },
+      { code: "T4RSP",        fr: "Revenu d'un REER",                                         en: "Income from a Registered Retirement Savings Plan",cat: "pension",     fed: true,  qc: false, sort: 9 },
+      { code: "T5",           fr: "État des revenus de placements",                           en: "Statement of Investment Income",                  cat: "investment",  fed: true,  qc: false, sort: 10 },
+      { code: "T5007",        fr: "État des prestations",                                     en: "Statement of Benefits",                           cat: "other",       fed: true,  qc: false, sort: 11 },
+      { code: "T5008",        fr: "État des opérations sur titres",                           en: "Statement of Securities Transactions",            cat: "investment",  fed: true,  qc: false, sort: 12 },
+      { code: "T5013",        fr: "État des revenus d'une société de personnes",              en: "Statement of Partnership Income",                 cat: "investment",  fed: true,  qc: false, sort: 13 },
+      { code: "T5018",        fr: "État des paiements contractuels",                          en: "Statement of Contract Payments",                  cat: "employment",  fed: true,  qc: false, sort: 14 },
+      { code: "T1204",        fr: "Paiements de services gouvernementaux",                    en: "Government Service Contract Payments",            cat: "employment",  fed: true,  qc: false, sort: 15 },
+      { code: "T2202",        fr: "Certificat pour frais de scolarité et d'inscription",      en: "Tuition and Enrollment Certificate",              cat: "education",   fed: true,  qc: false, sort: 16 },
+      { code: "NR4",          fr: "État des sommes payées à des non-résidents",               en: "Statement of Amounts Paid to Non-Residents",      cat: "other",       fed: true,  qc: false, sort: 17 },
+      { code: "RC62",         fr: "État de la prestation universelle pour la garde d'enfants",en: "Universal Child Care Benefit Statement",          cat: "other",       fed: true,  qc: false, sort: 18 },
+      { code: "RRSP_RECEIPT", fr: "Reçu de cotisation REER",                                  en: "RRSP Contribution Receipt",                       cat: "pension",     fed: true,  qc: false, sort: 19 },
+      { code: "PRPP_RECEIPT", fr: "Reçu de cotisation RPAC",                                  en: "PRPP Contribution Receipt",                       cat: "pension",     fed: true,  qc: false, sort: 20 },
+      { code: "TFSA",         fr: "Compte d'épargne libre d'impôt",                           en: "Tax-Free Savings Account",                        cat: "investment",  fed: true,  qc: false, sort: 21 },
       // ── Québec ────────────────────────────────────────────────────────────────
-      { code: "RL1",  name: "Revenus d'emploi et revenus divers",          jurisdiction: "QC", category: "QUEBEC", sort: 22 },
-      { code: "RL2",  name: "Revenus de retraite et rentes",               jurisdiction: "QC", category: "QUEBEC", sort: 23 },
-      { code: "RL3",  name: "Revenus de placements",                       jurisdiction: "QC", category: "QUEBEC", sort: 24 },
-      { code: "RL4",  name: "Revenus en fiducie",                          jurisdiction: "QC", category: "QUEBEC", sort: 25 },
-      { code: "RL5",  name: "Revenus de location et revenus divers",       jurisdiction: "QC", category: "QUEBEC", sort: 26 },
-      { code: "RL6",  name: "Dividendes, intérêts et autres revenus",      jurisdiction: "QC", category: "QUEBEC", sort: 27 },
-      { code: "RL7",  name: "Revenus divers (artistes)",                   jurisdiction: "QC", category: "QUEBEC", sort: 28 },
-      { code: "RL8",  name: "Frais de scolarité ou d'examen",              jurisdiction: "QC", category: "QUEBEC", sort: 29 },
-      { code: "RL10", name: "Revenus d'agriculture et de pêche",           jurisdiction: "QC", category: "QUEBEC", sort: 30 },
-      { code: "RL11", name: "Honoraires ou autres sommes",                 jurisdiction: "QC", category: "QUEBEC", sort: 31 },
-      { code: "RL14", name: "Paiements contractuels",                      jurisdiction: "QC", category: "QUEBEC", sort: 32 },
-      { code: "RL15", name: "Revenus d'une société de personnes",          jurisdiction: "QC", category: "QUEBEC", sort: 33 },
-      { code: "RL16", name: "Revenus de succession",                       jurisdiction: "QC", category: "QUEBEC", sort: 34 },
-      { code: "RL18", name: "Opérations sur titres",                       jurisdiction: "QC", category: "QUEBEC", sort: 35 },
-      { code: "RL19", name: "Revenus d'une fiducie de fonds commun",       jurisdiction: "QC", category: "QUEBEC", sort: 36 },
-      { code: "RL20", name: "Régime d'accession à la propriété",           jurisdiction: "QC", category: "QUEBEC", sort: 37 },
-      { code: "RL21", name: "Régime d'encouragement à l'éducation permanente", jurisdiction: "QC", category: "QUEBEC", sort: 38 },
-      { code: "RL22", name: "Retraite progressive",                        jurisdiction: "QC", category: "QUEBEC", sort: 39 },
-      { code: "RL24", name: "Frais pour la garde d'enfants",               jurisdiction: "QC", category: "QUEBEC", sort: 40 },
-      { code: "RL25", name: "Remboursement de prestations d'aide sociale", jurisdiction: "QC", category: "QUEBEC", sort: 41 },
-      { code: "RL26", name: "Revenus et renseignements divers",            jurisdiction: "QC", category: "QUEBEC", sort: 42 },
-      { code: "RL40", name: "Crédits d'impôt relatifs aux ressources",     jurisdiction: "QC", category: "QUEBEC", sort: 43 },
+      { code: "RL1",  fr: "Revenus d'emploi et revenus divers",              en: "Employment and Other Income",             cat: "employment", fed: false, qc: true, sort: 22 },
+      { code: "RL2",  fr: "Revenus de retraite et rentes",                   en: "Retirement and Annuity Income",           cat: "pension",    fed: false, qc: true, sort: 23 },
+      { code: "RL3",  fr: "Revenus de placements",                           en: "Investment Income",                       cat: "investment", fed: false, qc: true, sort: 24 },
+      { code: "RL4",  fr: "Revenus en fiducie",                              en: "Trust Income",                            cat: "investment", fed: false, qc: true, sort: 25 },
+      { code: "RL5",  fr: "Revenus de location et revenus divers",           en: "Rental and Miscellaneous Income",         cat: "investment", fed: false, qc: true, sort: 26 },
+      { code: "RL6",  fr: "Dividendes, intérêts et autres revenus",          en: "Dividends, Interest and Other Income",    cat: "investment", fed: false, qc: true, sort: 27 },
+      { code: "RL7",  fr: "Revenus divers (artistes)",                       en: "Miscellaneous Income (Artists)",          cat: "employment", fed: false, qc: true, sort: 28 },
+      { code: "RL8",  fr: "Frais de scolarité ou d'examen",                  en: "Tuition or Examination Fees",             cat: "education",  fed: false, qc: true, sort: 29 },
+      { code: "RL10", fr: "Revenus d'agriculture et de pêche",               en: "Farming and Fishing Income",              cat: "employment", fed: false, qc: true, sort: 30 },
+      { code: "RL11", fr: "Honoraires ou autres sommes",                     en: "Honoraria or Other Amounts",              cat: "employment", fed: false, qc: true, sort: 31 },
+      { code: "RL14", fr: "Paiements contractuels",                          en: "Contract Payments",                       cat: "employment", fed: false, qc: true, sort: 32 },
+      { code: "RL15", fr: "Revenus d'une société de personnes",              en: "Partnership Income",                      cat: "investment", fed: false, qc: true, sort: 33 },
+      { code: "RL16", fr: "Revenus de succession",                           en: "Estate Income",                           cat: "investment", fed: false, qc: true, sort: 34 },
+      { code: "RL18", fr: "Opérations sur titres",                           en: "Securities Transactions",                 cat: "investment", fed: false, qc: true, sort: 35 },
+      { code: "RL19", fr: "Revenus d'une fiducie de fonds commun",           en: "Mutual Fund Trust Income",                cat: "investment", fed: false, qc: true, sort: 36 },
+      { code: "RL20", fr: "Régime d'accession à la propriété",               en: "Home Buyers' Plan",                       cat: "pension",    fed: false, qc: true, sort: 37 },
+      { code: "RL21", fr: "Régime d'encouragement à l'éducation permanente", en: "Lifelong Learning Plan",                  cat: "education",  fed: false, qc: true, sort: 38 },
+      { code: "RL22", fr: "Retraite progressive",                            en: "Gradual Retirement",                      cat: "pension",    fed: false, qc: true, sort: 39 },
+      { code: "RL24", fr: "Frais pour la garde d'enfants",                   en: "Childcare Expenses",                      cat: "other",      fed: false, qc: true, sort: 40 },
+      { code: "RL25", fr: "Remboursement de prestations d'aide sociale",     en: "Repayment of Social Assistance Benefits", cat: "other",      fed: false, qc: true, sort: 41 },
+      { code: "RL26", fr: "Revenus et renseignements divers",                en: "Miscellaneous Income and Information",    cat: "other",      fed: false, qc: true, sort: 42 },
+      { code: "RL40", fr: "Crédits d'impôt relatifs aux ressources",         en: "Resource-Related Tax Credits",            cat: "investment", fed: false, qc: true, sort: 43 },
       // ── Autres ────────────────────────────────────────────────────────────────
-      { code: "MEDICAL",    name: "Reçus médicaux",              jurisdiction: "CA", category: "OTHER", sort: 44 },
-      { code: "DONATION",   name: "Reçus de dons",               jurisdiction: "CA", category: "OTHER", sort: 45 },
-      { code: "SE_INCOME",  name: "Revenu de travail autonome",  jurisdiction: "CA", category: "OTHER", sort: 46 },
-      { code: "SE_EXPENSE", name: "Dépenses de travail autonome",jurisdiction: "CA", category: "OTHER", sort: 47 },
-      { code: "OTHER",      name: "Autre document fiscal",       jurisdiction: "CA", category: "OTHER", sort: 48 },
+      { code: "MEDICAL",    fr: "Reçus médicaux",               en: "Medical Receipts",              cat: "medical",    fed: true, qc: true, sort: 44 },
+      { code: "DONATION",   fr: "Reçus de dons",                en: "Donation Receipts",             cat: "other",      fed: true, qc: true, sort: 45 },
+      { code: "SE_INCOME",  fr: "Revenu de travail autonome",   en: "Self-Employment Income",        cat: "employment", fed: true, qc: true, sort: 46 },
+      { code: "SE_EXPENSE", fr: "Dépenses de travail autonome", en: "Self-Employment Expenses",      cat: "employment", fed: true, qc: true, sort: 47 },
+      { code: "OTHER",      fr: "Autre document fiscal",        en: "Other Tax Document",            cat: "other",      fed: true, qc: true, sort: 48 },
     ];
 
     let seeded = 0;
     for (const t of types) {
-      const fields: string[] = ["code", "name"];
-      const values: any[]    = [t.code, t.name];
-
-      if (jurisdictionCol) { fields.push(jurisdictionCol); values.push(t.jurisdiction); }
-      if (hasCategory)     { fields.push("category");      values.push(t.category); }
-      if (sortCol)         { fields.push(sortCol);         values.push(t.sort); }
-      if (isActiveCol)     { fields.push(isActiveCol);     values.push(true); }
-
-      const ph  = values.map((_, i) => `$${i + 1}`).join(", ");
-      const upd = fields
-        .filter(f => f !== "code")
-        .map(f   => `${f} = EXCLUDED.${f}`)
-        .join(", ");
-
       await sql.query(
-        `INSERT INTO document_types (${fields.join(", ")})
-         VALUES (${ph})
-         ON CONFLICT (code) DO UPDATE SET ${upd}`,
-        values
+        `INSERT INTO document_types (code, label_fr, label_en, category, is_federal, is_quebec, is_active, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, true, $7)
+         ON CONFLICT (code) DO UPDATE SET
+           label_fr   = EXCLUDED.label_fr,
+           label_en   = EXCLUDED.label_en,
+           category   = EXCLUDED.category,
+           is_federal = EXCLUDED.is_federal,
+           is_quebec  = EXCLUDED.is_quebec,
+           is_active  = true,
+           sort_order = EXCLUDED.sort_order`,
+        [t.code, t.fr, t.en, t.cat, t.fed, t.qc, t.sort]
       );
       seeded++;
     }
