@@ -14,7 +14,18 @@ interface SlipData     { documentId:string; filename:string; typeCode:string|nul
 interface DocSummary   { id:string; filename:string; typeCode:string|null; typeName:string|null; status:string; uploadedAt:string; hasExtraction:boolean }
 interface Calculation  {
   calculatedAt:string; isPreliminary:boolean; rulesVersion:string|null;
-  federal: { taxBeforeCredits:string; credits:string; taxPayable:string; withheld:string; balance:string; balanceCents:number; isRefund:boolean }
+  federal: {
+    taxBeforeCredits:string; credits:string; taxPayable:string; withheld:string; balance:string; balanceCents:number; isRefund:boolean;
+    // Lignes T1 de règlement (avis de cotisation)
+    line42000?:string; line42000Cents?:number;
+    line43500?:string; line43500Cents?:number;
+    line43700?:string; line43700Cents?:number;
+    line45300?:string; line45300Cents?:number;
+    line48200?:string; line48200Cents?:number;
+    line48400?:string; line48400Cents?:number;
+    line48500?:string; line48500Cents?:number;
+    settlementStatus?:string;
+  }
   provincial: { taxBeforeCredits:string; credits:string; taxPayable:string; withheld:string; balance:string; balanceCents:number; isRefund:boolean }
   totalBalance:string; totalBalanceCents:number; isRefund:boolean;
 }
@@ -572,17 +583,42 @@ export default function ResumePage() {
                   <div style={{ fontSize:12, fontWeight:700, color:"#9fd4cc", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:12 }}>
                     {T("Impôt fédéral (T1)","Federal tax (T1)")}
                   </div>
+                  {/* Lignes T1 de règlement — correspond à l'avis de cotisation ARC */}
                   {[
-                    { label:T("Impôt brut (avant crédits)","Gross tax (before credits)"), value:calculation.federal.taxBeforeCredits },
-                    { label:T("Crédits non remboursables","Non-refundable credits"), value:`− ${calculation.federal.credits}` },
-                    { label:T("Impôt net à payer","Net tax payable"), value:calculation.federal.taxPayable, bold:true },
-                    { label:T("Impôt retenu (T4 case 22)","Tax withheld (T4 box 22)"), value:`− ${calculation.federal.withheld}` },
+                    { label:T("Impôt brut (avant crédits)","Gross tax (before credits)"), value:calculation.federal.taxBeforeCredits, line:"" },
+                    { label:T("Crédits non remboursables","Non-refundable credits"), value:`− ${calculation.federal.credits}`, line:"35000" },
+                    { label:T("Ligne 43500 — Impôt net fédéral","Line 43500 — Net federal tax"), value:calculation.federal.line43500 ?? calculation.federal.taxPayable, bold:true, line:"43500" },
+                    { label:T("Ligne 43700 — Impôt retenu (T4 case 22)","Line 43700 — Tax withheld (T4 box 22)"), value:calculation.federal.line43700 ?? calculation.federal.withheld, green:true, line:"43700" },
+                    { label:T("Ligne 45300 — ACT / CWB (crédit remboursable)","Line 45300 — CWB refundable credit"), value:calculation.federal.line45300 ?? "0,00 $", green:true, line:"45300" },
+                    { label:T("Ligne 48200 — Total des crédits au règlement","Line 48200 — Total settlement credits"), value:calculation.federal.line48200 ?? calculation.federal.withheld, bold:true, green:true, line:"48200" },
                   ].map(r=>(
                     <div key={r.label} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:"1px solid var(--border)" }}>
-                      <span style={{ fontSize:13, color:"var(--text-secondary)", fontWeight:r.bold?700:400 }}>{r.label}</span>
-                      <span style={{ fontFamily:"monospace", fontWeight:r.bold?700:600, color:r.bold?"var(--text-primary)":"var(--text-secondary)" }}>{r.value}</span>
+                      <span style={{ fontSize:13, color:"var(--text-secondary)", fontWeight:r.bold?700:400 }}>
+                        {r.line && <span style={{ fontSize:10, color:"#9fd4cc", fontFamily:"monospace", marginRight:6 }}>L.{r.line}</span>}
+                        {r.label}
+                      </span>
+                      <span style={{ fontFamily:"monospace", fontWeight:r.bold?700:600, color:(r as {green?:boolean}).green?"#059669":r.bold?"var(--text-primary)":"var(--text-secondary)" }}>{r.value}</span>
                     </div>
                   ))}
+                  {/* Résultat final : remboursement ou solde dû */}
+                  {(calculation.federal.line48400Cents ?? 0) > 0 && (
+                    <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 0", borderTop:"2px solid #059669", marginTop:4 }}>
+                      <span style={{ fontSize:13, fontWeight:700, color:"#059669" }}>
+                        <span style={{ fontSize:10, fontFamily:"monospace", marginRight:6 }}>L.48400</span>
+                        {T("Remboursement (ligne 48400)","Refund (line 48400)")}
+                      </span>
+                      <span style={{ fontFamily:"monospace", fontWeight:700, color:"#059669" }}>{calculation.federal.line48400}</span>
+                    </div>
+                  )}
+                  {(calculation.federal.line48500Cents ?? 0) > 0 && (
+                    <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 0", borderTop:"2px solid #dc2626", marginTop:4 }}>
+                      <span style={{ fontSize:13, fontWeight:700, color:"#dc2626" }}>
+                        <span style={{ fontSize:10, fontFamily:"monospace", marginRight:6 }}>L.48500</span>
+                        {T("Solde à payer (ligne 48500)","Balance owing (line 48500)")}
+                      </span>
+                      <span style={{ fontFamily:"monospace", fontWeight:700, color:"#dc2626" }}>{calculation.federal.line48500}</span>
+                    </div>
+                  )}
                   <BalanceBadge label={T("Solde fédéral","Federal balance")} balanceCents={calculation.federal.balanceCents} isRefund={calculation.federal.isRefund} />
                 </div>
 

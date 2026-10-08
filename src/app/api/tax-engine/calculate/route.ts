@@ -62,15 +62,15 @@ export async function POST(req: NextRequest) {
     !/impôt fédéral|federal income tax withheld|income tax deducted|impôt du québec|provincial income tax withheld|provincial tax withheld/i.test(d.description ?? "")
   );
   const answers = (pancanadian.answers ?? pancanadian.questionnaireAnswers ?? pancanadian) as Record<string, unknown>;
-  const wantsCwb = [answers.c17, answers.act_cwb, answers.cwb].some(value => value === true || value === "true" || value === "oui" || value === "yes");
   const earnedIncomeCents = incomes.filter(i => i.category === "employment" || i.category === "self_employment").reduce((sum, i) => sum + (i.amountCents ?? 0), 0);
 
-  // ACT 2025 — Annexe 6 Québec (5005-S6) pour résidents du Québec au 31 décembre.
-  // Pour les autres provinces : formule fédérale générique.
+  // ACT/CWB 2025 — calculé automatiquement pour tout résident avec revenu d'emploi éligible.
+  // Le questionnaire peut désactiver via answers.cwb_opt_out === true.
   // Source officielle : ARC 5005-S6 (2025), Revenu Québec.
   // INTERDIT : hardcoder les montants du test de régression.
+  const cwbOptOut = [answers.cwb_opt_out].some(value => value === true || value === "true");
   let cwbCents = 0;
-  if (wantsCwb && earnedIncomeCents > 0) {
+  if (!cwbOptOut && earnedIncomeCents > 0) {
     if (province === "QC") {
       // ─── 5005-S6 Québec 2025 ──────────────────────────────────────────────
       // Seuils 2025 pour les résidents du Québec (Schedule 6 QC)
