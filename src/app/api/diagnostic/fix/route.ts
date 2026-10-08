@@ -34,9 +34,9 @@ export async function POST() {
 
   // 1. Supprimer toutes les incomeEntries et deductionEntries existantes
   // pour repartir propre avec le bon parseur
-  const deletedInc = await db.delete(incomeEntries)
+  await db.delete(incomeEntries)
     .where(and(eq(incomeEntries.userId, userId), eq(incomeEntries.taxReturnId, tr.id)));
-  const deletedDed = await db.delete(deductionEntries)
+  await db.delete(deductionEntries)
     .where(and(eq(deductionEntries.userId, userId), eq(deductionEntries.taxReturnId, tr.id)));
   log.push(`Nettoyé: incomeEntries et deductionEntries supprimées`);
 
@@ -51,7 +51,27 @@ export async function POST() {
   for (const doc of docs) {
     const pages = await db.select({ ocrText: documentPages.ocrText })
       .from(documentPages).where(eq(documentPages.documentId, doc.id)).orderBy(documentPages.pageNumber);
-    const fullText = pages.map(p => p.ocrText ?? "").join("\n");
+    let fullText = pages.map(p => p.ocrText ?? "").join("\n");
+
+    // Enrichir le texte OCR avec les champs structurés déjà en BD
+    // (nécessaire pour les docs CRA Mon Dossier qui n'ont que l'en-tête dans ocrText)
+    const [ext0] = await db.select({ id: documentExtractions.id })
+      .from(documentExtractions).where(eq(documentExtractions.fiscalDocumentId, doc.id)).limit(1);
+    if (ext0 && !fullText.includes("--- STRUCTURED FIELDS ---")) {
+      const storedFields = await db.select({ fieldCode: extractionFields.fieldCode, rawOcrValue: extractionFields.rawOcrValue })
+        .from(extractionFields).where(eq(extractionFields.extractionId, ext0.id));
+      if (storedFields.length > 0) {
+        fullText += "\n\n--- STRUCTURED FIELDS ---\n";
+        for (const sf of storedFields) {
+          if (sf.rawOcrValue) {
+            // Nettoyer les valeurs corrompues : tronquer après 2 décimales (ex: "1482,6216" → "1482,62")
+            const cleaned = sf.rawOcrValue.replace(/^([0-9\s,.']+[.,]\d{2})\d+$/, "$1");
+            fullText += `${sf.fieldCode}: ${cleaned}\n`;
+          }
+        }
+      }
+    }
+
     if (!fullText || fullText.length < 50) {
       log.push(`Skip ${doc.id.slice(0,8)}: texte OCR trop court (${fullText.length} chars)`);
       continue;
@@ -85,9 +105,8 @@ export async function POST() {
       continue;
     }
 
-    // Mettre à jour les extractionFields
-    const [ext] = await db.select({ id: documentExtractions.id })
-      .from(documentExtractions).where(eq(documentExtractions.fiscalDocumentId, doc.id)).limit(1);
+    // Mettre à jour les extractionFields (réutilise ext0 déjà chargé)
+    const ext = ext0;
 
     if (ext) {
       await db.delete(extractionFields).where(eq(extractionFields.extractionId, ext.id));

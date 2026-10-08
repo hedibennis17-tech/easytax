@@ -163,6 +163,16 @@ export function parseMontantOCR(raw: string | null | undefined): number | null {
   if (/^20[2-9]\d$/.test(s.trim())) return null;
   // Rejeter les numéros d'assurance sociale (9 chiffres consécutifs sans décimals).
   if (/^\d{9}$/.test(s.replace(/\s/g, ""))) return null;
+  // Rejeter les numéros de lignes T1/TP-1 fréquemment confondus avec des montants.
+  // Ces valeurs apparaissent souvent dans les feuillets CRA Mon Dossier comme libellés de ligne.
+  const T1_LINE_NUMBERS = new Set([
+    10100, 10400, 11300, 11400, 11500, 11700, 11900, 12100, 12199, 12600,
+    12700, 12900, 13000, 13010, 13500, 13900, 14400, 14500, 14600,
+    20800, 21200, 21400, 21900, 22900, 23200, 25000,
+    30800, 31200, 32300, 34900, 43700,
+  ]);
+  const sInt = parseInt(s, 10);
+  if (!isNaN(sInt) && T1_LINE_NUMBERS.has(sInt) && /^\d{5}$/.test(s.trim())) return null;
   const num = parseFloat(s);
   // Rejeter < 1$ (codes de cases qui passent la regex) et > 9 999 999$
   if (isNaN(num) || num < 0.01 || num > 9_999_999) return null;
@@ -350,7 +360,8 @@ export function findBoxValueInText(
   // valeur monétaire sur la page (avant même les libellés). Si le texte OCR commence
   // par un montant sur la 1re ligne non vide, on le capture ici avant que la stratégie
   // des mots-clés ne se perde dans la section "Redressement pour indemnités reçues".
-  if (box.code === "10" && /t5007/i.test(ocrText.slice(0, 400))) {
+  // On active aussi quand le texte démarre directement par un montant (vieux relevés CNESST).
+  if (box.code === "10" && (/t5007/i.test(ocrText.slice(0, 400)) || /^\s*[\d][\d\s,.’]{3,}/.test(ocrText))) {
     const firstLineMatch = ocrText.match(/^\s*([\d][\d\s,.’]{3,})\s*(?:\r?\n|\r)/);
     if (firstLineMatch?.[1]) {
       const val = asMoney(firstLineMatch[1].trim());
@@ -372,7 +383,13 @@ export function findBoxValueInText(
       const before = ocrText.slice(Math.max(0, idx - 80), idx);
       if (/redressement\s+pour/i.test(before)) continue;
       const m = after.match(MONEY_RE);
-      if (m?.[1] && parseMontantOCR(m[1]) !== null) return m[1].trim();
+      if (m?.[1] && parseMontantOCR(m[1]) !== null) {
+        // Exclure les numéros civiques d'adresse (ex: "1547, RUE TREPANIER")
+        const matchStart = idx + (m.index ?? 0);
+        const surroundAfter = ocrText.slice(matchStart, matchStart + 50);
+        if (/^\d+,?\s+(?:rue|avenue|boul|blvd|chemin|ch\.|place|pl\.|drive|dr\.|road|rd\.)\b/i.test(surroundAfter)) continue;
+        return m[1].trim();
+      }
     }
   }
 
@@ -400,6 +417,10 @@ export function findBoxValueInText(
       const m5 = ocrText.match(pat5);
       if (m5?.[1]) {
         const raw5 = m5[1].trim().split(/\s+/)[0];
+        // Rejeter si la valeur est précédée d'un libellé "line XXXXX" (numéro de ligne T1)
+        const matchPos = m5.index ?? 0;
+        const ctxBefore = ocrText.slice(Math.max(0, matchPos - 20), matchPos + 10);
+        if (/\b(?:ligne?|line)\s+\d+\s*$/i.test(ctxBefore)) continue;
         if (parseMontantOCR(raw5) !== null) return raw5;
       }
     }

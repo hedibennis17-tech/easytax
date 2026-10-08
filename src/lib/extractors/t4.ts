@@ -1,5 +1,5 @@
 import type { DocumentExtractor, ExtractionResult, ExtractedField } from "./base";
-import { extractAllBoxes, classifySlip, parseMontantOCR, getMappableBoxes } from "@/lib/ocr/dictionnaire";
+import { parseMontantOCR } from "@/lib/ocr/dictionnaire";
 import { extractYear } from "./base";
 
 /**
@@ -28,7 +28,6 @@ export class T4Extractor implements DocumentExtractor {
     boxNumber: string,
     keywords: string[]
   ): string | null {
-    const lines = ocrText.split("\n");
     // Chercher dans la section STRUCTURED FIELDS d'abord
     const structStart = ocrText.indexOf("--- STRUCTURED FIELDS ---");
     const structText  = structStart >= 0 ? ocrText.slice(structStart) : "";
@@ -43,18 +42,26 @@ export class T4Extractor implements DocumentExtractor {
     for (const pat of boxPatterns) {
       const m = structText.match(pat) ?? ocrText.match(pat);
       if (m?.[1]) {
-        const v = m[1].replace(/\s/g, "").replace(",", ".");
-        if (!isNaN(parseFloat(v))) return m[1].trim();
+        const raw = m[1].trim();
+        // Nettoyer la valeur: si elle contient plus de 2 décimales (ex: "1482,6216" = montant + code case collé),
+        // tronquer à 2 décimales (ex: "1482,62").
+        const cleaned = raw.replace(/^([0-9\s,.']+[.,]\d{2})\d+$/, "$1");
+        if (parseMontantOCR(cleaned) !== null) return cleaned;
+        // Essayer la valeur brute au cas où elle est déjà valide
+        if (parseMontantOCR(raw) !== null) return raw;
       }
     }
 
     // Chercher par keywords
     for (const kw of keywords) {
-      const kwPat = new RegExp(`${kw}[:\s]+([\d,. ]+)`, "i");
+      const kwEsc = kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const kwPat = new RegExp(`${kwEsc}[:\\s]+([\\d,. ]+)`, "i");
       const m = structText.match(kwPat) ?? ocrText.match(kwPat);
       if (m?.[1]) {
-        const v = m[1].replace(/\s/g, "").replace(",", ".");
-        if (!isNaN(parseFloat(v)) && parseFloat(v) > 0) return m[1].trim();
+        const raw = m[1].trim();
+        const cleaned = raw.replace(/^([0-9\s,.']+[.,]\d{2})\d+$/, "$1");
+        if (parseMontantOCR(cleaned) !== null) return cleaned;
+        if (parseMontantOCR(raw) !== null) return raw;
       }
     }
     return null;
