@@ -159,6 +159,10 @@ export function parseMontantOCR(raw: string | null | undefined): number | null {
   // entier à quatre chiffres (ex: « 7201 ») : plusieurs T5007 n'impriment pas
   // les cents et l'ancien seuil de 5 chiffres les supprimait à tort.
   if (/^\d{1,3}$/.test(s) && !/[$€¥£,\.\s]/.test(visual)) return null;
+  // Rejeter les années fiscales (2020–2029) : "2025" n'est JAMAIS un montant.
+  if (/^20[2-9]\d$/.test(s.trim())) return null;
+  // Rejeter les numéros d'assurance sociale (9 chiffres consécutifs sans décimals).
+  if (/^\d{9}$/.test(s.replace(/\s/g, ""))) return null;
   const num = parseFloat(s);
   // Rejeter < 1$ (codes de cases qui passent la regex) et > 9 999 999$
   if (isNaN(num) || num < 0.01 || num > 9_999_999) return null;
@@ -316,8 +320,10 @@ export function findBoxValueInText(
     }
   }
 
-  // 5. Pattern tableau (année | montant)
-  if (box.code === "14" || box.data_type === "money") {
+  // 5. Pattern tableau (année | montant) — SEULEMENT pour T4/T4A qui ont un layout
+  // "année TAB montant". PAS pour T5007 (évite de lire "2024 | 15858,42" dans la
+  // section d'ajustements historiques comme si c'était la case 10).
+  if (box.code === "14" && box.data_type === "money") {
     const m = ocrText.match(TABLE_ROW_PATTERN);
     if (m?.[1]) {
       const candidate = m[1].trim();
@@ -325,14 +331,18 @@ export function findBoxValueInText(
     }
   }
 
-  // 6. Format tableau T4A/T4RSP: code de case suivi du montant
-  const pat5a = new RegExp("\\b0*" + box.code + "\\s+([0-9][\\d\\s,.']+)", "im");
-  const pat5b = new RegExp("\\b0*" + box.code + "\\n([0-9][\\d\\s,.']+)", "im");
-  for (const pat5 of [pat5a, pat5b]) {
-    const m5 = ocrText.match(pat5);
-    if (m5?.[1]) {
-      const raw5 = m5[1].trim().split(/\s+/)[0];
-      if (parseMontantOCR(raw5) !== null) return raw5;
+  // 6. Format tableau T4A/T4RSP: code de case suivi du montant.
+  // Garde pour T4A (codes 3 chiffres) mais exclut T5007 box 10 car le pattern
+  // "\b10\s+2025..." lirait l'année comme montant. On restreint aux codes 3+ chiffres.
+  if (box.code.length >= 3) {
+    const pat5a = new RegExp("\\b0*" + box.code + "\\s+([0-9][\\d\\s,.']+)", "im");
+    const pat5b = new RegExp("\\b0*" + box.code + "\\n([0-9][\\d\\s,.']+)", "im");
+    for (const pat5 of [pat5a, pat5b]) {
+      const m5 = ocrText.match(pat5);
+      if (m5?.[1]) {
+        const raw5 = m5[1].trim().split(/\s+/)[0];
+        if (parseMontantOCR(raw5) !== null) return raw5;
+      }
     }
   }
 
