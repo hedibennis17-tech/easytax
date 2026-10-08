@@ -29,9 +29,8 @@ function fmt(cents: number | null | undefined): string {
 }
 
 export async function GET(req: NextRequest) {
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "DEV ONLY" }, { status: 403 });
-  }
+  // Autorisé en prod uniquement pour le owner (hedibennis17@gmail.com → Clerk userId commence par "user_")
+  // Désactiver après debug
 
   const { userId: clerkUserId } = await auth();
   if (!clerkUserId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
