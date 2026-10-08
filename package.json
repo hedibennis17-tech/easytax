@@ -21,7 +21,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1145.0",
     "@clerk/localizations": "^4.21.2",
     "@clerk/nextjs": "^7.9.10",
-    "@google-cloud/documentai": "^10.1.1",
+    "@mistralai/mistralai": "^2.7.0",
     "@neondatabase/serverless": "^1.2.0",
     "drizzle-orm": "^0.45.3",
     "lucide-react": "^1.50.0",

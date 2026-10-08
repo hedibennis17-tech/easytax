@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         .from(documentPages).where(eq(documentPages.documentId, target.id));
       steps.push(`${pages.length > 0 ? "✓" : "✗"} Pages OCR: ${pages.length}`);
       details.pages = pages.map(p => ({ page: p.p, status: p.s, error: p.e, textLen: p.t?.length ?? 0, conf: p.c }));
-      if (pages.length === 0) errors.push("0 pages OCR — Google Document AI pas appelé ou crash S3");
+      if (pages.length === 0) errors.push("0 pages OCR — Mistral OCR pas appelé ou crash S3");
       pages.forEach(p => {
         if (p.e) errors.push(`Page ${p.p}: ${p.e}`);
         if ((p.t?.length ?? 0) < 50) errors.push(`Page ${p.p}: texte trop court (${p.t?.length ?? 0} chars) — PDF vide ou illisible`);
@@ -63,34 +63,29 @@ export async function GET(req: NextRequest) {
       details.auditLog = logs.map(l => ({ action: l.action, at: l.at, meta: l.meta ? (() => { try { return JSON.parse(l.meta as string); } catch { return l.meta; } })() : null }));
     }
 
-    // Variables exactes utilisées par le code
-    const ocrProvider = process.env.OCR_PROVIDER ?? "mock";
-    const hasProjectId  = !!process.env.GOOGLE_CLOUD_PROJECT_ID;
-    const hasProcessorId= !!process.env.GOOGLE_DOCUMENT_AI_PROCESSOR_ID;
-    const hasCreds      = !!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-    const hasS3Bucket   = !!process.env.NEON_STORAGE_BUCKET;
-    const hasS3Endpoint = !!process.env.AWS_ENDPOINT_URL_S3;
-    const hasS3Key      = !!process.env.AWS_ACCESS_KEY_ID;
+    // Variables d'environnement Mistral + S3
+    const ocrProvider   = process.env.OCR_PROVIDER ?? "mistral";
+    const hasMistralKey = Boolean(process.env.MISTRAL_API_KEY);
+    const hasS3Bucket   = Boolean(process.env.NEON_STORAGE_BUCKET);
+    const hasS3Endpoint = Boolean(process.env.AWS_ENDPOINT_URL_S3);
+    const hasS3Key      = Boolean(process.env.AWS_ACCESS_KEY_ID);
 
-    steps.push(`${ocrProvider === "google" ? "✓" : "✗"} OCR_PROVIDER=${ocrProvider} (doit être "google")`);
-    steps.push(`${hasProjectId ? "✓" : "✗"} GOOGLE_CLOUD_PROJECT_ID: ${hasProjectId ? "OK" : "MANQUANT"}`);
-    steps.push(`${hasProcessorId ? "✓" : "✗"} GOOGLE_DOCUMENT_AI_PROCESSOR_ID: ${hasProcessorId ? "OK" : "MANQUANT"}`);
-    steps.push(`${hasCreds ? "✓" : "✗"} GOOGLE_APPLICATION_CREDENTIALS_JSON: ${hasCreds ? "OK" : "MANQUANT"}`);
-    steps.push(`${hasS3Bucket ? "✓" : "✗"} NEON_STORAGE_BUCKET: ${hasS3Bucket ? "OK" : "MANQUANT"}`);
+    steps.push(`${ocrProvider === "mistral" ? "✓" : "✗"} OCR_PROVIDER=${ocrProvider} (doit être "mistral")`);
+    steps.push(`${hasMistralKey ? "✓" : "✗"} MISTRAL_API_KEY: ${hasMistralKey ? "OK" : "MANQUANT"}`);
+    steps.push(`${hasS3Bucket  ? "✓" : "✗"} NEON_STORAGE_BUCKET: ${hasS3Bucket ? "OK" : "MANQUANT"}`);
     steps.push(`${hasS3Endpoint ? "✓" : "✗"} AWS_ENDPOINT_URL_S3: ${hasS3Endpoint ? "OK" : "MANQUANT"}`);
-    steps.push(`${hasS3Key ? "✓" : "✗"} AWS_ACCESS_KEY_ID: ${hasS3Key ? "OK" : "MANQUANT"}`);
+    steps.push(`${hasS3Key     ? "✓" : "✗"} AWS_ACCESS_KEY_ID: ${hasS3Key ? "OK" : "MANQUANT"}`);
 
-    details.env = { ocrProvider, hasProjectId, hasProcessorId, hasCreds, hasS3Bucket, hasS3Endpoint, hasS3Key,
-      bucket: process.env.NEON_STORAGE_BUCKET ?? "(non défini)",
-      endpoint: process.env.AWS_ENDPOINT_URL_S3 ?? "(non défini)",
-      region: process.env.AWS_REGION ?? "us-east-2 (défaut)",
+    details.env = {
+      ocrProvider, hasMistralKey, hasS3Bucket, hasS3Endpoint, hasS3Key,
+      bucket:   process.env.NEON_STORAGE_BUCKET   ?? "(non défini)",
+      endpoint: process.env.AWS_ENDPOINT_URL_S3   ?? "(non défini)",
+      region:   process.env.AWS_REGION            ?? "us-east-2 (défaut)",
     };
 
-    if (ocrProvider !== "google") errors.push("OCR_PROVIDER doit être 'google' — actuellement: " + ocrProvider);
-    if (!hasProjectId) errors.push("GOOGLE_CLOUD_PROJECT_ID manquant dans Vercel env vars");
-    if (!hasProcessorId) errors.push("GOOGLE_DOCUMENT_AI_PROCESSOR_ID manquant dans Vercel env vars");
-    if (!hasCreds) errors.push("GOOGLE_APPLICATION_CREDENTIALS_JSON manquant dans Vercel env vars");
-    if (!hasS3Bucket) errors.push("NEON_STORAGE_BUCKET manquant dans Vercel env vars");
+    if (ocrProvider !== "mistral") errors.push("OCR_PROVIDER doit être 'mistral' — actuellement: " + ocrProvider);
+    if (!hasMistralKey) errors.push("MISTRAL_API_KEY manquant dans les variables Vercel");
+    if (!hasS3Bucket)   errors.push("NEON_STORAGE_BUCKET manquant dans les variables Vercel");
     if (!hasS3Endpoint) errors.push("AWS_ENDPOINT_URL_S3 manquant — S3 utilise AWS par défaut");
 
   } catch(e) { errors.push(`Exception: ${e instanceof Error ? e.message : String(e)}`); }

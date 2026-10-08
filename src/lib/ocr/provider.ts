@@ -1,19 +1,23 @@
 /**
  * Interface abstraite OcrProvider
- * Permet de switcher entre Google Document AI, mock, Tesseract, etc.
+ * Permet de switcher entre Mistral OCR, mock, etc.
  * sans modifier le reste de l'application.
+ *
+ * Provider actif : contrôlé par la variable d'env OCR_PROVIDER
+ *   "mistral" (défaut en production) → MistralOcrProvider
+ *   "mock"                           → MockOcrProvider (dev uniquement)
  */
 
 export interface OcrPageResult {
   pageNumber: number;
-  text: string;           // texte brut extrait
-  confidence: number;     // 0-100
+  text: string;       // texte brut / Markdown extrait
+  confidence: number; // 0-100
   error?: string;
 }
 
 export interface OcrDocumentResult {
   pages: OcrPageResult[];
-  fullText: string;       // texte concaténé de toutes les pages
+  fullText: string;          // texte concaténé de toutes les pages
   overallConfidence: number;
   provider: string;
   processingTimeMs: number;
@@ -31,19 +35,20 @@ export interface OcrProvider {
 
 /**
  * Retourne le provider actif selon la variable d'env OCR_PROVIDER
- * Par défaut : mock (si pas de credentials configurés)
+ * Par défaut en production : mistral
+ * Par défaut en dev        : mock (si pas de clé configurée)
  */
 export async function getOcrProvider(): Promise<OcrProvider> {
-  const providerName = process.env.OCR_PROVIDER ?? "mock";
+  const providerName = process.env.OCR_PROVIDER ?? "mistral";
 
-  if (providerName === "google") {
-    const { GoogleDocumentAiProvider } = await import("./google-document-ai");
-    return new GoogleDocumentAiProvider();
+  if (providerName === "mistral") {
+    const { MistralOcrProvider } = await import("./mistral-ocr");
+    return new MistralOcrProvider();
   }
 
   if (process.env.NODE_ENV === "production" && process.env.OCR_ALLOW_MOCK !== "true") {
     throw new Error(
-      "L'analyse OCR réelle n'est pas configurée. Configurez Google Document AI avant de traiter des documents fiscaux."
+      "L'analyse OCR réelle n'est pas configurée. Configurez Mistral OCR (MISTRAL_API_KEY) avant de traiter des documents fiscaux."
     );
   }
 

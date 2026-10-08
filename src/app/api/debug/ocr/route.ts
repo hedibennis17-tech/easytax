@@ -27,76 +27,42 @@ function redactError(error: unknown): ErrorDetails {
   return {
     code: typeof details?.code === "number" || typeof details?.code === "string" ? details.code : null,
     message: raw
-      .replace(/-----BEGIN[\s\S]*?END [A-Z ]+-----/g, "[secret supprimé]")
-      .replace(/"private_key"\s*:\s*"[^\"]+"/g, '"private_key":"[secret supprimé]"')
+      .replace(/Bearer\s+[^\s"]+/gi, "Bearer [secret supprimé]")
       .slice(0, 700),
   };
 }
 
-function googleConfiguration() {
-  const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  let credentialsJsonValid = false;
-  let serviceAccountConfigured = false;
-
-  if (credentialsJson) {
-    try {
-      const credentials = JSON.parse(credentialsJson) as { type?: string; client_email?: string };
-      credentialsJsonValid = true;
-      serviceAccountConfigured = credentials.type === "service_account" && Boolean(credentials.client_email);
-    } catch {
-      // Le diagnostic signale seulement la validité du JSON, jamais son contenu.
-    }
-  }
-
+function mistralConfiguration() {
   return {
-    provider: process.env.OCR_PROVIDER ?? "mock",
-    projectIdConfigured: Boolean(process.env.GOOGLE_CLOUD_PROJECT_ID),
-    processorIdConfigured: Boolean(process.env.GOOGLE_DOCUMENT_AI_PROCESSOR_ID),
-    location: process.env.GOOGLE_DOCUMENT_AI_LOCATION ?? "us",
-    credentialsJsonConfigured: Boolean(credentialsJson),
-    credentialsJsonValid,
-    serviceAccountConfigured,
+    provider: process.env.OCR_PROVIDER ?? "mistral",
+    apiKeyConfigured: Boolean(process.env.MISTRAL_API_KEY),
   };
 }
 
-async function probeGoogleDocumentAi() {
-  const config = googleConfiguration();
-  if (config.provider !== "google") {
-    return { status: "not_selected", message: "OCR_PROVIDER doit être défini sur google." };
+async function probeMistralOcr() {
+  const config = mistralConfiguration();
+  if (config.provider !== "mistral") {
+    return { status: "not_selected", message: "OCR_PROVIDER doit être défini sur mistral." };
   }
-  if (!config.projectIdConfigured || !config.processorIdConfigured || !config.credentialsJsonValid) {
-    return { status: "not_configured", message: "La configuration Google Document AI est incomplète ou invalide." };
+  if (!config.apiKeyConfigured) {
+    return { status: "not_configured", message: "MISTRAL_API_KEY manquant." };
   }
 
   try {
-    // Chargement tardif : évite tout impact sur les routes qui n'utilisent pas l'OCR.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { DocumentProcessorServiceClient } = require("@google-cloud/documentai") as {
-      DocumentProcessorServiceClient: new (options: Record<string, unknown>) => {
-        getProcessor: (request: { name: string }) => Promise<Array<{ type?: string; state?: string }>>;
-      };
-    };
-    const location = process.env.GOOGLE_DOCUMENT_AI_LOCATION ?? "us";
-    const apiEndpoint = location === "us" || location === "eu" ? `${location}-documentai.googleapis.com` : undefined;
-    const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ?? "{}") as Record<string, unknown>;
-    const client = new DocumentProcessorServiceClient({ credentials, ...(apiEndpoint ? { apiEndpoint } : {}) });
-    const processorName = `projects/${process.env.GOOGLE_CLOUD_PROJECT_ID}/locations/${location}/processors/${process.env.GOOGLE_DOCUMENT_AI_PROCESSOR_ID}`;
-    const [processor] = await client.getProcessor({ name: processorName });
-
+    const { Mistral } = require("@mistralai/mistralai") as { Mistral: new (o: Record<string, unknown>) => { models: { list: () => Promise<{ data: unknown[] }> } } };
+    const client = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
+    const modelsResponse = await client.models.list();
+    const modelCount = modelsResponse?.data?.length ?? 0;
     return {
       status: "ready",
-      endpoint: apiEndpoint ?? "default",
-      processorType: processor?.type ?? null,
-      processorState: processor?.state ?? null,
-      message: "Google Document AI accepte les identifiants et reconnaît le processeur.",
+      modelCount,
+      message: `Mistral API accessible — ${modelCount} modèles disponibles.`,
     };
   } catch (error) {
-    const detail = redactError(error);
-    const billingOrPermission = detail.code === 7 || /billing|permission_denied|permission denied/i.test(detail.message);
     return {
-      status: billingOrPermission ? "billing_or_permission_error" : "connection_error",
-      ...detail,
-      message: detail.message,
+      status: "connection_error",
+      ...redactError(error),
     };
   }
 }
@@ -123,7 +89,7 @@ async function getDocumentDiagnostic(clerkUserId: string, requestedId: string | 
 
   const document = documents[0];
   if (!document) {
-    return { status: "no_document", message: "Aucun document personnel correspondant n’a été trouvé." };
+    return { status: "no_document", message: "Aucun document personnel correspondant n'a été trouvé." };
   }
 
   const [pages, extraction, fields, auditRows] = await Promise.all([
@@ -180,7 +146,7 @@ async function getDocumentDiagnostic(clerkUserId: string, requestedId: string | 
       const metadata = JSON.parse(latestFailure.metadata) as { error?: unknown };
       if (metadata.error) lastFailure = redactError(metadata.error);
     } catch {
-      lastFailure = { code: null, message: "Le journal d’erreur OCR est illisible." };
+      lastFailure = { code: null, message: "Le journal d'erreur OCR est illisible." };
     }
   }
 
@@ -224,12 +190,9 @@ async function getDocumentDiagnostic(clerkUserId: string, requestedId: string | 
 }
 
 export async function GET(request: NextRequest) {
-  // Sonde de disponibilité sûre : aucun document, identifiant, paramètre de
-  // configuration ni détail d'erreur n'est retourné sans session. Elle permet
-  // de vérifier une propagation IAM depuis une supervision externe.
   if (request.nextUrl.searchParams.get("ready") === "1") {
-    const google = await probeGoogleDocumentAi();
-    const ready = google.status === "ready";
+    const mistral = await probeMistralOcr();
+    const ready = mistral.status === "ready";
     return NextResponse.json(
       { status: ready ? "ready" : "unavailable", checkedAt: new Date().toISOString() },
       { status: ready ? 200 : 503, headers: { "Cache-Control": "no-store" } },
@@ -241,18 +204,18 @@ export async function GET(request: NextRequest) {
 
   try {
     const documentId = request.nextUrl.searchParams.get("documentId");
-    const probeGoogle = request.nextUrl.searchParams.get("probeGoogle") === "1";
+    const probeMistral = request.nextUrl.searchParams.get("probeMistral") === "1";
     const diagnostic = await getDocumentDiagnostic(ctx.clerkUserId, documentId);
     return NextResponse.json({
       generatedAt: new Date().toISOString(),
-      google: probeGoogle ? await probeGoogleDocumentAi() : googleConfiguration(),
+      mistral: probeMistral ? await probeMistralOcr() : mistralConfiguration(),
       diagnostic,
-      nextStep: probeGoogle
-        ? "La sonde vérifie l’accès au processeur sans analyser ni transmettre de document."
-        : "Ajoutez ?probeGoogle=1 pour vérifier l’accès au processeur Document AI sans traiter de document.",
+      nextStep: probeMistral
+        ? "La sonde vérifie l'accès à l'API Mistral sans analyser ni transmettre de document."
+        : "Ajoutez ?probeMistral=1 pour vérifier la connexion à l'API Mistral OCR.",
     });
   } catch (error) {
-    return NextResponse.json({ error: "Le diagnostic OCR n’a pas pu être généré.", detail: redactError(error) }, { status: 500 });
+    return NextResponse.json({ error: "Le diagnostic OCR n'a pas pu être généré.", detail: redactError(error) }, { status: 500 });
   }
 }
 
@@ -261,18 +224,18 @@ export async function POST(request: NextRequest) {
   if (!ctx) return unauthorized();
 
   try {
-    const body = await request.json().catch(() => ({})) as { documentId?: string; probeGoogle?: boolean };
+    const body = await request.json().catch(() => ({})) as { documentId?: string; probeMistral?: boolean };
     const diagnostic = await getDocumentDiagnostic(ctx.clerkUserId, body.documentId ?? null);
-    const google = body.probeGoogle ? await probeGoogleDocumentAi() : googleConfiguration();
+    const mistral = body.probeMistral ? await probeMistralOcr() : mistralConfiguration();
     return NextResponse.json({
       generatedAt: new Date().toISOString(),
-      google,
+      mistral,
       diagnostic,
-      nextStep: body.probeGoogle
-        ? "La sonde vérifie l’accès au processeur sans analyser ni transmettre de document."
-        : "Ajoutez probeGoogle:true pour vérifier l’accès au processeur Document AI.",
+      nextStep: body.probeMistral
+        ? "La sonde vérifie l'accès à l'API Mistral sans analyser ni transmettre de document."
+        : "Ajoutez probeMistral:true pour vérifier la connexion à l'API Mistral OCR.",
     });
   } catch (error) {
-    return NextResponse.json({ error: "La sonde OCR n’a pas pu être exécutée.", detail: redactError(error) }, { status: 500 });
+    return NextResponse.json({ error: "La sonde OCR n'a pas pu être exécutée.", detail: redactError(error) }, { status: 500 });
   }
 }

@@ -307,12 +307,12 @@ function findLayoutBoundValue(ocrText: string, box: BoxDef): string | null {
 }
 
 /**
- * Cherche la valeur d'une case dans le texte OCR brut (enrichi par Google Doc AI).
+ * Cherche la valeur d'une case dans le texte OCR brut (enrichi par Mistral OCR).
  * Stratégie:
- *   1. Bloc STRUCTURED FIELDS (injecté par google-document-ai.ts)
+ *   1. Bloc STRUCTURED FIELDS (injecté par le pipeline OCR)
  *   2. Rangée de gabarit libellé → montant (T4, T4A, T5007, RL)
  *   3. Code de case explicite (box_14:, case 14:, 14:)
- *   4. Keywords français et anglais, puis tableau Google Document AI
+ *   4. Keywords français et anglais, puis tableaux Markdown Mistral
  */
 export function findBoxValueInText(
   ocrText: string,

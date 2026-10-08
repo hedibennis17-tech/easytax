@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@google-cloud/documentai"],
+  serverExternalPackages: ["@mistralai/mistralai"],
 };
 
 export default nextConfig;
