@@ -115,20 +115,43 @@ export async function GET(req: NextRequest) {
       t1_line: string | null;
       tp1_line: string | null;
       status: string;
+      includedIn?: string | null;
     }> = [];
 
     if (ocrText && detectedType) {
       try {
         const boxes = extractAllBoxes(ocrText, detectedType);
-        simulatedBoxes = boxes.map(b => ({
-          code: b.code,
-          label: b.label_fr,
-          rawValue: b.rawValue,
-          amountCents: b.amountCents,
-          t1_line: b.t1_line,
-          tp1_line: b.tp1_line,
-          status: b.amountCents !== null ? "✅ extrait" : b.rawValue ? "⚠️ brut_non_parsable" : "❌ non_trouvé",
-        }));
+        // Cases obligatoires par type de feuillet (doivent avoir une valeur)
+        const mandatoryCodes: Record<string, string[]> = {
+          "RL-1": ["A", "B", "C", "D", "E", "G", "H", "I", "J", "P", "Q"],
+          "T4":   ["14", "22", "52"],
+          "T4A":  ["16", "22", "048"],
+          "T5007": ["10", "11"],
+          "T5":   ["13", "14", "21", "23", "24", "25", "26"],
+          "T3":   ["21", "22", "23"],
+          "T2202": ["3", "4"],
+        };
+        const mandatory = new Set(mandatoryCodes[detectedType] ?? []);
+        simulatedBoxes = boxes.map(b => {
+          if (b.amountCents !== null) return {
+            code: b.code, label: b.label_fr, rawValue: b.rawValue,
+            amountCents: b.amountCents, t1_line: b.t1_line, tp1_line: b.tp1_line,
+            includedIn: b.includedIn, status: "✅ extrait",
+          };
+          if (b.rawValue) return {
+            code: b.code, label: b.label_fr, rawValue: b.rawValue,
+            amountCents: b.amountCents, t1_line: b.t1_line, tp1_line: b.tp1_line,
+            includedIn: b.includedIn, status: "⚠️ brut_non_parsable",
+          };
+          // Case vide: optionnelle (pas dans la liste des cases obligatoires)
+          // OU avec includedIn (sous-total déjà compté dans une autre case)
+          const isOptional = !mandatory.has(b.code) || b.includedIn !== null;
+          return {
+            code: b.code, label: b.label_fr, rawValue: null,
+            amountCents: null, t1_line: b.t1_line, tp1_line: b.tp1_line,
+            includedIn: b.includedIn, status: isOptional ? "⬜ case_optionnelle_vide" : "❌ non_trouvé",
+          };
+        });
       } catch (e) {
         simulatedBoxes = [{ code: "ERR", label: String(e), rawValue: null, amountCents: null, t1_line: null, tp1_line: null, status: "❌ erreur" }];
       }
