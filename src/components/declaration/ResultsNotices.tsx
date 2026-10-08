@@ -6,6 +6,7 @@ export interface ResultBreakdown {
   refundableCredits: number;
   taxPayable: number;
   withheld: number;
+  totalCredits48200?: number; // ligne 48200 = 43700 + 45300 (CWB)
   balance: number;
   isRefund: boolean;
 }
@@ -72,6 +73,16 @@ function NoticeRow({
 function AssessmentSummaryTable({ lines, federal, isEn }: { lines: ResultsNoticesProps["t1Lines"]; federal: ResultBreakdown; isEn: boolean }) {
   const byCode = new Map(lines.map(line => [line.line, line]));
   const value = (code: string) => byCode.get(code)?.amountCents ?? 0;
+  // 48200 = 43700 + 45300. Prefer totalCredits48200 from API (already correct),
+  // then t1Lines, then derive from federal.withheld + federal.refundableCredits.
+  const raw43700 = value("43700");
+  const raw45300 = value("45300");
+  const raw48200 = value("48200");
+  const credits48200 = (federal.totalCredits48200 && federal.totalCredits48200 > 0)
+    ? federal.totalCredits48200
+    : raw48200 > 0 ? raw48200
+    : raw43700 + raw45300 > 0 ? raw43700 + raw45300
+    : (federal.withheld + federal.refundableCredits);
   const rows = [
     ["15000", isEn ? "Total income" : "Revenu total", value("15000")],
     ["23600", isEn ? "Net income" : "Revenu net", value("23600")],
@@ -79,11 +90,11 @@ function AssessmentSummaryTable({ lines, federal, isEn }: { lines: ResultsNotice
     ["35000", isEn ? "Total non-refundable tax credits" : "Total des crédits d'impôt non remboursables", value("35000")],
     ["42000", isEn ? "Net federal tax" : "Impôt fédéral net", value("42000")],
     ["43500", isEn ? "Total payable" : "Total à payer", value("43500")],
-    ["43700", isEn ? "Total income tax deducted" : "Impôt total retenu", value("43700")],
-    ["45300", isEn ? "Canada Workers Benefit" : "Allocation canadienne pour les travailleurs", value("45300")],
-    ["48200", isEn ? "Total credits" : "Total des crédits", value("48200")],
+    ["43700", isEn ? "Total income tax deducted" : "Impôt total retenu", raw43700 > 0 ? raw43700 : federal.withheld],
+    ["45300", isEn ? "Canada Workers Benefit" : "Allocation canadienne pour les travailleurs", raw45300 > 0 ? raw45300 : federal.refundableCredits],
+    ["48200", isEn ? "Total credits" : "Total des crédits", credits48200],
   ] as const;
-  const afterCredits = value("43500") - value("48200");
+  const afterCredits = value("43500") - credits48200;
   const signed = (amount: number) => `${(Math.abs(amount) / 100).toLocaleString(isEn ? "en-CA" : "fr-CA", { minimumFractionDigits: 2 })} $`;
   return <section style={{ border: "1px solid #cbd8e8", borderRadius: 12, overflow: "hidden", marginBottom: 14, background: "#fff" }}>
     <div style={{ background: "#12233d", color: "#fff", padding: "12px 14px", fontWeight: 800, fontSize: 13 }}>{isEn ? "Assessment summary" : "Sommaire de cotisation"}</div>
