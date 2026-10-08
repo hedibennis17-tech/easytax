@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { taxProfiles, taxReturns, incomeEntries, deductionEntries, creditEntries, taxCalculations } from "@/db/schema";
+import { taxProfiles, taxReturns, taxYears, incomeEntries, deductionEntries, creditEntries, taxCalculations } from "@/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { normalizeProvinceCode } from "@/lib/provinces";
 import type { QuestionnaireProgress } from "@/lib/questionnaire-progress";
@@ -171,9 +171,13 @@ export async function GET() {
   const [profile] = await db.select().from(taxProfiles).where(eq(taxProfiles.userId, userId)).limit(1);
   if (!profile) return NextResponse.json({ error: "Profil introuvable" }, { status: 404 });
 
-  const [taxReturn] = await db.select({ id: taxReturns.id })
+  const [taxReturn] = await db.select({ id: taxReturns.id, taxYearId: taxReturns.taxYearId })
     .from(taxReturns).where(eq(taxReturns.profileId, profile.id))
     .orderBy(desc(taxReturns.updatedAt)).limit(1);
+  const [taxYearRow] = taxReturn
+    ? await db.select({ year: taxYears.year }).from(taxYears).where(eq(taxYears.id, taxReturn.taxYearId)).limit(1)
+    : [undefined];
+  const declarationYear = taxYearRow?.year ?? 2025;
 
   const province = normalizeProvinceCode(profile.fiscalResidence ?? profile.province) ?? "QC";
   const isQC = province === "QC";
@@ -398,7 +402,7 @@ export async function GET() {
 
   return NextResponse.json({
     meta: {
-      taxYear: 2025,
+      taxYear: declarationYear,
       province,
       provinceName: provinceInfo.name,
       form: `T1 + ${provinceInfo.form}`,

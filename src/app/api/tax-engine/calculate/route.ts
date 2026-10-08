@@ -67,6 +67,9 @@ export async function POST(req: NextRequest) {
   );
   const answers = (pancanadian.answers ?? pancanadian.questionnaireAnswers ?? pancanadian) as Record<string, unknown>;
   const earnedIncomeCents = incomes.filter(i => i.category === "employment" || i.category === "self_employment").reduce((sum, i) => sum + (i.amountCents ?? 0), 0);
+  const dependentCount = Array.isArray(answers.dependents)
+    ? answers.dependents.length
+    : Number(answers.dependentCount ?? answers.numberOfDependents ?? 0) || 0;
 
   // ACT/CWB 2025 — calculé automatiquement pour tout résident avec revenu d'emploi éligible.
   // Le questionnaire peut désactiver via answers.cwb_opt_out === true.
@@ -82,7 +85,7 @@ export async function POST(req: NextRequest) {
       //               réduction à 15% au-delà de 26 149 $
       // Avec conjoint/famille : phase-in à 27% au-delà de 3 000 $, max 2 739 $
       //               réduction à 15% au-delà de 32 227 $
-      const isCouple = answers.maritalStatus === "married" || answers.maritalStatus === "common_law" || answers.maritalStatus === "marie" || answers.maritalStatus === "union_de_fait";
+      const isCouple = dependentCount > 0 || answers.maritalStatus === "married" || answers.maritalStatus === "common_law" || answers.maritalStatus === "marie" || answers.maritalStatus === "union_de_fait";
       const cwbMaxQC = isCouple ? 273900 : 159000;               // max en cents
       const cwbPhaseInThresholdQC = 300000;                       // 3 000 $
       const cwbReductionThresholdQC = isCouple ? 3222700 : 2614900; // 32 227 $ ou 26 149 $
@@ -94,7 +97,7 @@ export async function POST(req: NextRequest) {
       cwbCents = Math.max(0, Math.round(cwbPhaseIn - cwbReduction));
     } else {
       // ─── Formule fédérale générique (hors QC) ───────────────────────────
-      const isCouple = answers.maritalStatus === "married" || answers.maritalStatus === "common_law";
+      const isCouple = dependentCount > 0 || answers.maritalStatus === "married" || answers.maritalStatus === "common_law";
       const cwbMax = isCouple ? 281300 : 163300;
       const cwbReductionThreshold = isCouple ? 3063900 : 2685500;
       const cwbPhaseIn = Math.min(cwbMax, Math.max(0, earnedIncomeCents - 300000) * 27 / 100);
@@ -126,11 +129,12 @@ export async function POST(req: NextRequest) {
       description: c.description ?? undefined,
       isRefundable: /remboursable|prestation|allocation|benefit|act_cwb|acfb/i.test(`${c.category} ${c.description ?? ""}`),
       })),
-      ...(cwbCents > 0 ? [{ category: "other_credits" as const, claimedAmountCents: cwbCents, sourceType: "manual" as const, description: "Allocation canadienne pour les travailleurs (ACT/CWB) — ligne 45300", isRefundable: true }] : []),
+      ...(cwbCents > 0 ? [{ category: "other_credits" as const, claimedAmountCents: cwbCents, sourceType: "manual" as const, description: "Allocation canadienne pour les travailleurs (ACT/CWB) — ligne 45300", isRefundable: true, jurisdiction: "CA" as const, line: "45300" }] : []),
     ],
     taxWithheldFederalCents: (body.taxWithheldFederalCents ?? 0) + federalWithheldFromSlips,
     taxWithheldProvincialCents: (body.taxWithheldProvincialCents ?? 0) + provincialWithheldFromSlips,
     hasSpouse: body.hasSpouse ?? false,
+    dependentCount,
   };
 
   try {
