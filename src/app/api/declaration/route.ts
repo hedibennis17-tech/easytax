@@ -241,7 +241,7 @@ export async function GET() {
   if (isQC) addTp1("350", 1857100, "calculated"); // 18 571 $ × 100
 
   // Depuis le moteur fiscal (si disponible)
-  // ── PRIORITÉ : lire le settlement stocké dans calculationDetails ────────
+  // ── RÈGLEMENT FÉDÉRAL : chaîne officielle T1 2025 ─────────────────────────
   // Variables settlement hoistées pour être accessibles dans le calcul du solde
   let s43500 = 0, s43700 = 0, s45300 = 0, s48200 = 0, s48400 = 0, s48500 = 0;
   if (calc) {
@@ -254,34 +254,56 @@ export async function GET() {
       if (details?.settlement) settlement = details.settlement as Record<string, number | string>;
     } catch { /* no-op */ }
 
+    // ── Ligne 43500 : impôt fédéral net à payer ──────────────────────────────
     s43500 = (settlement.line43500 as number | undefined) ?? cents(calc.federalTaxPayableCents);
-    // ⚠️ 43700 : NE PAS addT1 si déjà rempli depuis deductionEntries (éviter double-count)
-    s43700 = (settlement.line43700 as number | undefined) ?? cents(calc.federalTaxWithheldCents);
-    s45300 = (settlement.line45300 as number | undefined) ?? cents(calc.federalRefundableCreditsCents);
-    // 48200 = retenues + crédits remboursables (formule correcte T1)
-    s48200 = (settlement.line48200 as number | undefined) ?? (s43700 + s45300);
-    s48400 = (settlement.line48400 as number | undefined) ?? Math.max(0, s48200 - s43500);
-    s48500 = (settlement.line48500 as number | undefined) ?? Math.max(0, s43500 - s48200);
 
-    addT1("42000", s43500, "calculated");
-    addT1("43500", s43500, "calculated");
+    // ── Ligne 43700 : retenues à la source ───────────────────────────────────
+    // Source de vérité : deductions OCR déjà accumulées dans t1Amounts["43700"]
+    // Le settlement peut être corrompu (ancien calcul avec regex manquant → line43700=0)
+    // Règle : utiliser MAX(settlement, OCR) pour ne jamais sous-estimer les retenues.
+    const ocrWithheld43700 = t1Amounts["43700"]?.cents ?? 0;
+    const settlementWithheld43700 = (settlement.line43700 as number | undefined) ?? cents(calc.federalTaxWithheldCents);
+    s43700 = Math.max(ocrWithheld43700, settlementWithheld43700);
+    // Forcer t1Amounts["43700"] à la valeur réelle (évite double-count si addT1 ci-dessous)
+    t1Amounts["43700"] = { cents: s43700, source: s43700 === ocrWithheld43700 ? "ocr" : "calculated" };
+
+    // ── Ligne 45300 : ACT / CWB ──────────────────────────────────────────────
+    s45300 = (settlement.line45300 as number | undefined) ?? cents(calc.federalRefundableCreditsCents);
+
+    // ── Ligne 48200 : total des crédits et retenues (règlement T1 2025) ──────
+    // 48200 = 43700 + 45300 (+ autres crédits remboursables)
+    // Si le settlement stocké a line43700=0 mais qu'on a des retenues OCR réelles :
+    // le settlement est corrompu (ancien calcul pré-regex-fix) → recalculer.
+    // Si settlement.line48200 est 0 ou ne reflète pas les vraies retenues → recalculer.
+    const settlementLine43700 = settlement.line43700 as number | undefined;
+    const settlementCorrupted = (settlementLine43700 !== undefined && settlementLine43700 === 0 && s43700 > 0)
+      || ((settlement.line48200 as number | undefined) === 0 && s43700 > 0);
+    s48200 = settlementCorrupted
+      ? s43700 + s45300
+      : ((settlement.line48200 as number | undefined) || (s43700 + s45300));
+
+    // ── Lignes 48400 / 48500 : remboursement ou solde à payer ────────────────
+    s48400 = Math.max(0, s48200 - s43500);
+    s48500 = Math.max(0, s43500 - s48200);
+
+    // ── Alimenter le formulaire T1 ───────────────────────────────────────────
     addT1("35000", cents(calc.federalNonRefundableCreditsCents), "calculated");
-    // 43700 : n'ajouter depuis calc QUE si pas déjà rempli depuis les déductions OCR
-    if (!t1Amounts["43700"] || t1Amounts["43700"].cents === 0) {
-      addT1("43700", s43700, "calculated");
-    } else {
-      // Forcer la valeur settlement (plus fiable que la somme OCR) si elle existe
-      if (settlement.line43700) {
-        t1Amounts["43700"] = { cents: s43700, source: "calculated" };
-      }
+    if (s43500 > 0) {
+      t1Amounts["42000"] = { cents: s43500, source: "calculated" };
+      t1Amounts["43500"] = { cents: s43500, source: "calculated" };
     }
-    addT1("45300", s45300, "calculated");
-    // 48200 = ligne 43700 + ligne 45300 (formule T1 correcte)
+    // 43700 déjà forcé ci-dessus
+    if (s45300 > 0) t1Amounts["45300"] = { cents: s45300, source: "calculated" };
+    // 48200 = total des crédits — toujours calculé, même si 43700 ou 45300 individuellem. sont 0
     t1Amounts["48200"] = { cents: s48200, source: "calculated" };
     if (s48400 > 0) t1Amounts["48400"] = { cents: s48400, source: "calculated" };
     if (s48500 > 0) t1Amounts["48500"] = { cents: s48500, source: "calculated" };
 
     if (cents(calc.provincialTaxPayableCents) > 0 && isQC) addTp1("430", cents(calc.provincialTaxPayableCents), "calculated");
+  } else {
+    // Pas de calcul moteur — alimenter 43700 depuis OCR uniquement
+    s43700 = t1Amounts["43700"]?.cents ?? 0;
+    s48200 = s43700; // pas de CWB sans moteur
   }
 
   // Totaux calculés
