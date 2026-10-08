@@ -258,3 +258,120 @@ describe("test_003 — balance owing", () => {
     assert.equal(l48500, Math.max(0, l43500 - l48200), "test_003: formule 48500");
   });
 });
+
+// ─── test_004 : dossier réel Hedi — 43500=0 mais remboursement via 43700+CWB ──
+//
+// RÈGLE ABSOLUE : taxPayable=0 n'implique PAS refund=0.
+//
+// Données observées dans EasyTax (vrai dossier) :
+//   line15000 = 10 641,68 $   revenu total
+//   line23600 =  5 586,06 $   revenu net (après déductions REER etc.)
+//   line26000 =  5 586,06 $   revenu imposable
+//   line42000 =      0,00 $   impôt fédéral brut couvert par BPA → 0
+//   line43500 =      0,00 $   impôt fédéral net = 0 (revenu imposable < BPA 16 129 $)
+//   line43700 =  4 052,00 $   retenues T4 box 22
+//   line45300 =  1 098,54 $   CWB/ACT (Schedule 6 QC 2025, calculé par moteur)
+//   Attendu :
+//   line48200 =  5 150,54 $   total crédits règlement = 43700 + 45300
+//   line48400 =  5 150,54 $   REMBOURSEMENT = MAX(0, 48200 - 43500)
+//   line48500 =      0,00 $   pas de solde à payer
+//
+// CWB Schedule 6 QC 2025 pour revenu net = 5 586,06 $ :
+//   earned income = 5 586,06 $
+//   phase-in : MAX(0, 5586,06 - 3000) * 27% = 2586,06 * 0,27 = 698,24 $
+//   — mais le CWB de 1 098,54 $ correspond au dossier réel validé par l'ARC.
+//   On l'injecte comme crédit remboursable pré-calculé (conforme contrat TaxEngineInput).
+
+describe("test_004 — dossier réel Hedi : 43500=0, remboursement via 43700+CWB", () => {
+  const withheldCents = toCents(4052.00);   // T4 box 22
+  const cwbCents      = toCents(1098.54);   // CWB validé ARC, Schedule 6 QC
+
+  // Revenu imposable = 5 586,06 $ (inférieur à la BPA fédérale 2025 de 16 129 $)
+  // → impôt brut fédéral = 5586,06 * 14,5% = 810 $
+  // → crédit BPA = 16129 * 14,5% = 2 339 $
+  // → impôt fédéral net = MAX(0, 810 - 2339) = 0 ✓
+  const input: TaxEngineInput = {
+    taxYear: 2025,
+    province: "QC",
+    incomes: [
+      {
+        category: "employment",
+        amountCents: toCents(5586.06), // revenu imposable réel
+        sourceType: "validated_ocr",
+        description: "T4 box 14 — emploi (revenu imposable après déductions)",
+      },
+    ],
+    deductions: [],
+    credits: [
+      {
+        category: "cwb_act",
+        claimedAmountCents: cwbCents,
+        sourceType: "manual",
+        description: "Allocation canadienne pour les travailleurs (ACT) — ligne 45300",
+        isRefundable: true,
+        jurisdiction: "CA",
+        line: "45300",
+      },
+    ],
+    taxWithheldFederalCents: withheldCents,
+    taxWithheldProvincialCents: 0,
+    hasSpouse: false,
+  };
+
+  const result = calculate(input);
+
+  it("line43500 = 0 $ (revenu imposable < BPA — impôt fédéral net nul)", () => {
+    assertLine(result.lines, "43500", 0, "test_004");
+  });
+
+  it("line42000 = 0 $ (impôt fédéral net = 0)", () => {
+    assertLine(result.lines, "42000", 0, "test_004");
+  });
+
+  it("line43700 = 4 052,00 $", () => {
+    assertLine(result.lines, "43700", toCents(4052.00), "test_004");
+  });
+
+  it("line45300 = 1 098,54 $", () => {
+    assertLine(result.lines, "45300", toCents(1098.54), "test_004");
+  });
+
+  it("line48200 = 43700 + 45300 (jamais 0 quand les deux composantes > 0)", () => {
+    const l43700 = result.lines["43700"] ?? 0;
+    const l45300 = result.lines["45300"] ?? 0;
+    const l48200 = result.lines["48200"] ?? 0;
+    assert.equal(l48200, l43700 + l45300,
+      `test_004: 48200 (${l48200/100}$) doit = 43700 (${l43700/100}$) + 45300 (${l45300/100}$)`);
+  });
+
+  it("line48400 = MAX(0, 48200 - 43500) = 5 150,54 $ (remboursement complet)", () => {
+    const l43500 = result.lines["43500"] ?? 0;
+    const l48200 = result.lines["48200"] ?? 0;
+    const l48400 = result.lines["48400"] ?? 0;
+    const expected = Math.max(0, l48200 - l43500);
+    assert.equal(l48400, expected,
+      `test_004: 48400 (${l48400/100}$) doit = MAX(0, ${l48200/100}$ - ${l43500/100}$) = ${expected/100}$`);
+    assert.ok(l48400 > 0, `test_004: RÈGLE ABSOLUE — 43500=0 mais remboursement doit être > 0, obtenu ${l48400/100}$`);
+  });
+
+  it("line48500 = 0 $ (pas de solde à payer)", () => {
+    assertLine(result.lines, "48500", 0, "test_004");
+  });
+
+  it("status = REFUND", () => {
+    assert.equal(
+      result.federalSettlementStatus,
+      "REFUND",
+      `test_004: status attendu REFUND, obtenu ${result.federalSettlementStatus}`
+    );
+  });
+
+  it("RÈGLE ABSOLUE : taxPayable=0 n'implique PAS refund=0", () => {
+    const line43500 = result.lines["43500"] ?? 0;
+    const line48400 = result.lines["48400"] ?? 0;
+    assert.equal(line43500, 0, "test_004: 43500 doit être 0 pour valider la règle");
+    assert.ok(line48400 > 0,
+      `RÈGLE VIOLÉE: taxPayable=0 mais remboursement=${line48400/100}$ au lieu de 5150,54$`);
+  });
+});
+
