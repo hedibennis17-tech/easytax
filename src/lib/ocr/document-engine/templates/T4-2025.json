@@ -1,0 +1,113 @@
+{
+  "documentType": "T4",
+  "taxYear": 2025,
+  "authority": "federal",
+  "name_fr": "État de la rémunération payée",
+  "name_en": "Statement of Remuneration Paid",
+  "anchors": ["Statement of Remuneration Paid", "État de la rémunération payée", "T4"],
+
+  "instructionsMarkers": [
+    "Do not report on your tax return",
+    "Ne déclarez pas les renseignements",
+    "Canada Revenue Agency use only",
+    "À l'usage de l'Agence du revenu du Canada"
+  ],
+
+  "fields": {
+    "taxYear": {
+      "type": "year",
+      "required": true,
+      "keywords_fr": ["année"],
+      "keywords_en": ["year"]
+    },
+    "box_14": {
+      "type": "money",
+      "required": true,
+      "label_fr": "Revenus d'emploi",
+      "label_en": "Employment income",
+      "t1_line": "10100",
+      "tp1_line": null,
+      "keywords_fr": ["revenus d'emploi", "case 14"],
+      "keywords_en": ["employment income", "box 14"],
+      "mustNotMatch": ["account number", "numéro de compte"]
+    },
+    "box_16": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisations de l'employé au RPC",
+      "label_en": "Employee's CPP contributions",
+      "t1_line": "30800",
+      "keywords_fr": ["cotisations rrq", "case 16"],
+      "keywords_en": ["cpp contributions", "box 16"],
+      "mustNotMatch": ["account number", "numéro de compte"]
+    },
+    "box_18": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisations de l'employé à l'assurance-emploi",
+      "label_en": "Employee's EI premiums",
+      "t1_line": "31200",
+      "keywords_fr": ["cotisations ae", "case 18"],
+      "keywords_en": ["ei premiums", "box 18"],
+      "mustNotMatch": ["account number", "numéro de compte"]
+    },
+    "box_22": {
+      "type": "money",
+      "required": true,
+      "label_fr": "Impôt sur le revenu retenu",
+      "label_en": "Income tax deducted",
+      "t1_line": "43700",
+      "keywords_fr": ["impôt retenu", "case 22"],
+      "keywords_en": ["income tax deducted", "box 22"],
+      "mustNotMatch": ["line 43700", "ligne 43700"]
+    },
+    "box_24": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Gains assurables d'assurance-emploi",
+      "label_en": "EI insurable earnings",
+      "t1_line": null,
+      "keywords_en": ["ei insurable earnings", "box 24"]
+    },
+    "box_26": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Gains ouvrant droit à pension (RPC/RRQ)",
+      "label_en": "CPP/QPP pensionable earnings",
+      "t1_line": null,
+      "keywords_en": ["pensionable earnings", "box 26"]
+    },
+    "box_44": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisations syndicales",
+      "label_en": "Union dues",
+      "t1_line": "21200",
+      "keywords_fr": ["cotisations syndicales"],
+      "keywords_en": ["union dues", "box 44"]
+    },
+    "box_52": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Facteur d'équivalence",
+      "label_en": "Pension adjustment",
+      "t1_line": "20600",
+      "keywords_fr": ["facteur d'équivalence"],
+      "keywords_en": ["pension adjustment", "box 52"]
+    }
+  },
+
+  "fiscalMapping": {
+    "box_14": { "federal": { "addTo": ["10100"] }, "quebec": { "addTo": ["101"] } },
+    "box_16": { "federal": { "addTo": ["30800"] } },
+    "box_18": { "federal": { "addTo": ["31200"] } },
+    "box_22": { "federal": { "addTo": ["43700"] } },
+    "box_44": { "federal": { "addTo": ["21200"] } },
+    "box_52": { "federal": { "addTo": ["20600"] } }
+  },
+
+  "validationRules": {
+    "box_14": { "min": 1, "max": 9999999 },
+    "box_22": { "max_pct_of": "box_14", "max_pct": 0.55 }
+  }
+}

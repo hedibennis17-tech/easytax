@@ -1,0 +1,159 @@
+{
+  "documentType": "RL-1",
+  "taxYear": 2025,
+  "authority": "quebec",
+  "name_fr": "Revenus d'emploi et revenus divers",
+  "name_en": "Employment and Other Income",
+  "anchors": ["Relevé 1", "RL-1", "Revenus d'emploi et revenus divers", "Employment and Other Income"],
+
+  "instructionsMarkers": [
+    "Ne déclarez pas les renseignements",
+    "Do not report on your tax return",
+    "Revenu Québec",
+    "À l'usage de Revenu Québec"
+  ],
+
+  "fields": {
+    "taxYear": {
+      "type": "year",
+      "required": true,
+      "keywords_fr": ["année"],
+      "keywords_en": ["year"]
+    },
+    "box_A": {
+      "type": "money",
+      "required": true,
+      "label_fr": "Revenus d'emploi",
+      "label_en": "Employment income",
+      "tp1_line": "101",
+      "keywords_fr": ["revenus d'emploi", "case a"],
+      "keywords_en": ["employment income", "box a"],
+      "mustNotMatch": ["account number", "numéro de compte"]
+    },
+    "box_B": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisations au RRQ",
+      "label_en": "QPP contributions",
+      "tp1_line": "98",
+      "keywords_fr": ["cotisations rrq", "case b"],
+      "keywords_en": ["qpp contributions", "box b"],
+      "mustNotMatch": ["account number", "numéro de compte"]
+    },
+    "box_C": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisations à l'assurance-emploi",
+      "label_en": "EI premiums",
+      "tp1_line": "375",
+      "keywords_fr": ["cotisations ae", "case c"],
+      "keywords_en": ["ei premiums", "box c"]
+    },
+    "box_D": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisations à un RPA",
+      "label_en": "RPP contributions",
+      "tp1_line": "205",
+      "keywords_fr": ["cotisations rpa", "case d"],
+      "keywords_en": ["rpp contributions", "box d"]
+    },
+    "box_E": {
+      "type": "money",
+      "required": true,
+      "label_fr": "Impôt du Québec retenu",
+      "label_en": "Quebec income tax withheld",
+      "tp1_line": "451",
+      "keywords_fr": ["impôt du québec retenu", "impôt retenu", "case e"],
+      "keywords_en": ["quebec income tax", "box e"],
+      "mustNotMatch": ["ligne 451", "line 451"]
+    },
+    "box_G": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Salaire admissible au RRQ",
+      "label_en": "QPP pensionable salary",
+      "tp1_line": null,
+      "keywords_fr": ["salaire admissible rrq", "case g"],
+      "keywords_en": ["qpp pensionable salary", "box g"]
+    },
+    "box_H": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisations au RQAP",
+      "label_en": "QPIP premiums",
+      "tp1_line": "375",
+      "keywords_fr": ["cotisations rqap", "case h"],
+      "keywords_en": ["qpip premiums", "box h"]
+    },
+    "box_I": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Salaire admissible au RQAP",
+      "label_en": "QPIP insurable salary",
+      "tp1_line": null,
+      "keywords_fr": ["salaire admissible rqap", "case i"],
+      "keywords_en": ["qpip insurable salary", "box i"]
+    },
+    "box_J": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisations syndicales",
+      "label_en": "Union dues",
+      "tp1_line": "373",
+      "keywords_fr": ["cotisations syndicales", "case j"],
+      "keywords_en": ["union dues", "box j"]
+    },
+    "box_L": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Autres avantages",
+      "label_en": "Other benefits",
+      "tp1_line": "101",
+      "keywords_fr": ["autres avantages", "case l"],
+      "keywords_en": ["other benefits", "box l"]
+    },
+    "box_P": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Régime d'assurance collective",
+      "label_en": "Group insurance premiums",
+      "tp1_line": null,
+      "keywords_fr": ["assurance collective", "case p"],
+      "keywords_en": ["group insurance", "box p"]
+    },
+    "box_Q": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Salaires différés",
+      "label_en": "Deferred salary",
+      "tp1_line": null,
+      "keywords_fr": ["salaires différés", "case q"],
+      "keywords_en": ["deferred salary", "box q"]
+    },
+    "box_R": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Revenu de retraite progressif",
+      "label_en": "Phased retirement income",
+      "tp1_line": "122",
+      "keywords_fr": ["retraite progressive", "case r"],
+      "keywords_en": ["phased retirement", "box r"]
+    }
+  },
+
+  "fiscalMapping": {
+    "box_A": { "federal": { "addTo": ["10100"] }, "quebec": { "addTo": ["101"] } },
+    "box_B": { "federal": { "addTo": ["30800"] }, "quebec": { "addTo": ["98"] } },
+    "box_C": { "federal": { "addTo": ["31200"] }, "quebec": { "addTo": ["375"] } },
+    "box_D": { "federal": { "addTo": ["20700"] }, "quebec": { "addTo": ["205"] } },
+    "box_E": { "quebec": { "addTo": ["451"] } },
+    "box_J": { "federal": { "addTo": ["21200"] }, "quebec": { "addTo": ["373"] } },
+    "box_H": { "quebec": { "addTo": ["375"] } }
+  },
+
+  "validationRules": {
+    "box_A": { "min": 1, "max": 9999999 },
+    "box_E": { "max_pct_of": "box_A", "max_pct": 0.55 }
+  }
+}

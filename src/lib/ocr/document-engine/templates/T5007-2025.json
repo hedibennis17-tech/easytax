@@ -1,0 +1,85 @@
+{
+  "documentType": "T5007",
+  "taxYear": 2025,
+  "authority": "federal",
+  "name_fr": "État des prestations de bien-être social et d'indemnités pour accidents du travail",
+  "name_en": "Statement of Benefits",
+  "anchors": ["Statement of Benefits", "T5007", "Workers' compensation", "Indemnités pour accidents"],
+
+  "instructionsMarkers": [
+    "Do not report on your tax return",
+    "Ne déclarez pas les renseignements",
+    "Canada Revenue Agency use only",
+    "À l'usage de l'Agence du revenu du Canada"
+  ],
+
+  "fields": {
+    "taxYear": {
+      "type": "year",
+      "required": true,
+      "keywords_fr": ["année"],
+      "keywords_en": ["year"]
+    },
+    "box_10": {
+      "type": "money",
+      "required": true,
+      "label_fr": "Indemnités pour accidents du travail",
+      "label_en": "Workers' compensation benefits",
+      "t1_line": "14400",
+      "keywords_fr": ["indemnités accidents", "case 10"],
+      "keywords_en": ["workers compensation", "workers' compensation", "box 10"],
+      "mustNotMatch": ["line 14400", "ligne 14400", "account number", "numéro de compte"]
+    },
+    "box_11": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Prestations de bien-être social",
+      "label_en": "Social assistance payments",
+      "t1_line": "14500",
+      "keywords_fr": ["bien-être social", "case 11"],
+      "keywords_en": ["social assistance", "box 11"],
+      "mustNotMatch": ["line 14500", "ligne 14500"]
+    },
+    "box_12": {
+      "type": "sin",
+      "required": false,
+      "label_fr": "Numéro d'assurance sociale",
+      "label_en": "Social insurance number",
+      "t1_line": null,
+      "keywords_fr": ["nas", "numéro d'assurance"],
+      "keywords_en": ["sin", "social insurance number", "box 12"]
+    },
+    "box_13": {
+      "type": "reportCode",
+      "required": false,
+      "allowed": ["O", "A", "C"],
+      "label_fr": "Code du feuillet",
+      "label_en": "Report code",
+      "t1_line": null,
+      "keywords_fr": ["code du feuillet"],
+      "keywords_en": ["report code", "box 13"]
+    }
+  },
+
+  "fiscalMapping": {
+    "box_10": {
+      "federal": {
+        "addTo": ["14400"],
+        "deductFrom": ["25000"]
+      },
+      "quebec": {
+        "addTo": ["148"]
+      }
+    },
+    "box_11": {
+      "federal": {
+        "addTo": ["14500"],
+        "deductFrom": ["25000"]
+      }
+    }
+  },
+
+  "validationRules": {
+    "box_10": { "min": 1, "max": 9999999 }
+  }
+}

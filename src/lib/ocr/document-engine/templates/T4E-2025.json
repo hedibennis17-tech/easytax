@@ -1,0 +1,81 @@
+{
+  "documentType": "T4E",
+  "taxYear": 2025,
+  "authority": "federal",
+  "name_fr": "État des prestations d'assurance-emploi et autres prestations",
+  "name_en": "Statement of Employment Insurance and Other Benefits",
+  "anchors": ["Statement of Employment Insurance", "T4E", "assurance-emploi"],
+
+  "instructionsMarkers": [
+    "Do not report on your tax return",
+    "Ne déclarez pas les renseignements",
+    "Canada Revenue Agency use only",
+    "À l'usage de l'Agence du revenu du Canada"
+  ],
+
+  "fields": {
+    "taxYear": {
+      "type": "year",
+      "required": true,
+      "keywords_fr": ["année"],
+      "keywords_en": ["year"]
+    },
+    "box_14": {
+      "type": "money",
+      "required": true,
+      "label_fr": "Prestations brutes",
+      "label_en": "Gross benefits paid",
+      "t1_line": "11900",
+      "keywords_fr": ["prestations brutes", "case 14"],
+      "keywords_en": ["gross benefits", "box 14"],
+      "mustNotMatch": ["line 11900", "ligne 11900", "account number", "numéro de compte"]
+    },
+    "box_15": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Remboursement des prestations",
+      "label_en": "Regular benefits repaid",
+      "t1_line": null,
+      "keywords_fr": ["remboursement", "case 15"],
+      "keywords_en": ["benefits repaid", "box 15"]
+    },
+    "box_17": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Impôt sur le revenu retenu",
+      "label_en": "Income tax deducted",
+      "t1_line": "43700",
+      "keywords_fr": ["impôt retenu", "case 17"],
+      "keywords_en": ["income tax deducted", "box 17"],
+      "mustNotMatch": ["line 43700", "ligne 43700"]
+    },
+    "box_21": {
+      "type": "weeks",
+      "required": false,
+      "label_fr": "Nombre de semaines pour les prestations régulières",
+      "label_en": "Number of insurable weeks",
+      "t1_line": null,
+      "keywords_fr": ["semaines assurables", "case 21"],
+      "keywords_en": ["insurable weeks", "box 21"]
+    },
+    "box_36": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Allocations de retraite",
+      "label_en": "Pension income",
+      "t1_line": "11500",
+      "keywords_fr": ["revenus de pension", "case 36"],
+      "keywords_en": ["pension income", "box 36"]
+    }
+  },
+
+  "fiscalMapping": {
+    "box_14": { "federal": { "addTo": ["11900"] }, "quebec": { "addTo": ["114"] } },
+    "box_17": { "federal": { "addTo": ["43700"] } }
+  },
+
+  "validationRules": {
+    "box_14": { "min": 1, "max": 9999999 },
+    "box_17": { "max_pct_of": "box_14", "max_pct": 0.55 }
+  }
+}

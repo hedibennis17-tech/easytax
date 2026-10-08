@@ -1,0 +1,129 @@
+{
+  "documentType": "T5",
+  "taxYear": 2025,
+  "authority": "federal",
+  "name_fr": "État des revenus de placements",
+  "name_en": "Statement of Investment Income",
+  "anchors": ["Statement of Investment Income", "État des revenus de placements", "T5"],
+
+  "instructionsMarkers": [
+    "Do not report on your tax return",
+    "Ne déclarez pas les renseignements",
+    "Canada Revenue Agency use only",
+    "À l'usage de l'Agence du revenu du Canada"
+  ],
+
+  "fields": {
+    "taxYear": {
+      "type": "year",
+      "required": true,
+      "keywords_fr": ["année"],
+      "keywords_en": ["year"]
+    },
+    "box_10": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Dividendes réels de sociétés canadiennes imposables",
+      "label_en": "Actual amount of eligible dividends",
+      "t1_line": "12000",
+      "keywords_fr": ["dividendes réels", "case 10"],
+      "keywords_en": ["eligible dividends", "actual amount", "box 10"]
+    },
+    "box_11": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Dividendes majorés",
+      "label_en": "Taxable amount of eligible dividends",
+      "t1_line": "12000",
+      "keywords_fr": ["dividendes majorés", "case 11"],
+      "keywords_en": ["taxable amount eligible dividends", "box 11"]
+    },
+    "box_12": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Crédit d'impôt pour dividendes admissibles",
+      "label_en": "Dividend tax credit for eligible dividends",
+      "t1_line": "40425",
+      "keywords_fr": ["crédit dividendes", "case 12"],
+      "keywords_en": ["dividend tax credit", "box 12"],
+      "mustNotMatch": ["line 40425", "ligne 40425"]
+    },
+    "box_13": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Intérêts et autres revenus de placements",
+      "label_en": "Interest from Canadian sources",
+      "t1_line": "12100",
+      "keywords_fr": ["intérêts", "case 13"],
+      "keywords_en": ["interest from canadian sources", "box 13"]
+    },
+    "box_14": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Autres revenus de placements",
+      "label_en": "Other income from Canadian sources",
+      "t1_line": "12100",
+      "keywords_fr": ["autres revenus placements", "case 14"],
+      "keywords_en": ["other income canadian", "box 14"]
+    },
+    "box_15": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Dividendes réels de sociétés canadiennes imposables (non admissibles)",
+      "label_en": "Actual amount of ordinary dividends",
+      "t1_line": "12000",
+      "keywords_fr": ["dividendes ordinaires", "case 15"],
+      "keywords_en": ["ordinary dividends", "box 15"]
+    },
+    "box_16": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Dividendes majorés (non admissibles)",
+      "label_en": "Taxable amount of ordinary dividends",
+      "t1_line": "12000",
+      "keywords_fr": ["case 16"],
+      "keywords_en": ["taxable ordinary dividends", "box 16"]
+    },
+    "box_17": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Crédit d'impôt pour dividendes non admissibles",
+      "label_en": "Dividend tax credit for ordinary dividends",
+      "t1_line": "40425",
+      "keywords_fr": ["case 17"],
+      "keywords_en": ["dividend tax credit ordinary", "box 17"]
+    },
+    "box_25": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Gains en capital admissibles au taux réduit",
+      "label_en": "Foreign income",
+      "t1_line": "12100",
+      "keywords_fr": ["revenus étrangers", "case 25"],
+      "keywords_en": ["foreign income", "box 25"]
+    },
+    "box_26": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Impôt étranger payé sur le revenu ne provenant pas d'une entreprise",
+      "label_en": "Foreign tax paid",
+      "t1_line": "43100",
+      "keywords_fr": ["impôt étranger", "case 26"],
+      "keywords_en": ["foreign tax paid", "box 26"]
+    }
+  },
+
+  "fiscalMapping": {
+    "box_10": { "federal": { "addTo": ["12000"] } },
+    "box_11": { "federal": { "addTo": ["12000"] } },
+    "box_12": { "federal": { "addTo": ["40425"] } },
+    "box_13": { "federal": { "addTo": ["12100"] } },
+    "box_14": { "federal": { "addTo": ["12100"] } },
+    "box_25": { "federal": { "addTo": ["12100"] } },
+    "box_26": { "federal": { "addTo": ["43100"] } }
+  },
+
+  "validationRules": {
+    "box_13": { "min": 0.01, "max": 9999999 }
+  }
+}

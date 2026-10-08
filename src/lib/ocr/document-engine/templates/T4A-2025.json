@@ -1,0 +1,159 @@
+{
+  "documentType": "T4A",
+  "taxYear": 2025,
+  "authority": "federal",
+  "name_fr": "État du revenu de pension, de retraite, de rente ou d'autres sources",
+  "name_en": "Statement of Pension, Retirement, Annuity, and Other Income",
+  "anchors": ["Statement of Pension, Retirement, Annuity", "État du revenu de pension", "T4A"],
+
+  "instructionsMarkers": [
+    "Do not report on your tax return",
+    "Ne déclarez pas les renseignements",
+    "Canada Revenue Agency use only",
+    "À l'usage de l'Agence du revenu du Canada",
+    "See the privacy notice on your return",
+    "Consultez l'avis de confidentialité"
+  ],
+
+  "fields": {
+    "taxYear": {
+      "type": "year",
+      "required": true,
+      "keywords_fr": ["année"],
+      "keywords_en": ["year"]
+    },
+    "box_16": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Prestations de retraite ou de pension",
+      "label_en": "Pension or superannuation",
+      "t1_line": "11500",
+      "keywords_fr": ["prestations de retraite", "pension", "case 16"],
+      "keywords_en": ["pension or superannuation", "box 16"],
+      "mustNotMatch": ["account number", "numéro de compte", "line 11500", "ligne 11500"]
+    },
+    "box_18": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Prestations pour études postsecondaires",
+      "label_en": "Lump-sum payments",
+      "t1_line": "13000",
+      "keywords_fr": ["paiements forfaitaires", "case 18"],
+      "keywords_en": ["lump-sum payments", "box 18"],
+      "mustNotMatch": ["account number", "numéro de compte"]
+    },
+    "box_20": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Honoraires ou autres sommes pour services rendus",
+      "label_en": "Self-employed commissions",
+      "t1_line": "13500",
+      "keywords_fr": ["commissions travailleur indépendant", "case 20"],
+      "keywords_en": ["self-employed commissions", "box 20"],
+      "mustNotMatch": ["account number", "numéro de compte"]
+    },
+    "box_22": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Impôt sur le revenu retenu",
+      "label_en": "Income tax deducted",
+      "t1_line": "43700",
+      "keywords_fr": ["impôt retenu", "case 22"],
+      "keywords_en": ["income tax deducted", "box 22"],
+      "mustNotMatch": ["line 43700", "ligne 43700", "account number", "numéro de compte"]
+    },
+    "box_24": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Prestations d'aide à l'éducation",
+      "label_en": "Educational assistance payments",
+      "t1_line": "13010",
+      "keywords_fr": ["aide à l'éducation", "case 24"],
+      "keywords_en": ["educational assistance", "box 24"]
+    },
+    "box_28": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Autres revenus",
+      "label_en": "Other income",
+      "t1_line": "13000",
+      "keywords_fr": ["autres revenus", "case 28"],
+      "keywords_en": ["other income", "box 28"],
+      "mustNotMatch": ["account number", "numéro de compte"]
+    },
+    "box_048": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Honoraires ou autres sommes pour services",
+      "label_en": "Fees for services",
+      "t1_line": "13500",
+      "keywords_fr": ["honoraires", "case 048"],
+      "keywords_en": ["fees for services", "box 048"]
+    },
+    "box_105": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Bourses d'études, de perfectionnement ou artistiques",
+      "label_en": "Scholarships, fellowships, bursaries, and prizes",
+      "t1_line": "13010",
+      "keywords_fr": ["bourses", "case 105"],
+      "keywords_en": ["scholarships", "bursaries", "box 105"]
+    },
+    "box_118": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Revenu d'un REER",
+      "label_en": "Medical premium benefits",
+      "t1_line": "12900",
+      "keywords_fr": ["revenu d'un reer", "case 118"],
+      "keywords_en": ["rrsp income", "box 118"],
+      "mustNotMatch": ["line 12900", "ligne 12900"]
+    },
+    "box_135": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Rentes",
+      "label_en": "Recipient-paid premiums for private health services plans",
+      "t1_line": "33099",
+      "keywords_fr": ["rentes", "case 135"],
+      "keywords_en": ["annuities", "box 135"],
+      "mustNotMatch": ["line 33099", "ligne 33099"]
+    },
+    "box_150": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Prestations de régime de participation des employés aux bénéfices",
+      "label_en": "DPSP payments",
+      "t1_line": "11500",
+      "keywords_fr": ["case 150"],
+      "keywords_en": ["dpsp", "box 150"],
+      "mustNotMatch": ["line 11500", "ligne 11500"]
+    },
+    "box_152": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisations à un REER de l'employeur",
+      "label_en": "RRSP employer contributions",
+      "t1_line": null,
+      "keywords_fr": ["case 152"],
+      "keywords_en": ["rrsp employer", "box 152"]
+    }
+  },
+
+  "fiscalMapping": {
+    "box_16": { "federal": { "addTo": ["11500"] }, "quebec": { "addTo": ["122"] } },
+    "box_18": { "federal": { "addTo": ["13000"] } },
+    "box_20": { "federal": { "addTo": ["13500"] } },
+    "box_22": { "federal": { "addTo": ["43700"] } },
+    "box_24": { "federal": { "addTo": ["13010"] } },
+    "box_28": { "federal": { "addTo": ["13000"] } },
+    "box_048": { "federal": { "addTo": ["13500"] } },
+    "box_105": { "federal": { "addTo": ["13010"] } },
+    "box_118": { "federal": { "addTo": ["12900"] } }
+  },
+
+  "validationRules": {
+    "box_16": { "min": 1, "max": 9999999 },
+    "box_22": { "max_pct_of": "box_16", "max_pct": 0.55 }
+  }
+}
