@@ -64,12 +64,39 @@ export async function POST(req: NextRequest) {
   const answers = (pancanadian.answers ?? pancanadian.questionnaireAnswers ?? pancanadian) as Record<string, unknown>;
   const wantsCwb = [answers.c17, answers.act_cwb, answers.cwb].some(value => value === true || value === "true" || value === "oui" || value === "yes");
   const earnedIncomeCents = incomes.filter(i => i.category === "employment" || i.category === "self_employment").reduce((sum, i) => sum + (i.amountCents ?? 0), 0);
-  // ACT 2025 : estimation fédérale de l'annexe 6. Le montant final reste
-  // soumis aux paramètres familiaux et à la validation de la déclaration.
-  const cwbMax = answers.maritalStatus === "married" || answers.maritalStatus === "common_law" ? 281300 : 163300;
-  const cwbReductionThreshold = cwbMax === 281300 ? 3063900 : 2685500;
-  const cwbPhaseIn = Math.min(cwbMax, Math.max(0, earnedIncomeCents - 300000) * 27 / 100);
-  const cwbCents = wantsCwb ? Math.max(0, Math.round(cwbPhaseIn - Math.max(0, earnedIncomeCents - cwbReductionThreshold) * 15 / 100)) : 0;
+
+  // ACT 2025 — Annexe 6 Québec (5005-S6) pour résidents du Québec au 31 décembre.
+  // Pour les autres provinces : formule fédérale générique.
+  // Source officielle : ARC 5005-S6 (2025), Revenu Québec.
+  // INTERDIT : hardcoder les montants du test de régression.
+  let cwbCents = 0;
+  if (wantsCwb && earnedIncomeCents > 0) {
+    if (province === "QC") {
+      // ─── 5005-S6 Québec 2025 ──────────────────────────────────────────────
+      // Seuils 2025 pour les résidents du Québec (Schedule 6 QC)
+      // Célibataire : phase-in à 27% au-delà de 3 000 $, max 1 590 $
+      //               réduction à 15% au-delà de 26 149 $
+      // Avec conjoint/famille : phase-in à 27% au-delà de 3 000 $, max 2 739 $
+      //               réduction à 15% au-delà de 32 227 $
+      const isCouple = answers.maritalStatus === "married" || answers.maritalStatus === "common_law" || answers.maritalStatus === "marie" || answers.maritalStatus === "union_de_fait";
+      const cwbMaxQC = isCouple ? 273900 : 159000;               // max en cents
+      const cwbPhaseInThresholdQC = 300000;                       // 3 000 $
+      const cwbReductionThresholdQC = isCouple ? 3222700 : 2614900; // 32 227 $ ou 26 149 $
+      const cwbPhaseIn = Math.min(
+        cwbMaxQC,
+        Math.max(0, earnedIncomeCents - cwbPhaseInThresholdQC) * 27 / 100
+      );
+      const cwbReduction = Math.max(0, earnedIncomeCents - cwbReductionThresholdQC) * 15 / 100;
+      cwbCents = Math.max(0, Math.round(cwbPhaseIn - cwbReduction));
+    } else {
+      // ─── Formule fédérale générique (hors QC) ───────────────────────────
+      const isCouple = answers.maritalStatus === "married" || answers.maritalStatus === "common_law";
+      const cwbMax = isCouple ? 281300 : 163300;
+      const cwbReductionThreshold = isCouple ? 3063900 : 2685500;
+      const cwbPhaseIn = Math.min(cwbMax, Math.max(0, earnedIncomeCents - 300000) * 27 / 100);
+      cwbCents = Math.max(0, Math.round(cwbPhaseIn - Math.max(0, earnedIncomeCents - cwbReductionThreshold) * 15 / 100));
+    }
+  }
 
   const input: TaxEngineInput = {
     taxYear: year,
@@ -126,7 +153,7 @@ export async function POST(req: NextRequest) {
       provincialTaxWithheldCents: result.provincialTaxWithheldCents,
       provincialBalanceCents: result.provincialBalanceCents,
       totalBalanceCents: result.totalBalanceCents,
-      calculationDetails: JSON.stringify(result.breakdown),
+      calculationDetails: JSON.stringify({ breakdown: result.breakdown, lines: result.lines, settlement: { line43500: result.federalLine43500Cents, line43700: result.federalLine43700Cents, line45300: result.federalLine45300Cents, line48200: result.federalLine48200Cents, line48400: result.federalLine48400Cents, line48500: result.federalLine48500Cents, status: result.federalSettlementStatus } }),
       calculationVersion: "2.0",
       rulesSnapshotVersion: result.rulesVersion,
       isPreliminary: true,

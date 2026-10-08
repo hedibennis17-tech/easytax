@@ -179,6 +179,21 @@ export interface TaxCalculationResult {
   federalBalanceCents: number;
   federalRefundableCreditsCents: number;
 
+  // Settlement federal (lignes T1)
+  // line43500 = total à payer
+  // line43700 = impôt total retenu (T4 box 22 + autres feuillets)
+  // line45300 = ACT/CWB remboursable
+  // line48200 = 43700 + 45300 + autres crédits remboursables
+  // line48400 = MAX(0, 48200 - 43500) → remboursement
+  // line48500 = MAX(0, 43500 - 48200) → solde à payer
+  federalLine43500Cents: number;
+  federalLine43700Cents: number;
+  federalLine45300Cents: number;
+  federalLine48200Cents: number;
+  federalLine48400Cents: number; // refund
+  federalLine48500Cents: number; // balance owing
+  federalSettlementStatus: "REFUND" | "BALANCE_OWING" | "ZERO";
+
   // Provincial
   provincialTaxBeforeCreditsCents: number;
   provincialSurtaxCents: number;        // 0 sauf ON
