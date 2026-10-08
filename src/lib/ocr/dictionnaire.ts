@@ -375,13 +375,22 @@ export function findBoxValueInText(
   const lower = ocrText.toLowerCase();
   const MONEY_RE = new RegExp(MONEY_CAPTURE);
   for (const kw of [...new Set([...box.keywords_fr, ...(box.ocrAliases ?? []), ...box.keywords_en])]) {
-    const idx = lower.indexOf(kw.toLowerCase());
+    const kwLower = kw.toLowerCase();
+    const idx = lower.indexOf(kwLower);
+    // Éviter que le keyword soit un sous-mot: "150" dans "1500" ou "15000".
+    // Vérifier que le caractère après le keyword n'est pas un chiffre.
+    if (idx >= 0 && /^\d+$/.test(kw)) {
+      const charAfter = lower[idx + kw.length];
+      if (charAfter && /\d/.test(charAfter)) continue;
+    }
     if (idx >= 0) {
       const after = ocrText.slice(idx, idx + 120);
       // Exclure un match de mot-clé si "redressement pour" précède dans les 80 chars avant.
       // Ce contexte décrit des ajustements historiques, pas la case 10 du T5007.
       const before = ocrText.slice(Math.max(0, idx - 80), idx);
       if (/redressement\s+pour/i.test(before)) continue;
+      // Exclure contexte "account number" / "numéro de compte" (numeros de compte employé)
+      if (/(?:account\s+number|numéro\s+de\s+compte)[:\s]*$/i.test(before)) continue;
       const m = after.match(MONEY_RE);
       if (m?.[1] && parseMontantOCR(m[1]) !== null) {
         // Exclure les numéros civiques d'adresse (ex: "1547, RUE TREPANIER")
@@ -417,10 +426,11 @@ export function findBoxValueInText(
       const m5 = ocrText.match(pat5);
       if (m5?.[1]) {
         const raw5 = m5[1].trim().split(/\s+/)[0];
-        // Rejeter si la valeur est précédée d'un libellé "line XXXXX" (numéro de ligne T1)
+        // Rejeter si la valeur est précédée d'un libellé "line XXXXX" ou "account number"
         const matchPos = m5.index ?? 0;
-        const ctxBefore = ocrText.slice(Math.max(0, matchPos - 20), matchPos + 10);
+        const ctxBefore = ocrText.slice(Math.max(0, matchPos - 60), matchPos + 10);
         if (/\b(?:ligne?|line)\s+\d+\s*$/i.test(ctxBefore)) continue;
+        if (/(?:account\s+number|numéro\s+de\s+compte)[:\s]*$/i.test(ctxBefore)) continue;
         if (parseMontantOCR(raw5) !== null) return raw5;
       }
     }
