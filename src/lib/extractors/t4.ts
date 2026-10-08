@@ -308,11 +308,14 @@ export class T4Extractor implements DocumentExtractor {
 
 // Registre des extracteurs
 // T4Extractor: extracteur spécialisé avec patterns hardcodés (haute confiance)
-// UNIVERSAL_EXTRACTORS: extracteur dictionnaire pour les 27 autres feuillets
+// T5007_EXTRACTOR: extracteur zone-based BOXES_ONLY (architecture v2)
+// UNIVERSAL_EXTRACTORS: extracteur dictionnaire pour les autres feuillets
 import { UNIVERSAL_EXTRACTORS } from "./universal";
+import { T5007_EXTRACTOR } from "./t5007";
 
 export const EXTRACTORS: DocumentExtractor[] = [
   new T4Extractor(),    // Extracteur spécialisé T4
+  T5007_EXTRACTOR,      // Extracteur zone-based T5007 (EXTRACT_BOXES_ONLY)
   ...UNIVERSAL_EXTRACTORS, // Extracteurs universels pour T4A, T4E, T5, RL-1, RL-2... (27 feuillets)
 ];
 

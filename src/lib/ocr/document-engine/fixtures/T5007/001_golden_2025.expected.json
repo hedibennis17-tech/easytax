@@ -1,0 +1,54 @@
+{
+  "_note": "Cas de test doré T5007 2025 — Architecture EXTRACT_BOXES_ONLY v2",
+  "_source": "Formulaire CRA T5007 2025 — valeurs de référence officielles",
+  "_golden_rules": [
+    "BOX 10 → 7201.32 → T1 lignes 14400 (ajouter) + 25000 (déduire)",
+    "BOX 12 → NAS 9 chiffres (pas de valeur fiscale, identification seulement)",
+    "BOX 13 → code O (original, pas de valeur fiscale)"
+  ],
+
+  "documentType": "T5007",
+  "taxYear": 2025,
+  "jurisdiction": "CA",
+  "extractionPolicy": "BOXES_ONLY",
+  "templateVersion": "2.0.0",
+
+  "fields": {
+    "box_10": {
+      "raw": "7201.32",
+      "normalized": "7201.32",
+      "type": "MONEY",
+      "taxMapping": {
+        "federal": { "add": ["14400"], "deduct": ["25000"] },
+        "quebec":  { "add": ["148"] }
+      }
+    },
+    "box_11": null,
+    "box_12": {
+      "raw": "123456789",
+      "normalized": "123456789",
+      "type": "SIN",
+      "taxMapping": []
+    },
+    "box_13": {
+      "raw": "O",
+      "normalized": "O",
+      "type": "REPORT_CODE",
+      "taxMapping": []
+    }
+  },
+
+  "expectedTaxLines": {
+    "14400": 7201.32,
+    "25000": 7201.32,
+    "14500": null
+  },
+
+  "antiHallucinationChecks": [
+    "box_10 value must come ONLY from box 10 zone, not from line 14400 label",
+    "box_10 value must not be the number 14400 or 25000",
+    "box_13 value must be O, M, or C only — never a number",
+    "box_12 value must be exactly 9 digits — never the box number 12 itself",
+    "No value from footer, instructions, or privacy notice"
+  ]
+}

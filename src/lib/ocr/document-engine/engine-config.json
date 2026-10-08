@@ -1,0 +1,219 @@
+{
+  "engine": {
+    "name": "EasyTax Document Intelligence Engine",
+    "version": "1.0.0",
+    "taxYear": 2025,
+    "jurisdictions": ["CA", "QC"],
+
+    "coreRule": "EXTRACT_BOXES_ONLY",
+
+    "objective": "Recognize Canadian federal and Quebec tax slips, select the exact year/form template, OCR only declared field zones, validate every extracted value by field type and map only validated values to tax lines.",
+
+    "neverExtractOutsideDeclaredFields": true,
+    "neverUseFullPageOCRAsTaxData": true,
+    "neverInferMissingBoxFromNearbyNumber": true,
+    "neverUseInstructionTextAsData": true,
+    "neverUseExampleNumbersAsData": true,
+    "neverUseFooterNumbersAsTaxValues": true,
+    "neverUseHeaderNumbersAsTaxValues": true,
+    "neverGuessBoxNumber": true,
+
+    "sourcePriority": [
+      "OFFICIAL_FORM_2025",
+      "OFFICIAL_CRA_SPECIFICATION_2025",
+      "OFFICIAL_REVENU_QUEBEC_FORM_2025",
+      "ANNOTATED_TEMPLATE",
+      "OCR_ENGINE",
+      "LLM_VALIDATION"
+    ]
+  },
+
+  "pipeline": {
+    "steps": [
+      "file_ingestion",
+      "document_quality_check",
+      "document_orientation",
+      "document_type_detection",
+      "tax_year_detection",
+      "template_selection",
+      "template_alignment",
+      "field_zone_detection",
+      "zone_ocr",
+      "field_type_validation",
+      "semantic_validation",
+      "normalization",
+      "duplicate_detection",
+      "document_conflict_detection",
+      "tax_line_mapping",
+      "audit_trace",
+      "human_review_if_required",
+      "tax_engine_input"
+    ]
+  },
+
+  "ocr_policy": {
+    "mode": "ZONE_OCR",
+
+    "full_page_text": {
+      "allowed_for": [
+        "document_classification",
+        "language_detection",
+        "form_detection"
+      ],
+      "allowed_as_tax_input": false
+    },
+
+    "field_extraction": {
+      "only_from_registered_zones": true,
+      "zone_must_belong_to_selected_template": true,
+      "unknown_zone_values": "IGNORE",
+      "unmapped_numbers": "IGNORE",
+      "unmapped_text": "IGNORE"
+    },
+
+    "instruction_text": {
+      "extract": false,
+      "storeAsTaxData": false
+    },
+
+    "footer": {
+      "extract": false,
+      "storeAsTaxData": false
+    },
+
+    "examples": {
+      "extract": false,
+      "storeAsTaxData": false
+    }
+  },
+
+  "document_detection": {
+    "required": ["form_number", "tax_year", "jurisdiction"],
+    "confidenceThreshold": 0.92,
+    "ifBelowThreshold": "REVIEW_REQUIRED",
+
+    "knownDocumentTypes": [
+      "T3", "T4", "T4A", "T4A_NR", "T4A_OAS", "T4A_P",
+      "T4E", "T4FHSA", "T4RIF", "T4RSP", "T5", "T5007",
+      "T5008", "T5013", "T5018", "T1204", "T2202", "NR4",
+      "RC62", "RRSP_RECEIPT", "PRPP_RECEIPT", "TFSA",
+      "RL1", "RL2", "RL3", "RL5", "RL6", "RL8", "RL10",
+      "RL18", "RL24", "RL25", "RL26", "RL27", "RL28",
+      "RL29", "RL31", "RL32", "RL34", "RL35", "RL36",
+      "RL37", "RL38", "RL40"
+    ]
+  },
+
+  "field_types": {
+    "YEAR":            { "regex": "^20[0-9]{2}$", "normalize": "INTEGER" },
+    "MONEY":           { "accepted": ["1234.56","1234,56","1 234,56","1,234.56","1 234.56"], "normalize": "DECIMAL_2" },
+    "INTEGER":         { "regex": "^[0-9]+$" },
+    "SIN":             { "regex": "^[0-9]{9}$", "normalize": "REMOVE_SPACES" },
+    "POSTAL_CODE":     { "regex": "^[A-Z][0-9][A-Z][0-9][A-Z][0-9]$", "normalize": "UPPERCASE_REMOVE_SPACE" },
+    "DATE":            { "normalize": "ISO_DATE" },
+    "REPORT_CODE":     { "allowed": ["O", "M", "A", "C"] },
+    "BOX_CODE":        { "normalize": "STRING" },
+    "TEXT":            { "normalize": "TRIM" },
+    "REFERENCE_NUMBER":{ "normalize": "REMOVE_SPACES" }
+  },
+
+  "field_definition": {
+    "requiredProperties": ["id","label","type","zone","required","extract","normalize","validation","taxMapping"],
+    "extractOnlyIfInsideZone": true,
+    "missingValue": null,
+    "neverGuess": true,
+    "lowConfidence": { "threshold": 0.90, "status": "REVIEW_REQUIRED" }
+  },
+
+  "zone_definition": {
+    "coordinateSystem": "NORMALIZED_0_TO_1",
+    "properties": ["id","x","y","width","height","page","fieldId","ocrMode","allowedTypes"],
+    "ocrMode": {
+      "singleLine":    "SINGLE_LINE",
+      "multiline":     "MULTI_LINE",
+      "numeric":       "NUMERIC_ONLY",
+      "alphanumeric":  "ALPHANUMERIC",
+      "code":          "CODE_ONLY"
+    }
+  },
+
+  "normalization": {
+    "money": {
+      "commaDecimal": true, "spaceThousands": true, "periodDecimal": true, "output": "NUMBER"
+    },
+    "year":  { "output": "INTEGER", "validRange": [1900, 2100] },
+    "sin":   { "removeSpaces": true, "preserveLeadingZeros": true, "output": "STRING" }
+  },
+
+  "validation": {
+    "year":   { "mustEqualDocumentTaxYear": true },
+    "money":  { "mustBeNumeric": true },
+    "sin":    { "mustContainExactlyNineDigits": true },
+    "boxValue": { "mustBeInsideDeclaredZone": true },
+    "duplicateCandidate": { "ifMultipleValuesInSameZone": "REVIEW_REQUIRED" },
+    "wrongType":     { "action": "REVIEW_REQUIRED" },
+    "lowConfidence": { "action": "REVIEW_REQUIRED" }
+  },
+
+  "antiHallucination": {
+    "enabled": true,
+    "rules": [
+      "Never create a value that is not visible in the field zone.",
+      "Never infer a missing amount from another box.",
+      "Never copy a value from another document.",
+      "Never copy a value from instructions.",
+      "Never copy a value from an example.",
+      "Never treat a box number as its value.",
+      "Never treat a year as a monetary value.",
+      "Never treat a report code as a monetary value.",
+      "Never treat a reference number as a tax amount.",
+      "Never merge adjacent numeric strings unless the template defines them as one field.",
+      "Never map an unrecognized field to a tax line.",
+      "Never overwrite an existing validated value without creating a conflict.",
+      "Never silently resolve conflicting OCR results."
+    ]
+  },
+
+  "output": {
+    "documentType":    true,
+    "taxYear":         true,
+    "fields":          true,
+    "confidence":      true,
+    "sourceZone":      true,
+    "rawOCR":          true,
+    "normalizedValue": true,
+    "validationStatus":true,
+    "taxMapping":      true,
+    "auditTrace":      true
+  },
+
+  "audit": {
+    "required": [
+      "documentId","documentType","taxYear","fieldId","boxNumber",
+      "rawText","normalizedValue","confidence","page","boundingBox",
+      "ocrEngine","templateVersion","timestamp","validationStatus"
+    ]
+  },
+
+  "testing": {
+    "strategy": "GOLDEN_DOCUMENT_TESTS",
+    "everyTemplateRequires": [
+      "clean_scan","photo","low_quality_scan","rotated_document",
+      "multiple_slips","empty_optional_boxes","different_number_formats",
+      "amended_slip_if_applicable"
+    ],
+    "accuracy": {
+      "documentRecognitionMinimum": 0.98,
+      "fieldExtractionTarget": 0.99,
+      "zeroToleranceForWrongTaxMapping": true
+    },
+    "failurePolicy": {
+      "wrongField":          "FAIL",
+      "wrongBox":            "FAIL",
+      "wrongTaxYear":        "FAIL",
+      "wrongTaxLine":        "FAIL",
+      "hallucinatedValue":   "FAIL",
+      "unrecognizedValue":   "REVIEW_REQUIRED"
+    }
+  }
+}

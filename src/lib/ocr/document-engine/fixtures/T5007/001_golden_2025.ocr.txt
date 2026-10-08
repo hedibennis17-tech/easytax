@@ -1,0 +1,33 @@
+T5007 (25)
+Statement of Benefits / État des prestations de bien-être social et d'indemnités pour accidents du travail
+Year / Année: 2025
+
+| Recipient / Bénéficiaire                    | Payer / Payeur                             |
+| Jean Tremblay                               | Commission des accidents du travail du Québec |
+| 123 Rue Principale, Montréal QC H2X 1Y6    | 1 Complexe Desjardins, Montréal QC H5B 1H1   |
+
+| Box / Case | Description                                                        | Amount / Montant |
+|------------|--------------------------------------------------------------------|-----------------|
+| 10         | Workers' compensation benefits / Indemnités pour accidents du travail | 7 201.32        |
+| 12         | Social insurance number / Numéro d'assurance sociale               | 123 456 789      |
+| 13         | Report code / Code de genre de feuillet                            | O                |
+
+---
+
+INSTRUCTIONS — DO NOT USE AS TAX DATA / INSTRUCTIONS — NE PAS UTILISER COMME DONNÉES FISCALES
+
+Do not report on your tax return the amounts shown in boxes 10 and 11. These amounts are
+already included in your net income. Deduct them on line 25000 of your return.
+For workers' compensation benefits (box 10), include this amount on line 14400.
+For social assistance payments (box 11), include this amount on line 14500.
+
+Ne déclarez pas les renseignements figurant dans les cases 10 et 11. Ces montants sont
+déjà inclus dans votre revenu net. Déduisez-les à la ligne 25000 de votre déclaration.
+Pour les indemnités pour accidents du travail (case 10), incluez ce montant à la ligne 14400.
+Pour les prestations d'assistance sociale (case 11), incluez ce montant à la ligne 14500.
+
+Privacy Act / Loi sur la protection des renseignements personnels
+Canada Revenue Agency use only / À l'usage de l'Agence du revenu du Canada
+
+Example: If you received $1,000.00 in workers' compensation, enter 1000.00 on line 14400.
+Exemple: Si vous avez reçu 1 000,00 $ en indemnités, inscrivez 1000,00 à la ligne 14400.

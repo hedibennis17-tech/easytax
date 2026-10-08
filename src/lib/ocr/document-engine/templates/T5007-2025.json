@@ -2,84 +2,225 @@
   "documentType": "T5007",
   "taxYear": 2025,
   "authority": "federal",
+  "templateVersion": "2.0.0",
+  "engineVersion": "1.0.0",
   "name_fr": "État des prestations de bien-être social et d'indemnités pour accidents du travail",
   "name_en": "Statement of Benefits",
+  "source": "CRA T5007 2025 official form",
+
   "anchors": ["Statement of Benefits", "T5007", "Workers' compensation", "Indemnités pour accidents"],
 
   "instructionsMarkers": [
     "Do not report on your tax return",
     "Ne déclarez pas les renseignements",
     "Canada Revenue Agency use only",
-    "À l'usage de l'Agence du revenu du Canada"
+    "À l'usage de l'Agence du revenu du Canada",
+    "Privacy Act"
   ],
+
+  "ignoredAreas": [
+    "instructions",
+    "privacy_notice",
+    "footer",
+    "form_explanations",
+    "example_text",
+    "page_numbers",
+    "reference_printing_metadata"
+  ],
+
+  "extractionPolicy": "BOXES_ONLY",
+
+  "zones": {
+    "T5007.year": {
+      "id": "T5007.year",
+      "label": "Tax year",
+      "page": 1,
+      "x": 0.72,
+      "y": 0.02,
+      "width": 0.12,
+      "height": 0.05,
+      "ocrMode": "NUMERIC_ONLY",
+      "fieldId": "taxYear"
+    },
+    "T5007.box10": {
+      "id": "T5007.box10",
+      "label": "Box 10 — Workers' compensation benefits",
+      "page": 1,
+      "x": 0.55,
+      "y": 0.25,
+      "width": 0.30,
+      "height": 0.07,
+      "ocrMode": "NUMERIC_ONLY",
+      "fieldId": "box10"
+    },
+    "T5007.box11": {
+      "id": "T5007.box11",
+      "label": "Box 11 — Social assistance payments",
+      "page": 1,
+      "x": 0.55,
+      "y": 0.36,
+      "width": 0.30,
+      "height": 0.07,
+      "ocrMode": "NUMERIC_ONLY",
+      "fieldId": "box11"
+    },
+    "T5007.box12": {
+      "id": "T5007.box12",
+      "label": "Box 12 — Social insurance number",
+      "page": 1,
+      "x": 0.55,
+      "y": 0.47,
+      "width": 0.30,
+      "height": 0.07,
+      "ocrMode": "ALPHANUMERIC",
+      "fieldId": "box12"
+    },
+    "T5007.box13": {
+      "id": "T5007.box13",
+      "label": "Box 13 — Report code",
+      "page": 1,
+      "x": 0.55,
+      "y": 0.58,
+      "width": 0.08,
+      "height": 0.06,
+      "ocrMode": "CODE_ONLY",
+      "fieldId": "box13"
+    },
+    "T5007.recipient": {
+      "id": "T5007.recipient",
+      "label": "Recipient name",
+      "page": 1,
+      "x": 0.02,
+      "y": 0.25,
+      "width": 0.48,
+      "height": 0.09,
+      "ocrMode": "SINGLE_LINE",
+      "fieldId": "recipient"
+    },
+    "T5007.payer": {
+      "id": "T5007.payer",
+      "label": "Payer name",
+      "page": 1,
+      "x": 0.02,
+      "y": 0.36,
+      "width": 0.48,
+      "height": 0.09,
+      "ocrMode": "MULTI_LINE",
+      "fieldId": "payer"
+    }
+  },
 
   "fields": {
     "taxYear": {
-      "type": "year",
+      "fieldId": "T5007.year",
+      "boxNumber": null,
+      "label_fr": "Année d'imposition",
+      "label_en": "Tax year",
+      "type": "YEAR",
       "required": true,
-      "keywords_fr": ["année"],
-      "keywords_en": ["year"]
+      "extract": true,
+      "zone": "T5007.year",
+      "normalize": "INTEGER",
+      "validation": { "mustEqualDocumentTaxYear": true },
+      "taxMapping": []
     },
-    "box_10": {
-      "type": "money",
-      "required": true,
+    "box10": {
+      "fieldId": "T5007.box10",
+      "boxNumber": "10",
       "label_fr": "Indemnités pour accidents du travail",
       "label_en": "Workers' compensation benefits",
-      "t1_line": "14400",
-      "keywords_fr": ["indemnités accidents", "case 10"],
-      "keywords_en": ["workers compensation", "workers' compensation", "box 10"],
-      "mustNotMatch": ["line 14400", "ligne 14400", "account number", "numéro de compte"]
+      "type": "MONEY",
+      "required": true,
+      "extract": true,
+      "zone": "T5007.box10",
+      "normalize": "DECIMAL_2",
+      "validation": { "mustBeNumeric": true, "min": 0, "max": 9999999.99 },
+      "taxMapping": {
+        "federal": { "add": ["14400"], "deduct": ["25000"] },
+        "quebec":  { "add": ["148"] }
+      }
     },
-    "box_11": {
-      "type": "money",
+    "box11": {
+      "fieldId": "T5007.box11",
+      "boxNumber": "11",
+      "label_fr": "Prestations d'assistance sociale ou supplément provincial ou territorial",
+      "label_en": "Social assistance payments or provincial or territorial supplements",
+      "type": "MONEY",
       "required": false,
-      "label_fr": "Prestations de bien-être social",
-      "label_en": "Social assistance payments",
-      "t1_line": "14500",
-      "keywords_fr": ["bien-être social", "case 11"],
-      "keywords_en": ["social assistance", "box 11"],
-      "mustNotMatch": ["line 14500", "ligne 14500"]
+      "extract": true,
+      "zone": "T5007.box11",
+      "normalize": "DECIMAL_2",
+      "validation": { "mustBeNumeric": true, "min": 0, "max": 9999999.99 },
+      "taxMapping": {
+        "federal": { "add": ["14500"], "deduct": ["25000"] }
+      }
     },
-    "box_12": {
-      "type": "sin",
-      "required": false,
+    "box12": {
+      "fieldId": "T5007.box12",
+      "boxNumber": "12",
       "label_fr": "Numéro d'assurance sociale",
       "label_en": "Social insurance number",
-      "t1_line": null,
-      "keywords_fr": ["nas", "numéro d'assurance"],
-      "keywords_en": ["sin", "social insurance number", "box 12"]
-    },
-    "box_13": {
-      "type": "reportCode",
+      "type": "SIN",
       "required": false,
-      "allowed": ["O", "A", "C"],
-      "label_fr": "Code du feuillet",
+      "extract": true,
+      "zone": "T5007.box12",
+      "normalize": "REMOVE_SPACES",
+      "validation": { "mustContainExactlyNineDigits": true },
+      "taxMapping": []
+    },
+    "box13": {
+      "fieldId": "T5007.box13",
+      "boxNumber": "13",
+      "label_fr": "Code de genre de feuillet",
       "label_en": "Report code",
-      "t1_line": null,
-      "keywords_fr": ["code du feuillet"],
-      "keywords_en": ["report code", "box 13"]
+      "type": "REPORT_CODE",
+      "required": true,
+      "extract": true,
+      "zone": "T5007.box13",
+      "normalize": "STRING",
+      "validation": { "allowed": ["O", "M", "C"] },
+      "taxMapping": []
+    },
+    "recipient": {
+      "fieldId": "T5007.recipient",
+      "boxNumber": null,
+      "label_fr": "Nom du bénéficiaire",
+      "label_en": "Recipient name",
+      "type": "TEXT",
+      "required": true,
+      "extract": true,
+      "zone": "T5007.recipient",
+      "normalize": "TRIM",
+      "validation": {},
+      "taxMapping": []
+    },
+    "payer": {
+      "fieldId": "T5007.payer",
+      "boxNumber": null,
+      "label_fr": "Nom du payeur",
+      "label_en": "Payer name",
+      "type": "TEXT",
+      "required": true,
+      "extract": true,
+      "zone": "T5007.payer",
+      "normalize": "TRIM",
+      "validation": {},
+      "taxMapping": []
     }
   },
 
   "fiscalMapping": {
-    "box_10": {
-      "federal": {
-        "addTo": ["14400"],
-        "deductFrom": ["25000"]
-      },
-      "quebec": {
-        "addTo": ["148"]
-      }
+    "box10": {
+      "federal": { "addTo": ["14400"], "deductFrom": ["25000"] },
+      "quebec":  { "addTo": ["148"] }
     },
-    "box_11": {
-      "federal": {
-        "addTo": ["14500"],
-        "deductFrom": ["25000"]
-      }
+    "box11": {
+      "federal": { "addTo": ["14500"], "deductFrom": ["25000"] }
     }
   },
 
   "validationRules": {
-    "box_10": { "min": 1, "max": 9999999 }
+    "box10": { "min": 0, "max": 9999999 },
+    "box11": { "min": 0, "max": 9999999 }
   }
 }
