@@ -238,13 +238,29 @@ function relaxedLabelPattern(label: string): string {
  * reste attaché à son libellé de case, même dans un tableau sans séparateur |.
  */
 function findLayoutBoundValue(ocrText: string, box: BoxDef): string | null {
-  const labels = [box.label_fr, box.label_en]
+  const labels = [box.label_fr, box.label_en, ...(box.ocrAliases ?? [])]
     .filter((label): label is string => Boolean(label && label.length >= 5))
     .map(relaxedLabelPattern);
 
   const patterns: RegExp[] = [];
   if (labels.length > 0) {
     patterns.push(new RegExp(`(?:\\b${escapeRegex(box.code)}\\b[\\s:—–-]*)?(?:${labels.join("|")})[^\\r\\n]{0,160}?${MONEY_CAPTURE}`, "i"));
+  }
+
+  // RL-1 : Revenu Québec imprime "X - Libellé\n<montant>" avec le code de case en
+  // premier, le libellé sur la même ligne et le montant sur la ligne suivante.
+  // Pattern pour toutes les cases RL-1 (alphabétiques A, C, E… et alphanumériques B.A, B.B).
+  // On n'active ce pattern que si le texte OCR contient "RL-1" ou "relevé 1" (identification).
+  if (/RL-?1\b|Relevé\s+1/i.test(ocrText.slice(0, 600))) {
+    const codeEsc = escapeRegex(box.code);
+    patterns.unshift(
+      // montant sur la ligne suivante : "A - Revenus d'emploi\n1 482,62"
+      new RegExp(`\\b${codeEsc}\\s*[-–—]\\s*[^\\r\\n]{0,80}\\r?\\n\\s*${MONEY_CAPTURE}`, "i"),
+      // montant sur la même ligne : "A - ... 1 482,62"
+      new RegExp(`\\b${codeEsc}\\s*[-–—]\\s*[^\\r\\n]{0,80}?${MONEY_CAPTURE}`, "i"),
+      // "A  1 482,62" (code seul + espace + montant)
+      new RegExp(`^${codeEsc}\\s{2,}${MONEY_CAPTURE}`, "im"),
+    );
   }
 
   // Gabarits éprouvés par les feuillets T5007 : la ligne contient le code, le
@@ -308,13 +324,31 @@ export function findBoxValueInText(
     if (m?.[1] && parseMontantOCR(m[1]) !== null) return m[1].trim();
   }
 
+  // 3b. T5007 box 10 : le montant d’indemnisation est souvent la toute première
+  // valeur monétaire sur la page (avant même les libellés). Si le texte OCR commence
+  // par un montant sur la 1re ligne non vide, on le capture ici avant que la stratégie
+  // des mots-clés ne se perde dans la section "Redressement pour indemnités reçues".
+  if (box.code === "10" && /t5007/i.test(ocrText.slice(0, 400))) {
+    const firstLineMatch = ocrText.match(/^\s*([\d][\d\s,.’]{3,})\s*(?:\r?\n|\r)/);
+    if (firstLineMatch?.[1]) {
+      const val = asMoney(firstLineMatch[1].trim());
+      if (val) return val;
+    }
+  }
+
   // 4. Keywords FR et EN — secours lorsque le gabarit n’a pas de libellé complet.
+  // Pour T5007 box 10, on filtre les faux positifs : le mot "indemnités" peut
+  // apparaître dans "Redressement pour indemnités reçues" suivi d’une adresse.
   const lower = ocrText.toLowerCase();
   const MONEY_RE = new RegExp(MONEY_CAPTURE);
-  for (const kw of [...new Set([...box.keywords_fr, ...box.keywords_en])]) {
+  for (const kw of [...new Set([...box.keywords_fr, ...(box.ocrAliases ?? []), ...box.keywords_en])]) {
     const idx = lower.indexOf(kw.toLowerCase());
     if (idx >= 0) {
       const after = ocrText.slice(idx, idx + 120);
+      // Exclure un match de mot-clé si "redressement pour" précède dans les 80 chars avant.
+      // Ce contexte décrit des ajustements historiques, pas la case 10 du T5007.
+      const before = ocrText.slice(Math.max(0, idx - 80), idx);
+      if (/redressement\s+pour/i.test(before)) continue;
       const m = after.match(MONEY_RE);
       if (m?.[1] && parseMontantOCR(m[1]) !== null) return m[1].trim();
     }

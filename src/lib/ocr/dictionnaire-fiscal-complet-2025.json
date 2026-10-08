@@ -5102,10 +5102,12 @@
           "tp1_line": "101",
           "data_type": "money",
           "keywords_fr": [
-            "autres",
-            "rémunérations",
             "salaires",
-            "traitements"
+            "rémunérations",
+            "revenus d emploi",
+            "traitements",
+            "revenus emploi",
+            "autres"
           ],
           "keywords_en": [
             "employment",
@@ -5113,7 +5115,12 @@
             "salaries",
             "wages"
           ],
-          "label_source": "rq_fr"
+          "label_source": "rq_fr",
+          "ocrAliases": [
+            "a - revenus",
+            "revenus emploi",
+            "revenus d'emploi"
+          ]
         },
         {
           "code": "B.A",
@@ -5123,9 +5130,9 @@
           "tp1_line": "248",
           "data_type": "money",
           "keywords_fr": [
-            "cotisation",
-            "employé",
-            "rrq"
+            "rrq",
+            "cotisation rrq",
+            "cotisation employé rrq"
           ],
           "keywords_en": [
             "contribution",
@@ -5133,7 +5140,11 @@
             "qpp"
           ],
           "label_source": "rq_fr",
-          "notes": "Informatif — voir ligne 98 TP-1"
+          "notes": "Informatif — voir ligne 98 TP-1",
+          "ocrAliases": [
+            "b.a - cotisation rrq",
+            "cotisation au rrq"
+          ]
         },
         {
           "code": "B.B",
@@ -5143,10 +5154,9 @@
           "tp1_line": "248",
           "data_type": "money",
           "keywords_fr": [
-            "cotisation",
-            "employé",
             "rrq2",
-            "supplémentaire"
+            "supplémentaire rrq",
+            "cotisation supplémentaire"
           ],
           "keywords_en": [
             "additional",
@@ -5155,7 +5165,12 @@
             "qpp2"
           ],
           "label_source": "rq_fr",
-          "notes": "Voir ligne 98.2"
+          "notes": "Voir ligne 98.2",
+          "ocrAliases": [
+            "cotisation supplémentaire rrq",
+            "b.b - cotisation supplémentaire",
+            "rrq2"
+          ]
         },
         {
           "code": "C",
@@ -5165,9 +5180,9 @@
           "tp1_line": "248",
           "data_type": "money",
           "keywords_fr": [
-            "assurance",
-            "cotisation",
-            "emploi"
+            "assurance-emploi",
+            "ae cotisation",
+            "cotisation ae"
           ],
           "keywords_en": [
             "contribution",
@@ -5175,7 +5190,12 @@
             "insurance"
           ],
           "label_source": "rq_fr",
-          "notes": "Aucune ligne TP-1 — crédit fédéral seulement"
+          "notes": "Aucune ligne TP-1 — crédit fédéral seulement",
+          "ocrAliases": [
+            "assurance emploi",
+            "cotisation à l'assurance",
+            "c - cotisation"
+          ]
         },
         {
           "code": "D",
@@ -5235,7 +5255,11 @@
             "source",
             "withheld"
           ],
-          "label_source": "rq_fr"
+          "label_source": "rq_fr",
+          "ocrAliases": [
+            "impôt du québec retenu",
+            "e - impôt"
+          ]
         },
         {
           "code": "F",
@@ -5245,15 +5269,20 @@
           "tp1_line": "397",
           "data_type": "money",
           "keywords_fr": [
-            "cotisation",
-            "syndicale"
+            "syndicale",
+            "cotisation syndicale",
+            "union dues"
           ],
           "keywords_en": [
             "dues",
             "union"
           ],
           "label_source": "rq_fr",
-          "notes": "Crédit ligne 397.1 (× 10 %)"
+          "notes": "Crédit ligne 397.1 (× 10 %)",
+          "ocrAliases": [
+            "cotisation syndicale",
+            "f - cotisation syndicale"
+          ]
         },
         {
           "code": "G",
@@ -5321,16 +5350,20 @@
           "tp1_line": "248",
           "data_type": "money",
           "keywords_fr": [
-            "cotisation",
-            "parentale",
-            "rqap"
+            "rqap",
+            "cotisation rqap",
+            "assurance parentale"
           ],
           "keywords_en": [
             "premium",
             "qpip"
           ],
           "label_source": "rq_fr",
-          "notes": "Voir ligne 97"
+          "notes": "Voir ligne 97",
+          "ocrAliases": [
+            "cotisation au rqap",
+            "h - cotisation rqap"
+          ]
         },
         {
           "code": "I",
