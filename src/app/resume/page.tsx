@@ -415,13 +415,31 @@ export default function ResumePage() {
             <h2 style={{ fontFamily:"Georgia,serif", fontSize:18, margin:"0 0 4px", color:"var(--text-primary)" }}>
               {T("Déductions","Deductions")} — {totals.deductions}
             </h2>
+            {deductions.some(d => d.sourceType === "validated_ocr" && ["union_dues","employment_expenses","carrying_charges"].includes(d.category)) && (
+              <div style={{ background:"rgba(234,179,8,0.1)", border:"1px solid rgba(234,179,8,0.3)", borderRadius:10, padding:"10px 14px", fontSize:12, color:"#92400e" }}>
+                <strong>⚠️ {T("Déductions OCR détectées","OCR Deductions Detected")}</strong>
+                <p style={{ margin:"4px 0 0" }}>
+                  {T(
+                    "Certaines déductions ont été extraites automatiquement (OCR). Vérifiez qu'elles correspondent à votre feuillet réel. Si non, invalidez-les puis cliquez sur Recalculer.",
+                    "Some deductions were auto-extracted (OCR). Verify they match your actual slip. If not, invalidate them then click Recalculate."
+                  )}
+                </p>
+              </div>
+            )}
             {deductions.length === 0 ? (
               <div style={{ background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:14, padding:"28px 20px", textAlign:"center" }}>
                 <div style={{ fontSize:32, marginBottom:8 }}>📉</div>
                 <p style={{ color:"var(--text-muted)", fontSize:14 }}>{T("Aucune déduction enregistrée.","No deductions recorded.")}</p>
               </div>
-            ) : deductions.map(d => (
-              <div key={d.id} style={{ background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:12, padding:"14px 16px" }}>
+            ) : deductions.map(d => {
+              const isOcrSuspect = d.sourceType === "validated_ocr" && ["union_dues","employment_expenses","carrying_charges"].includes(d.category);
+              return (
+              <div key={d.id} style={{ background:"var(--bg-card)", border:`1px solid ${isOcrSuspect ? "rgba(234,179,8,0.4)" : "var(--border)"}`, borderRadius:12, padding:"14px 16px" }}>
+                {isOcrSuspect && (
+                  <div style={{ fontSize:11, color:"#92400e", background:"rgba(234,179,8,0.12)", borderRadius:6, padding:"4px 8px", marginBottom:8 }}>
+                    ⚠️ {T("Déduction extraite par OCR — vérifiez si ce montant figure sur votre feuillet","OCR-extracted deduction — verify this amount appears on your slip")}
+                  </div>
+                )}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:13, fontWeight:700, color:"var(--text-primary)" }}>
@@ -432,11 +450,33 @@ export default function ResumePage() {
                       {d.isValidated ? T("✓ Validée","✓ Validated") : T("⚠ Non validée","⚠ Unvalidated")}
                     </span>
                   </div>
-                  <EditableAmount value={d.amountCents} lang={lang}
-                    onSave={v=>patchEntry("deduction", d.id, { amountCents:v })} />
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
+                    <EditableAmount value={d.amountCents} lang={lang}
+                      onSave={v=>patchEntry("deduction", d.id, { amountCents:v })} />
+                    {d.isValidated && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm(T("Invalider cette déduction ? Elle ne réduira plus votre revenu net.\n\nCliquez ensuite sur 'Recalculer' pour mettre à jour votre déclaration.","Invalidate this deduction? It will no longer reduce your net income.\n\nThen click 'Recalculate' to update your tax return."))) return;
+                          await patchEntry("deduction", d.id, { isValidated: false });
+                        }}
+                        style={{ fontSize:10, color:"#ef4444", background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", borderRadius:4, padding:"2px 8px", cursor:"pointer" }}
+                      >
+                        {T("Invalider","Invalidate")}
+                      </button>
+                    )}
+                    {!d.isValidated && (
+                      <button
+                        onClick={()=>patchEntry("deduction", d.id, { isValidated: true })}
+                        style={{ fontSize:10, color:"#059669", background:"rgba(5,150,105,0.08)", border:"1px solid rgba(5,150,105,0.2)", borderRadius:4, padding:"2px 8px", cursor:"pointer" }}
+                      >
+                        {T("Valider","Validate")}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

@@ -90,8 +90,12 @@ export async function POST(req: NextRequest) {
   // Source officielle : ARC 5005-S6 (2025), Revenu Québec.
   // INTERDIT : hardcoder les montants du test de régression.
   const cwbOptOut = [answers.cwb_opt_out].some(value => value === true || value === "true");
+  // cwbConfirmed = questionnaire c17=oui. Si non répondu (undefined/null), on calcule quand même
+  // car l'ARC calcule l'ACT automatiquement pour les résidents admissibles.
+  // L'opt-out explicite (cwb_opt_out=true) est la seule façon de désactiver.
+  const cwbEligible = !cwbOptOut && earnedIncomeCents > 0;
   let cwbCents = 0;
-  if (!cwbOptOut && cwbConfirmed && earnedIncomeCents > 0) {
+  if (cwbEligible) {
     if (province === "QC") {
       // ─── 5005-S6 Québec 2025 ──────────────────────────────────────────────
       // Seuils 2025 pour les résidents du Québec (Schedule 6 QC)
