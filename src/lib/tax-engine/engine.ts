@@ -16,11 +16,14 @@ import type {
   TaxRulesForYear,
 } from "./types";
 import { getRulesForYearAndProvince } from "./rules/2025";
+import { getRulesFor2026 } from "./rules/2026";
 
 // ─── FONCTION PRINCIPALE ─────────────────────────────────────────────────────
 
 export function calculate(input: TaxEngineInput): TaxCalculationResult {
-  const rules = getRulesForYearAndProvince(input.taxYear, input.province);
+  const rules = input.taxYear === 2026
+    ? getRulesFor2026(input.province)
+    : getRulesForYearAndProvince(input.taxYear, input.province);
 
   if (!rules) {
     throw new Error(
@@ -107,7 +110,9 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
       "42000": federalCalc.taxPayableCents,
       "43500": federalCalc.taxPayableCents,
       "43700": input.taxWithheldFederalCents,
-      "48200": federalCalc.basicPersonalCreditCents + federalCalc.otherCreditsCents + federalCalc.refundableCreditsCents,
+      // Total des crédits utilisables après le calcul : retenues + crédits
+      // remboursables. Les crédits non remboursables sont déjà appliqués à 42000.
+      "48200": input.taxWithheldFederalCents + federalCalc.refundableCreditsCents,
     },
 
     breakdown: {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { taxProfiles, taxReturns, incomeEntries, deductionEntries, creditEntries, taxCalculations } from "@/db/schema";
+import { taxProfiles, taxReturns, taxYears, incomeEntries, deductionEntries, creditEntries, taxCalculations } from "@/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { normalizeProvinceCode } from "@/lib/provinces";
 import type { QuestionnaireProgress } from "@/lib/questionnaire-progress";
@@ -171,9 +171,13 @@ export async function GET() {
   const [profile] = await db.select().from(taxProfiles).where(eq(taxProfiles.userId, userId)).limit(1);
   if (!profile) return NextResponse.json({ error: "Profil introuvable" }, { status: 404 });
 
-  const [taxReturn] = await db.select({ id: taxReturns.id })
+  const [taxReturn] = await db.select({ id: taxReturns.id, taxYearId: taxReturns.taxYearId })
     .from(taxReturns).where(eq(taxReturns.profileId, profile.id))
     .orderBy(desc(taxReturns.updatedAt)).limit(1);
+  const [taxYearRow] = taxReturn
+    ? await db.select({ year: taxYears.year }).from(taxYears).where(eq(taxYears.id, taxReturn.taxYearId)).limit(1)
+    : [undefined];
+  const declarationYear = taxYearRow?.year ?? 2025;
 
   const province = normalizeProvinceCode(profile.fiscalResidence ?? profile.province) ?? "QC";
   const isQC = province === "QC";
@@ -244,7 +248,7 @@ export async function GET() {
     addT1("35000", cents(calc.federalNonRefundableCreditsCents), "calculated");
     addT1("43700", cents(calc.federalTaxWithheldCents), "calculated");
     addT1("45300", cents(calc.federalRefundableCreditsCents), "calculated");
-    addT1("48200", cents(calc.federalNonRefundableCreditsCents) + cents(calc.federalRefundableCreditsCents), "calculated");
+    addT1("48200", cents(calc.federalTaxWithheldCents) + cents(calc.federalRefundableCreditsCents), "calculated");
     const balance = cents(calc.totalBalanceCents);
     addT1(balance < 0 ? "48400" : "48500", Math.abs(balance), "calculated");
     if (cents(calc.provincialTaxPayableCents) > 0 && isQC) addTp1("430", cents(calc.provincialTaxPayableCents), "calculated");
@@ -281,12 +285,14 @@ export async function GET() {
   // Solde fédéral
   const fedWithheld = calc ? cents(calc.federalTaxWithheldCents) : (t1Amounts["43700"]?.cents ?? 0);
   const fedTax = cents(calc?.federalTaxPayableCents);
-  const fedBalance = fedTax - fedWithheld;
+  const fedRefundable = calc ? cents(calc.federalRefundableCreditsCents) : (t1Amounts["45300"]?.cents ?? 0);
+  const fedBalance = fedTax - fedWithheld - fedRefundable;
 
   // Solde QC
   const provWithheld = calc ? cents(calc.provincialTaxWithheldCents) : (tp1Amounts["451"]?.cents ?? 0);
   const provTax = cents(calc?.provincialTaxPayableCents);
-  const provBalance = provTax - provWithheld;
+  const provRefundable = calc ? cents(calc.provincialRefundableCreditsCents) : 0;
+  const provBalance = provTax - provWithheld - provRefundable;
 
   // Construire les tableaux de lignes complets (toutes les lignes du dictionnaire)
   const buildLines = (
@@ -338,7 +344,7 @@ export async function GET() {
 
   return NextResponse.json({
     meta: {
-      taxYear: 2025,
+      taxYear: declarationYear,
       province,
       provinceName: provinceInfo.name,
       form: `T1 + ${provinceInfo.form}`,

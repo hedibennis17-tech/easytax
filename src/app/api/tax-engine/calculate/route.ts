@@ -63,11 +63,15 @@ export async function POST(req: NextRequest) {
   );
   const answers = (pancanadian.answers ?? pancanadian.questionnaireAnswers ?? pancanadian) as Record<string, unknown>;
   const wantsCwb = [answers.c17, answers.act_cwb, answers.cwb].some(value => value === true || value === "true" || value === "oui" || value === "yes");
+  const dependentCount = Array.isArray(answers.dependents)
+    ? answers.dependents.length
+    : Number(answers.dependentCount ?? answers.numberOfDependents ?? 0) || 0;
+  const hasFamily = [answers.maritalStatus, answers.f1, answers.familyStatus].some(value => value === "married" || value === "common_law" || value === "Marié(e)" || value === "Conjoint(e) de fait") || dependentCount > 0;
   const earnedIncomeCents = incomes.filter(i => i.category === "employment" || i.category === "self_employment").reduce((sum, i) => sum + (i.amountCents ?? 0), 0);
   // ACT 2025 : estimation fédérale de l'annexe 6. Le montant final reste
   // soumis aux paramètres familiaux et à la validation de la déclaration.
-  const cwbMax = answers.maritalStatus === "married" || answers.maritalStatus === "common_law" ? 281300 : 163300;
-  const cwbReductionThreshold = cwbMax === 281300 ? 3063900 : 2685500;
+  const cwbMax = hasFamily ? 281300 : 163300;
+  const cwbReductionThreshold = hasFamily ? 3063900 : 2685500;
   const cwbPhaseIn = Math.min(cwbMax, Math.max(0, earnedIncomeCents - 300000) * 27 / 100);
   const cwbCents = wantsCwb ? Math.max(0, Math.round(cwbPhaseIn - Math.max(0, earnedIncomeCents - cwbReductionThreshold) * 15 / 100)) : 0;
 
@@ -95,11 +99,12 @@ export async function POST(req: NextRequest) {
       description: c.description ?? undefined,
       isRefundable: /remboursable|prestation|allocation|benefit|act_cwb|acfb/i.test(`${c.category} ${c.description ?? ""}`),
       })),
-      ...(cwbCents > 0 ? [{ category: "other_credits" as const, claimedAmountCents: cwbCents, sourceType: "manual" as const, description: "Allocation canadienne pour les travailleurs (ACT/CWB) — ligne 45300", isRefundable: true }] : []),
+      ...(cwbCents > 0 ? [{ category: "other_credits" as const, claimedAmountCents: cwbCents, sourceType: "manual" as const, description: "Allocation canadienne pour les travailleurs (ACT/CWB) — ligne 45300", isRefundable: true, jurisdiction: "CA" as const, line: "45300" }] : []),
     ],
     taxWithheldFederalCents: (body.taxWithheldFederalCents ?? 0) + federalWithheldFromSlips,
     taxWithheldProvincialCents: (body.taxWithheldProvincialCents ?? 0) + provincialWithheldFromSlips,
     hasSpouse: body.hasSpouse ?? false,
+    dependentCount,
   };
 
   try {

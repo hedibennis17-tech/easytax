@@ -1,0 +1,414 @@
+{
+  "federal": {
+    "brackets": [
+      {
+        "min": 0,
+        "max": 58523,
+        "rate": 0.14
+      },
+      {
+        "min": 58523,
+        "max": 117045,
+        "rate": 0.205
+      },
+      {
+        "min": 117045,
+        "max": 181440,
+        "rate": 0.26
+      },
+      {
+        "min": 181440,
+        "max": 258482,
+        "rate": 0.29
+      },
+      {
+        "min": 258482,
+        "max": null,
+        "rate": 0.33
+      }
+    ],
+    "bpa": 16452
+  },
+  "provinces": {
+    "quebec": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 54345,
+          "rate": 0.14
+        },
+        {
+          "min": 54345,
+          "max": 108680,
+          "rate": 0.19
+        },
+        {
+          "min": 108680,
+          "max": 132245,
+          "rate": 0.24
+        },
+        {
+          "min": 132245,
+          "max": null,
+          "rate": 0.2575
+        }
+      ],
+      "bpa": 18952,
+      "abatement": 0.165
+    },
+    "ontario": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 53891,
+          "rate": 0.0505
+        },
+        {
+          "min": 53891,
+          "max": 107785,
+          "rate": 0.0915
+        },
+        {
+          "min": 107785,
+          "max": 150000,
+          "rate": 0.1116
+        },
+        {
+          "min": 150000,
+          "max": 220000,
+          "rate": 0.1216
+        },
+        {
+          "min": 220000,
+          "max": null,
+          "rate": 0.1316
+        }
+      ],
+      "bpa": 12000,
+      "healthPremium": true
+    },
+    "alberta": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 61200,
+          "rate": 0.08
+        },
+        {
+          "min": 61200,
+          "max": 154259,
+          "rate": 0.1
+        },
+        {
+          "min": 154259,
+          "max": 185111,
+          "rate": 0.12
+        },
+        {
+          "min": 185111,
+          "max": 246813,
+          "rate": 0.13
+        },
+        {
+          "min": 246813,
+          "max": 370220,
+          "rate": 0.14
+        },
+        {
+          "min": 370220,
+          "max": null,
+          "rate": 0.15
+        }
+      ],
+      "bpa": 22769
+    },
+    "british_columbia": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 50363,
+          "rate": 0.056
+        },
+        {
+          "min": 50363,
+          "max": 100728,
+          "rate": 0.077
+        },
+        {
+          "min": 100728,
+          "max": 115648,
+          "rate": 0.105
+        },
+        {
+          "min": 115648,
+          "max": 140430,
+          "rate": 0.1229
+        },
+        {
+          "min": 140430,
+          "max": 181232,
+          "rate": 0.147
+        },
+        {
+          "min": 181232,
+          "max": 240716,
+          "rate": 0.168
+        },
+        {
+          "min": 240716,
+          "max": null,
+          "rate": 0.205
+        }
+      ],
+      "bpa": 13216
+    },
+    "manitoba": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 47000,
+          "rate": 0.108
+        },
+        {
+          "min": 47000,
+          "max": 100000,
+          "rate": 0.1275
+        },
+        {
+          "min": 100000,
+          "max": null,
+          "rate": 0.174
+        }
+      ],
+      "bpa": 15780
+    },
+    "saskatchewan": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 54532,
+          "rate": 0.105
+        },
+        {
+          "min": 54532,
+          "max": 155805,
+          "rate": 0.125
+        },
+        {
+          "min": 155805,
+          "max": null,
+          "rate": 0.145
+        }
+      ],
+      "bpa": 20381
+    },
+    "nova_scotia": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 30995,
+          "rate": 0.0879
+        },
+        {
+          "min": 30995,
+          "max": 61991,
+          "rate": 0.1495
+        },
+        {
+          "min": 61991,
+          "max": 97417,
+          "rate": 0.1667
+        },
+        {
+          "min": 97417,
+          "max": 157124,
+          "rate": 0.175
+        },
+        {
+          "min": 157124,
+          "max": null,
+          "rate": 0.21
+        }
+      ],
+      "bpa": 11932
+    },
+    "new_brunswick": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 52333,
+          "rate": 0.094
+        },
+        {
+          "min": 52333,
+          "max": 104666,
+          "rate": 0.14
+        },
+        {
+          "min": 104666,
+          "max": 193861,
+          "rate": 0.16
+        },
+        {
+          "min": 193861,
+          "max": null,
+          "rate": 0.195
+        }
+      ],
+      "bpa": 13664
+    },
+    "newfoundland": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 44678,
+          "rate": 0.087
+        },
+        {
+          "min": 44678,
+          "max": 89354,
+          "rate": 0.145
+        },
+        {
+          "min": 89354,
+          "max": 159528,
+          "rate": 0.158
+        },
+        {
+          "min": 159528,
+          "max": 222847,
+          "rate": 0.178
+        },
+        {
+          "min": 222847,
+          "max": null,
+          "rate": 0.208
+        }
+      ],
+      "bpa": 21038
+    },
+    "prince_edward_island": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 33928,
+          "rate": 0.095
+        },
+        {
+          "min": 33928,
+          "max": 65820,
+          "rate": 0.1347
+        },
+        {
+          "min": 65820,
+          "max": 106890,
+          "rate": 0.166
+        },
+        {
+          "min": 106890,
+          "max": 142520,
+          "rate": 0.1762
+        },
+        {
+          "min": 142520,
+          "max": null,
+          "rate": 0.19
+        }
+      ],
+      "bpa": 15000
+    },
+    "northwest_territories": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 53003,
+          "rate": 0.059
+        },
+        {
+          "min": 53003,
+          "max": 106009,
+          "rate": 0.086
+        },
+        {
+          "min": 106009,
+          "max": 172346,
+          "rate": 0.122
+        },
+        {
+          "min": 172346,
+          "max": null,
+          "rate": 0.1405
+        }
+      ],
+      "bpa": 17442
+    },
+    "nunavut": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 55801,
+          "rate": 0.04
+        },
+        {
+          "min": 55801,
+          "max": 111602,
+          "rate": 0.07
+        },
+        {
+          "min": 111602,
+          "max": 181439,
+          "rate": 0.09
+        },
+        {
+          "min": 181439,
+          "max": null,
+          "rate": 0.115
+        }
+      ],
+      "bpa": 19000
+    },
+    "yukon": {
+      "brackets": [
+        {
+          "min": 0,
+          "max": 58523,
+          "rate": 0.064
+        },
+        {
+          "min": 58523,
+          "max": 117045,
+          "rate": 0.09
+        },
+        {
+          "min": 117045,
+          "max": 181440,
+          "rate": 0.109
+        },
+        {
+          "min": 181440,
+          "max": 258482,
+          "rate": 0.128
+        },
+        {
+          "min": 258482,
+          "max": null,
+          "rate": 0.15
+        }
+      ],
+      "bpa": 16452
+    }
+  },
+  "contributions": {
+    "cpp": {
+      "basicExemption": 3500,
+      "ympe": 74600,
+      "employeeRate": 0.0595,
+      "cpp2Rate": 0.04,
+      "cpp2Ceiling": 85000
+    },
+    "ei": {
+      "maxInsurable": 68900,
+      "employeeRate": 0.0163
+    }
+  }
+}

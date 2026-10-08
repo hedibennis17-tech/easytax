@@ -156,6 +156,7 @@ export interface TaxEngineInput {
   taxWithheldProvincialCents: number;
   hasSpouse: boolean;
   spouseNetIncomeCents?: number;
+  dependentCount?: number;
 }
 
 // ─── Résultat du calcul ───────────────────────────────────────
