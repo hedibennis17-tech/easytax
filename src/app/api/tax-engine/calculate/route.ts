@@ -66,8 +66,15 @@ export async function POST(req: NextRequest) {
   // paie. Elles ne doivent jamais réduire directement la ligne 23600.
   const PAYROLL_CREDIT_RE = /(?:cotisations?|contributions?).*(?:rrq|rpc|qpp|cpp|rqap|qpip|ae|assurance[- ]emploi)|(?:rrq|rpc|qpp|cpp)\s*\/\s*(?:rrq|rpc|qpp|cpp)|(?:t4|rl[- ]?1).*(?:case|box|caisse)\s*(?:16|18|b|c)\b|(?:case|box)\s*(?:16|18|b|c)\b.*(?:t4|rl[- ]?1)/i;
   const payrollCredits = deductions.filter(d => PAYROLL_CREDIT_RE.test(d.description ?? ""));
+  const NET_INCOME_DEDUCTION_CATEGORIES = new Set([
+    "rrsp", "union_dues", "childcare", "moving_expenses",
+    "employment_expenses", "carrying_charges",
+  ]);
   const taxableDeductions = deductions.filter(d =>
-    !FEDERAL_WITHHELD_RE.test(d.description ?? "") && !PROVINCIAL_WITHHELD_RE.test(d.description ?? "") && !PAYROLL_CREDIT_RE.test(d.description ?? "")
+    !FEDERAL_WITHHELD_RE.test(d.description ?? "") &&
+    !PROVINCIAL_WITHHELD_RE.test(d.description ?? "") &&
+    !PAYROLL_CREDIT_RE.test(d.description ?? "") &&
+    NET_INCOME_DEDUCTION_CATEGORIES.has(d.category ?? "")
   );
   const answers = (pancanadian.answers ?? pancanadian.questionnaireAnswers ?? pancanadian) as Record<string, unknown>;
   const earnedIncomeCents = incomes.filter(i => i.category === "employment" || i.category === "self_employment").reduce((sum, i) => sum + (i.amountCents ?? 0), 0);

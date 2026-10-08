@@ -159,6 +159,13 @@ const CAT_DED_T1: Record<string, string> = {
 const CAT_DED_TP1: Record<string, string> = {
   rrsp: "214", union_dues: "210", childcare: "214", other_deductions: "250",
 };
+// Seules ces catégories peuvent réduire le revenu net 23600. Les anciennes
+// entrées OCR classées « other_deductions » (notamment T4/RL-1 B/C, RPC/RRQ,
+// AE/RQAP) restent visibles/auditables mais ne réduisent plus le revenu.
+const NET_INCOME_DEDUCTION_CATEGORIES = new Set([
+  "rrsp", "union_dues", "childcare", "moving_expenses",
+  "employment_expenses", "carrying_charges",
+]);
 const CAT_CREDIT_T1: Record<string, string> = {
   cpp_employee: "30800", ei_employee: "31200", tuition: "32300", donations: "34900",
   disability: "31600", medical: "33099",
@@ -229,6 +236,7 @@ export async function GET() {
     if (/impôt du québec|impôt provincial|provincial income tax withheld|provincial tax withheld/i.test(ded.description ?? "")) {
       addTp1("451", cents(ded.amountCents), "ocr"); continue;
     }
+    if (!NET_INCOME_DEDUCTION_CATEGORIES.has(ded.category ?? "")) continue;
     const t1l  = CAT_DED_T1[ded.category ?? "other_deductions"];
     const tp1l = CAT_DED_TP1[ded.category ?? "other_deductions"];
     if (t1l) addT1(t1l, cents(ded.amountCents), "ocr");
