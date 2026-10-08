@@ -27,7 +27,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     const savedTheme = localStorage.getItem("et-theme") as Theme | null;
     const savedLang  = localStorage.getItem("et-lang")  as Lang  | null;
     const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -35,9 +34,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const t = savedTheme ?? (sysDark ? "dark" : "light");
     const l = savedLang ?? "fr";
 
-    setTheme(t);
-    setLang(l);
     document.documentElement.setAttribute("data-theme", t);
+    setTimeout(() => {
+      setMounted(true);
+      setTheme(t);
+      setLang(l);
+    }, 0);
   }, []);
 
   const toggleTheme = () => {

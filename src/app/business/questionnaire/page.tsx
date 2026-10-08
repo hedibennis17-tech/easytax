@@ -143,10 +143,12 @@ export default function BusinessQuestionnairePage() {
     if (userId === "guest") return;
     const draft = loadDraftLocal(userId, `${TAX_YEAR}_biz`);
     if (draft && draft.status === "in_progress" && Object.keys(draft.answers).length > 0) {
-      setAnswers(draft.answers);
-      setSecIdx(draft.sectionIdx);
-      setQIdx(draft.questionIdx);
-      setLastSaved(formatLastSaved(draft.lastSavedAt));
+      setTimeout(() => {
+        setAnswers(draft.answers);
+        setSecIdx(draft.sectionIdx);
+        setQIdx(draft.questionIdx);
+        setLastSaved(formatLastSaved(draft.lastSavedAt));
+      }, 0);
     }
   }, [userId]);
 

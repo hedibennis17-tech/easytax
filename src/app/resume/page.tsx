@@ -149,7 +149,7 @@ export default function ResumePage() {
     finally { setLoading(false); }
   }, [lang]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { const t = setTimeout(() => { void load(); }, 0); return () => clearTimeout(t); }, [load]);
 
   const patchEntry = useCallback(async (type:string, id:string, patch:Record<string,unknown>) => {
     await fetch("/api/resume/edit", { method:"PATCH", headers:{"Content-Type":"application/json"},

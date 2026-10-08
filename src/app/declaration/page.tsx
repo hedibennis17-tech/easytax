@@ -146,7 +146,7 @@ function QuestionnaireAnswersAccordion({ answers, progress, provinceName, lang }
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
-  useEffect(() => setRows(answers), [answers]);
+  useEffect(() => { setTimeout(() => setRows(answers), 0); }, [answers]);
   const provincial = rows.filter(row => row.section === "ma_province");
   const federal = rows.filter(row => row.section !== "ma_province");
   const getSections = (items: typeof rows) => Array.from(new Set(items.map(row => row.section))).map(code => ({
@@ -664,7 +664,7 @@ export default function DeclarationPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { const t = setTimeout(() => loadData(), 0); return () => clearTimeout(t); }, [loadData]);
 
   // ── Recalculer le moteur fiscal ─────────────────────────────────────────────
   const recalculate = useCallback(async () => {

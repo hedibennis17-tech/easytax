@@ -147,6 +147,11 @@ function CaseRow({ box, editedVal, onEdit }: {
   const [localVal, setLocalVal] = useState(editedVal || box.rawValue || "");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Hooks must be called before any conditional return
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
   // Case incluse dans une autre — afficher en gris, non éditable
   if (box.includedIn) return null;
 
@@ -156,10 +161,6 @@ function CaseRow({ box, editedVal, onEdit }: {
     ? (isModified ? "rgba(245,158,11,0.04)" : "rgba(11,107,103,0.03)")
     : "transparent";
   const borderColor = box.isRequired && !box.hasValue && !editedVal ? "rgba(220,38,38,0.3)" : "#dde8e5";
-
-  useEffect(() => {
-    if (editing) inputRef.current?.focus();
-  }, [editing]);
 
   const commit = () => {
     onEdit(box.code, localVal);

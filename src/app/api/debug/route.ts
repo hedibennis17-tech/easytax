@@ -5,7 +5,7 @@ import { users, taxProfiles, fiscalDocuments, taxReturns, taxYears } from "@/db/
 import { eq, count } from "drizzle-orm";
 
 export async function GET() {
-  const result: Record<string, any> = {};
+  const result: Record<string, unknown> = {};
 
   // 1. Clerk
   try {
@@ -17,8 +17,8 @@ export async function GET() {
       email: clerkUser?.emailAddresses?.[0]?.emailAddress ?? null,
       firstName: clerkUser?.firstName ?? null,
     };
-  } catch (e: any) {
-    result.clerk = { error: e.message };
+  } catch (e) {
+    result.clerk = { error: (e as Error).message };
   }
 
   // 2. ENV
@@ -29,7 +29,7 @@ export async function GET() {
     NEON_STORAGE_BUCKET: process.env.NEON_STORAGE_BUCKET ?? "❌ MANQUANT",
   };
 
-  const clerkUserId = result.clerk?.userId;
+  const clerkUserId = (result.clerk as { userId?: string } | undefined)?.userId;
   if (!clerkUserId) {
     result.message = "Non connecté — connecte-toi d'abord sur /sign-in";
     return NextResponse.json(result);
@@ -39,24 +39,24 @@ export async function GET() {
   try {
     const userRows = await db.select().from(users).where(eq(users.clerkUserId, clerkUserId)).limit(1);
     result.easytax_user = userRows[0] ?? "❌ PAS TROUVÉ EN DB — sync pas fait";
-  } catch (e: any) {
-    result.easytax_user = { error: e.message };
+  } catch (e) {
+    result.easytax_user = { error: (e as Error).message };
   }
 
   // 4. Tax Profile
   try {
     const profileRows = await db.select().from(taxProfiles).where(eq(taxProfiles.userId, clerkUserId)).limit(1);
     result.tax_profile = profileRows[0] ?? "❌ AUCUN PROFIL FISCAL";
-  } catch (e: any) {
-    result.tax_profile = { error: e.message };
+  } catch (e) {
+    result.tax_profile = { error: (e as Error).message };
   }
 
   // 5. Tax Years
   try {
     const years = await db.select().from(taxYears).orderBy(taxYears.year);
     result.tax_years = years.length > 0 ? years : "❌ AUCUNE ANNÉE FISCALE — seed pas fait";
-  } catch (e: any) {
-    result.tax_years = { error: e.message };
+  } catch (e) {
+    result.tax_years = { error: (e as Error).message };
   }
 
   // 6. Documents
@@ -69,8 +69,8 @@ export async function GET() {
       uploadedAt: fiscalDocuments.uploadedAt,
     }).from(fiscalDocuments).where(eq(fiscalDocuments.userId, clerkUserId)).limit(5);
     result.documents = { total: docCount.count, recent: recentDocs };
-  } catch (e: any) {
-    result.documents = { error: e.message };
+  } catch (e) {
+    result.documents = { error: (e as Error).message };
   }
 
   // 7. Tax Returns
@@ -79,8 +79,8 @@ export async function GET() {
       .innerJoin(taxProfiles, eq(taxReturns.profileId, taxProfiles.id))
       .where(eq(taxProfiles.userId, clerkUserId));
     result.tax_returns = { total: retCount.count };
-  } catch (e: any) {
-    result.tax_returns = { error: e.message };
+  } catch (e) {
+    result.tax_returns = { error: (e as Error).message };
   }
 
   return NextResponse.json(result, { status: 200 });

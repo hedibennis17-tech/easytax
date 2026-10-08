@@ -140,11 +140,12 @@ export class GoogleDocumentAiProvider implements OcrProvider {
       }
 
       // ── 4. Tables (certains T4 sont en tableau) ─────────────────────────
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const table of (page.tables ?? []) as any[]) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        for (const row of [...(table.headerRows ?? []), ...(table.bodyRows ?? [])] as any[]) {
-          const cells = (row.cells ?? []) as any[];
+      type TableCell = { layout?: unknown; cells?: TableCell[] };
+      type TableRow  = { cells?: TableCell[] };
+      type DocTable  = { headerRows?: TableRow[]; bodyRows?: TableRow[] };
+      for (const table of (page.tables ?? []) as DocTable[]) {
+        for (const row of [...(table.headerRows ?? []), ...(table.bodyRows ?? [])] as TableRow[]) {
+          const cells = (row.cells ?? []) as TableCell[];
           if (cells.length >= 2) {
             const name  = extractText(fullText, cells[0].layout)?.trim() ?? "";
             const value = extractText(fullText, cells[1].layout)?.trim() ?? "";

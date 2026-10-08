@@ -101,7 +101,7 @@ export default async function BusinessPage() {
               Migration de base de données requise
             </h2>
             <p style={{ color: "var(--text-secondary)", fontSize: 13, marginBottom: 20 }}>
-              Les tables de la migration 0006 doivent être appliquées. Lancez la migration via l'API admin.
+              Les tables de la migration 0006 doivent être appliquées. Lancez la migration via l&apos;API admin.
             </p>
             <code style={{
               display: "block", background: "var(--bg-base)", border: "1px solid var(--border)",

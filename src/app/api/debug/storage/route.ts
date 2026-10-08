@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { S3Client, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 export async function GET() {
-  const result: Record<string, any> = {
+  const result: Record<string, unknown> = {
     config: {
       endpoint: process.env.AWS_ENDPOINT_URL_S3 ?? "❌ manquant",
       region: process.env.AWS_REGION ?? "❌ manquant",
@@ -27,8 +27,8 @@ export async function GET() {
     try {
       const list = await s3.send(new ListObjectsV2Command({ Bucket: process.env.NEON_STORAGE_BUCKET!, MaxKeys: 5 }));
       result.list_test = { success: true, count: list.KeyCount ?? 0 };
-    } catch (e: any) {
-      result.list_test = { success: false, error: e.message };
+    } catch (e) {
+      result.list_test = { success: false, error: (e as Error).message };
     }
 
     // Test écriture
@@ -41,12 +41,12 @@ export async function GET() {
       }));
       result.write_test = { success: true };
       await s3.send(new DeleteObjectCommand({ Bucket: process.env.NEON_STORAGE_BUCKET!, Key: "test/diag.txt" }));
-    } catch (e: any) {
-      result.write_test = { success: false, error: e.message };
+    } catch (e) {
+      result.write_test = { success: false, error: (e as Error).message };
     }
 
-  } catch (e: any) {
-    result.error = e.message;
+  } catch (e) {
+    result.error = (e as Error).message;
   }
 
   return NextResponse.json(result);

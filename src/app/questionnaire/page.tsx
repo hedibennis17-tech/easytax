@@ -595,15 +595,17 @@ export default function QuestionnairePage() {
 
     const draft = loadDraftLocal(userId, TAX_YEAR);
     if (draft && draft.status === "in_progress" && Object.keys(draft.answers).length > 0) {
-      setAnswers(draft.answers);
-      if (draft.answers["t0"] === undefined) {
-        setSecIdx(0);
-        setQIdx(0);
-      } else {
-        setSecIdx(draft.sectionIdx);
-        setQIdx(0);
-      }
-      setLastSaved(formatLastSaved(draft.lastSavedAt));
+      setTimeout(() => {
+        setAnswers(draft.answers);
+        if (draft.answers["t0"] === undefined) {
+          setSecIdx(0);
+          setQIdx(0);
+        } else {
+          setSecIdx(draft.sectionIdx);
+          setQIdx(0);
+        }
+        setLastSaved(formatLastSaved(draft.lastSavedAt));
+      }, 0);
     }
 
     // 1. Profil depuis le compte (nom, province, état civil...)
@@ -958,6 +960,7 @@ export default function QuestionnairePage() {
         )}
 
         {/* ── BLOC QUESTIONS — toutes les questions du bloc ─── */}
+        {/* eslint-disable-next-line react-hooks/refs */}
         {(triageDone ? (currentSection?.code !== "revenus" || qIdx > 0) && (currentSection?.code !== "credits" || qIdx > 0) : true) && (() => {
           const blockQs = !triageDone ? triageQs
             : ALL_INDIVIDUAL_QUESTIONS

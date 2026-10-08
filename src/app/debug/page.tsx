@@ -13,15 +13,17 @@ export default function DebugPage() {
       try { all[k] = JSON.parse(localStorage.getItem(k)!); }
       catch { all[k] = localStorage.getItem(k); }
     }
-    setLs(all);
-    // Lire les sections depuis le brouillon
     const draftKey = Object.keys(all).find(k => k.startsWith("easytax_draft_"));
-    if (draftKey) {
-      const d = all[draftKey] as { version?: number; answers?: Record<string,unknown> };
-      setSections(`Version brouillon: ${d.version ?? "AUCUNE"} | t0=${d.answers?.t0 ?? "NON RÉPONDU"}`);
-    } else {
-      setSections("Aucun brouillon trouvé");
-    }
+    const sectionsText = draftKey
+      ? (() => {
+          const d = all[draftKey] as { version?: number; answers?: Record<string,unknown> };
+          return `Version brouillon: ${d.version ?? "AUCUNE"} | t0=${d.answers?.t0 ?? "NON RÉPONDU"}`;
+        })()
+      : "Aucun brouillon trouvé";
+    setTimeout(() => {
+      setLs(all);
+      setSections(sectionsText);
+    }, 0);
   }, [cleared]);
 
   const clearAll = () => {

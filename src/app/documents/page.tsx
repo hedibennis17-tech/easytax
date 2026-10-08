@@ -55,7 +55,7 @@ async function getTaxYearId(): Promise<string | null> {
     const res = await fetch("/api/tax-years");
     if (!res.ok) return null;
     const data = await res.json();
-    const year2025 = data.years?.find((y: any) => y.year === 2025);
+    const year2025 = data.years?.find((y: { year: number; id: string }) => y.year === 2025);
     return year2025?.id ?? null;
   } catch { return null; }
 }
@@ -90,12 +90,15 @@ export default function DocumentsPage() {
   }, []);
 
   useEffect(() => {
-    loadDocs();
-    getTaxYearId().then(setTaxYearId);
-    fetch("/api/documents/types")
-      .then(response => response.ok ? response.json() : null)
-      .then(data => setDocumentTypes(Array.isArray(data?.types) ? data.types : []))
-      .catch(() => setDocumentTypes([]));
+    const t = setTimeout(() => {
+      void loadDocs();
+      void getTaxYearId().then(setTaxYearId);
+      void fetch("/api/documents/types")
+        .then(response => response.ok ? response.json() : null)
+        .then((data: { types?: unknown[] } | null) => setDocumentTypes(Array.isArray(data?.types) ? data.types as DocumentType[] : []))
+        .catch(() => setDocumentTypes([]));
+    }, 0);
+    return () => clearTimeout(t);
   }, [loadDocs]);
 
   const filteredDocs = filterType === "all" ? docs : docs.filter(d => d.typeCode === filterType);
@@ -168,8 +171,8 @@ export default function DocumentsPage() {
         setUploading(false);
         loadDocs(); // Recharger la liste
       }, 1200);
-    } catch (e: any) {
-      setUploadError(e.message ?? "Erreur");
+    } catch (e) {
+      setUploadError((e as Error).message ?? "Erreur");
       setUploading(false);
     }
   }

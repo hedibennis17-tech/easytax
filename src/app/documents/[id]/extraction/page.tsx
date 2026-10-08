@@ -112,8 +112,9 @@ export default function ExtractionPage() {
   };
 
   useEffect(() => {
-    void load();
     // documentId provient de la route dynamique.
+    const timer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId]);
 

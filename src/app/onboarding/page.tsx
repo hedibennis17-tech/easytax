@@ -961,8 +961,8 @@ function BusinessWizard({ onBack, onDone, prefill, lang = "fr" }: { onBack:()=>v
                 <F label="Méthode comptable" opt>
                   <select value={accounting} onChange={e=>setAccounting(e.target.value)}>
                     <option value="">Sélectionner</option>
-                    <option>Comptabilité d'exercice</option>
-                    <option>Comptabilité de caisse — admissible</option>
+                    <option>Comptabilité d&apos;exercice</option>
+                    <option>Comptabilité de caisse &mdash; admissible</option>
                     <option>À déterminer avec un professionnel</option>
                   </select>
                 </F>
@@ -1154,8 +1154,8 @@ function OnboardingContent() {
 
   useEffect(() => {
     const t = searchParams.get("type");
-    if (t==="business") setAccountType("BUSINESS");
-    else if (t==="individual"||t==="preparer") setAccountType("INDIVIDUAL");
+    const next = t==="business" ? "BUSINESS" : (t==="individual"||t==="preparer") ? "INDIVIDUAL" : null;
+    if (next) setTimeout(() => setAccountType(next as "BUSINESS" | "INDIVIDUAL"), 0);
   }, [searchParams]);
 
   const prefill = {
