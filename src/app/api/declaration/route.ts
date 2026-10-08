@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { taxProfiles, taxReturns, taxYears, incomeEntries, deductionEntries, creditEntries, taxCalculations } from "@/db/schema";
+import { taxProfiles, taxReturns, incomeEntries, deductionEntries, creditEntries, taxCalculations } from "@/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { normalizeProvinceCode } from "@/lib/provinces";
 import type { QuestionnaireProgress } from "@/lib/questionnaire-progress";
@@ -171,13 +171,9 @@ export async function GET() {
   const [profile] = await db.select().from(taxProfiles).where(eq(taxProfiles.userId, userId)).limit(1);
   if (!profile) return NextResponse.json({ error: "Profil introuvable" }, { status: 404 });
 
-  const [taxReturn] = await db.select({ id: taxReturns.id, taxYearId: taxReturns.taxYearId })
+  const [taxReturn] = await db.select({ id: taxReturns.id })
     .from(taxReturns).where(eq(taxReturns.profileId, profile.id))
     .orderBy(desc(taxReturns.updatedAt)).limit(1);
-  const [taxYearRow] = taxReturn
-    ? await db.select({ year: taxYears.year }).from(taxYears).where(eq(taxYears.id, taxReturn.taxYearId)).limit(1)
-    : [undefined];
-  const declarationYear = taxYearRow?.year ?? 2025;
 
   const province = normalizeProvinceCode(profile.fiscalResidence ?? profile.province) ?? "QC";
   const isQC = province === "QC";
@@ -216,10 +212,13 @@ export async function GET() {
   // Déductions
   for (const ded of deductions) {
     // Retenues fédérales
-    if (ded.description?.includes("Impôt fédéral") || ded.description?.includes("federal tax withheld")) {
+    // Retenue fédérale — T4 case 22 → ligne 43700
+    // Descriptions possibles : "Impôt sur le revenu retenu (T4 case 22)", "Impôt fédéral retenu", "federal income tax withheld", etc.
+    if (/impôt sur le revenu retenu|impôt fédéral|federal income tax withheld|income tax deducted/i.test(ded.description ?? "")) {
       addT1("43700", cents(ded.amountCents), "ocr"); continue;
     }
-    if (ded.description?.includes("Impôt du Québec") || ded.description?.includes("provincial tax withheld")) {
+    // Retenue provinciale — RL-1 case E → ligne 451 (Québec)
+    if (/impôt du québec|impôt provincial|provincial income tax withheld|provincial tax withheld/i.test(ded.description ?? "")) {
       addTp1("451", cents(ded.amountCents), "ocr"); continue;
     }
     const t1l  = CAT_DED_T1[ded.category ?? "other_deductions"];
@@ -242,16 +241,69 @@ export async function GET() {
   if (isQC) addTp1("350", 1857100, "calculated"); // 18 571 $ × 100
 
   // Depuis le moteur fiscal (si disponible)
+  // ── RÈGLEMENT FÉDÉRAL : chaîne officielle T1 2025 ─────────────────────────
+  // Variables settlement hoistées pour être accessibles dans le calcul du solde
+  let s43500 = 0, s43700 = 0, s45300 = 0, s48200 = 0, s48400 = 0, s48500 = 0;
   if (calc) {
-    addT1("42000", cents(calc.federalTaxPayableCents), "calculated");
-    addT1("43500", cents(calc.federalTaxPayableCents), "calculated");
+    // Parser calculationDetails.settlement pour avoir les lignes exactes du moteur
+    let settlement: Record<string, number | string> = {};
+    try {
+      const details = typeof calc.calculationDetails === "string"
+        ? JSON.parse(calc.calculationDetails)
+        : (calc.calculationDetails as Record<string, unknown> | null);
+      if (details?.settlement) settlement = details.settlement as Record<string, number | string>;
+    } catch { /* no-op */ }
+
+    // ── Ligne 43500 : impôt fédéral net à payer ──────────────────────────────
+    s43500 = (settlement.line43500 as number | undefined) ?? cents(calc.federalTaxPayableCents);
+
+    // ── Ligne 43700 : retenues à la source ───────────────────────────────────
+    // Source de vérité : deductions OCR déjà accumulées dans t1Amounts["43700"]
+    // Le settlement peut être corrompu (ancien calcul avec regex manquant → line43700=0)
+    // Règle : utiliser MAX(settlement, OCR) pour ne jamais sous-estimer les retenues.
+    const ocrWithheld43700 = t1Amounts["43700"]?.cents ?? 0;
+    const settlementWithheld43700 = (settlement.line43700 as number | undefined) ?? cents(calc.federalTaxWithheldCents);
+    s43700 = Math.max(ocrWithheld43700, settlementWithheld43700);
+    // Forcer t1Amounts["43700"] à la valeur réelle (évite double-count si addT1 ci-dessous)
+    t1Amounts["43700"] = { cents: s43700, source: s43700 === ocrWithheld43700 ? "ocr" : "calculated" };
+
+    // ── Ligne 45300 : ACT / CWB ──────────────────────────────────────────────
+    s45300 = (settlement.line45300 as number | undefined) ?? cents(calc.federalRefundableCreditsCents);
+
+    // ── Ligne 48200 : total des crédits et retenues (règlement T1 2025) ──────
+    // 48200 = 43700 + 45300 (+ autres crédits remboursables)
+    // Si le settlement stocké a line43700=0 mais qu'on a des retenues OCR réelles :
+    // le settlement est corrompu (ancien calcul pré-regex-fix) → recalculer.
+    // Si settlement.line48200 est 0 ou ne reflète pas les vraies retenues → recalculer.
+    const settlementLine43700 = settlement.line43700 as number | undefined;
+    const settlementCorrupted = (settlementLine43700 !== undefined && settlementLine43700 === 0 && s43700 > 0)
+      || ((settlement.line48200 as number | undefined) === 0 && s43700 > 0);
+    s48200 = settlementCorrupted
+      ? s43700 + s45300
+      : ((settlement.line48200 as number | undefined) || (s43700 + s45300));
+
+    // ── Lignes 48400 / 48500 : remboursement ou solde à payer ────────────────
+    s48400 = Math.max(0, s48200 - s43500);
+    s48500 = Math.max(0, s43500 - s48200);
+
+    // ── Alimenter le formulaire T1 ───────────────────────────────────────────
     addT1("35000", cents(calc.federalNonRefundableCreditsCents), "calculated");
-    addT1("43700", cents(calc.federalTaxWithheldCents), "calculated");
-    addT1("45300", cents(calc.federalRefundableCreditsCents), "calculated");
-    addT1("48200", cents(calc.federalTaxWithheldCents) + cents(calc.federalRefundableCreditsCents), "calculated");
-    const balance = cents(calc.totalBalanceCents);
-    addT1(balance < 0 ? "48400" : "48500", Math.abs(balance), "calculated");
+    if (s43500 > 0) {
+      t1Amounts["42000"] = { cents: s43500, source: "calculated" };
+      t1Amounts["43500"] = { cents: s43500, source: "calculated" };
+    }
+    // 43700 déjà forcé ci-dessus
+    if (s45300 > 0) t1Amounts["45300"] = { cents: s45300, source: "calculated" };
+    // 48200 = total des crédits — toujours calculé, même si 43700 ou 45300 individuellem. sont 0
+    t1Amounts["48200"] = { cents: s48200, source: "calculated" };
+    if (s48400 > 0) t1Amounts["48400"] = { cents: s48400, source: "calculated" };
+    if (s48500 > 0) t1Amounts["48500"] = { cents: s48500, source: "calculated" };
+
     if (cents(calc.provincialTaxPayableCents) > 0 && isQC) addTp1("430", cents(calc.provincialTaxPayableCents), "calculated");
+  } else {
+    // Pas de calcul moteur — alimenter 43700 depuis OCR uniquement
+    s43700 = t1Amounts["43700"]?.cents ?? 0;
+    s48200 = s43700; // pas de CWB sans moteur
   }
 
   // Totaux calculés
@@ -283,16 +335,18 @@ export async function GET() {
   }
 
   // Solde fédéral
-  const fedWithheld = calc ? cents(calc.federalTaxWithheldCents) : (t1Amounts["43700"]?.cents ?? 0);
-  const fedTax = cents(calc?.federalTaxPayableCents);
-  const fedRefundable = calc ? cents(calc.federalRefundableCreditsCents) : (t1Amounts["45300"]?.cents ?? 0);
-  const fedBalance = fedTax - fedWithheld - fedRefundable;
+  // fedBalance = ligne 43500 (impôt net) - ligne 48200 (retenues + crédits remboursables)
+  // Quand le moteur a tourné, utiliser les lignes settlement exactes (s43500, s48200)
+  // Sinon fallback sur les colonnes brutes du calc
+  const fedTax = calc ? s43500 : 0;
+  const fedWithheld = calc ? s43700 : (t1Amounts["43700"]?.cents ?? 0);
+  const fedTotalCredits = calc ? s48200 : fedWithheld; // 48200 = 43700 + 45300
+  const fedBalance = fedTax - fedTotalCredits;
 
   // Solde QC
   const provWithheld = calc ? cents(calc.provincialTaxWithheldCents) : (tp1Amounts["451"]?.cents ?? 0);
   const provTax = cents(calc?.provincialTaxPayableCents);
-  const provRefundable = calc ? cents(calc.provincialRefundableCreditsCents) : 0;
-  const provBalance = provTax - provWithheld - provRefundable;
+  const provBalance = provTax - provWithheld;
 
   // Construire les tableaux de lignes complets (toutes les lignes du dictionnaire)
   const buildLines = (
@@ -344,7 +398,7 @@ export async function GET() {
 
   return NextResponse.json({
     meta: {
-      taxYear: declarationYear,
+      taxYear: 2025,
       province,
       provinceName: provinceInfo.name,
       form: `T1 + ${provinceInfo.form}`,
@@ -355,6 +409,7 @@ export async function GET() {
       sinLastFour: profile.sinLastFour,
       address: [profile.address, profile.city, province, profile.postalCode].filter(Boolean).join(", "),
       isPreliminary: true,
+      taxReturnId: taxReturn?.id ?? null,
     },
     questionnaireProgress,
     questionnaireDatabase,
@@ -370,7 +425,11 @@ export async function GET() {
         taxBeforeCredits: cents(calc?.federalTaxBeforeCreditsCents),
         nonRefundableCredits: cents(calc?.federalNonRefundableCreditsCents),
         refundableCredits: cents(calc?.federalRefundableCreditsCents),
-        taxPayable: fedTax, withheld: fedWithheld, balance: fedBalance, isRefund: fedBalance < 0,
+        // withheld = ligne 43700 (retenues T4 seulement) — pour l'affichage ligne par ligne
+        taxPayable: fedTax, withheld: fedWithheld,
+        // totalCredits48200 = ligne 48200 (43700 + 45300 CWB) — utilisé pour le solde
+        totalCredits48200: fedTotalCredits,
+        balance: fedBalance, isRefund: fedBalance < 0,
       },
       provincial: {
         taxBeforeCredits: cents(calc?.provincialTaxBeforeCreditsCents),

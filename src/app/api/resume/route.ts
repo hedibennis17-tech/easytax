@@ -243,7 +243,25 @@ export async function GET() {
       docWithExtractionCount: slipData.length,
     },
     // Résultat moteur fiscal (si calculé)
-    calculation: calc ? {
+    calculation: calc ? (() => {
+      // Lire les lignes de règlement depuis calculationDetails
+      let settlement: Record<string, number | string> = {};
+      try {
+        const details = typeof calc.calculationDetails === "string"
+          ? JSON.parse(calc.calculationDetails)
+          : calc.calculationDetails;
+        if (details?.settlement) settlement = details.settlement as Record<string, number | string>;
+      } catch { /* no-op */ }
+
+      const line43500 = (settlement.line43500 as number) ?? (calc.federalTaxPayableCents ?? 0);
+      const line43700 = (settlement.line43700 as number) ?? (calc.federalTaxWithheldCents ?? 0);
+      const line45300 = (settlement.line45300 as number) ?? (calc.federalRefundableCreditsCents ?? 0);
+      const line48200 = (settlement.line48200 as number) ?? (line43700 + line45300);
+      const line48400 = (settlement.line48400 as number) ?? Math.max(0, line48200 - line43500);
+      const line48500 = (settlement.line48500 as number) ?? Math.max(0, line43500 - line48200);
+      const settlementStatus = (settlement.status as string) ?? (line48400 > 0 ? "REFUND" : line48500 > 0 ? "BALANCE_OWING" : "ZERO");
+
+      return {
       calculatedAt: calc.calculatedAt,
       isPreliminary: calc.isPreliminary,
       rulesVersion: calc.rulesSnapshotVersion,
@@ -262,6 +280,22 @@ export async function GET() {
         balanceCents: calc.federalBalanceCents,
         balance: fmt(calc.federalBalanceCents),
         isRefund: (calc.federalBalanceCents ?? 0) < 0,
+        // Lignes T1 de règlement (avis de cotisation)
+        line42000Cents: calc.federalTaxPayableCents ?? 0,
+        line42000: fmt(calc.federalTaxPayableCents ?? 0),
+        line43500Cents: line43500,
+        line43500: fmt(line43500),
+        line43700Cents: line43700,
+        line43700: fmt(line43700),
+        line45300Cents: line45300,
+        line45300: fmt(line45300),
+        line48200Cents: line48200,
+        line48200: fmt(line48200),
+        line48400Cents: line48400,
+        line48400: fmt(line48400),
+        line48500Cents: line48500,
+        line48500: fmt(line48500),
+        settlementStatus,
       },
       provincial: {
         taxBeforeCreditsCents: calc.provincialTaxBeforeCreditsCents,
@@ -279,6 +313,7 @@ export async function GET() {
       totalBalanceCents: calc.totalBalanceCents,
       totalBalance: fmt(calc.totalBalanceCents),
       isRefund: (calc.totalBalanceCents ?? 0) < 0,
-    } : null,
+    };
+    })() : null,
   });
 }

@@ -16,14 +16,11 @@ import type {
   TaxRulesForYear,
 } from "./types";
 import { getRulesForYearAndProvince } from "./rules/2025";
-import { getRulesFor2026 } from "./rules/2026";
 
 // ─── FONCTION PRINCIPALE ─────────────────────────────────────────────────────
 
 export function calculate(input: TaxEngineInput): TaxCalculationResult {
-  const rules = input.taxYear === 2026
-    ? getRulesFor2026(input.province)
-    : getRulesForYearAndProvince(input.taxYear, input.province);
+  const rules = getRulesForYearAndProvince(input.taxYear, input.province);
 
   if (!rules) {
     throw new Error(
@@ -66,9 +63,50 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
         )
       : emptyTaxCalc();
 
-  // 7. Balances (négatif = remboursement, positif = montant dû)
-  const federalBalanceCents =
-    federalCalc.taxPayableCents - input.taxWithheldFederalCents - federalCalc.refundableCreditsCents;
+  // ─── RÈGLEMENT FÉDÉRAL (spec easytax-tax-engine-spec-2025-qc) ─────────────
+  //
+  //  43500 = total à payer (impôt fédéral net après crédits non remboursables)
+  //  43700 = impôt DÉJÀ RETENU à la source (T4 box22 + autres feuillets)
+  //  45300 = ACT / CWB (prestation remboursable fédérale)
+  //  48200 = 43700 + 45300 + autres crédits remboursables
+  //  48400 = MAX(0, 48200 - 43500) → REMBOURSEMENT
+  //  48500 = MAX(0, 43500 - 48200) → SOLDE À PAYER
+  //
+  //  INTERDIT : if taxPayable == 0 then refund = 0
+  //  Un impôt net à 0 et un remboursement positif sont VALIDES.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // CWB (ACT) = crédits remboursables marqués comme tels dans les inputs
+  // (calculé par la couche appelante selon 5005-S6 QC ou formule fédérale)
+  const cwbCents = federalCalc.refundableCreditsCents;
+
+  // Ligne 43500 = impôt fédéral net (après non-remboursables, plancher 0)
+  const line43500Cents = federalCalc.taxPayableCents;
+
+  // Ligne 43700 = retenues à la source de tous les feuillets applicables
+  const line43700Cents = input.taxWithheldFederalCents;
+
+  // Ligne 45300 = ACT/CWB (remboursable) — séparé de 43700
+  const line45300Cents = cwbCents;
+
+  // Ligne 48200 = total des crédits utilisés dans le règlement
+  // = retenues (43700) + ACT (45300) + autres crédits remboursables
+  const line48200Cents = line43700Cents + cwbCents;
+
+  // Ligne 48400 = remboursement = MAX(0, 48200 - 43500)
+  const line48400Cents = Math.max(0, line48200Cents - line43500Cents);
+
+  // Ligne 48500 = solde à payer = MAX(0, 43500 - 48200)
+  const line48500Cents = Math.max(0, line43500Cents - line48200Cents);
+
+  const federalSettlementStatus: "REFUND" | "BALANCE_OWING" | "ZERO" =
+    line48400Cents > 0 ? "REFUND"
+    : line48500Cents > 0 ? "BALANCE_OWING"
+    : "ZERO";
+
+  // federalBalanceCents: négatif = remboursement, positif = dû (pour rétrocompat)
+  const federalBalanceCents = line48500Cents > 0 ? line48500Cents : -line48400Cents;
+
   const provincialBalanceCents =
     provincialCalc.taxPayableCents - input.taxWithheldProvincialCents - provincialCalc.refundableCreditsCents;
   const totalBalanceCents = federalBalanceCents + provincialBalanceCents;
@@ -92,6 +130,15 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
     federalBalanceCents,
     federalRefundableCreditsCents: federalCalc.refundableCreditsCents,
 
+    // Settlement fédéral explicite
+    federalLine43500Cents: line43500Cents,
+    federalLine43700Cents: line43700Cents,
+    federalLine45300Cents: line45300Cents,
+    federalLine48200Cents: line48200Cents,
+    federalLine48400Cents: line48400Cents,
+    federalLine48500Cents: line48500Cents,
+    federalSettlementStatus,
+
     provincialSurtaxCents: 0,
     provincialRefundableCreditsCents: provincialCalc.refundableCreditsCents,
     provincialTaxBeforeCreditsCents: provincialCalc.taxBeforeCreditsCents,
@@ -108,11 +155,12 @@ export function calculate(input: TaxEngineInput): TaxCalculationResult {
       "26000": taxableIncomeCents,
       "35000": federalCalc.basicPersonalCreditCents + federalCalc.otherCreditsCents,
       "42000": federalCalc.taxPayableCents,
-      "43500": federalCalc.taxPayableCents,
-      "43700": input.taxWithheldFederalCents,
-      // Total des crédits utilisables après le calcul : retenues + crédits
-      // remboursables. Les crédits non remboursables sont déjà appliqués à 42000.
-      "48200": input.taxWithheldFederalCents + federalCalc.refundableCreditsCents,
+      "43500": line43500Cents,
+      "43700": line43700Cents,
+      "45300": line45300Cents,
+      "48200": line48200Cents,
+      "48400": line48400Cents,
+      "48500": line48500Cents,
     },
 
     breakdown: {

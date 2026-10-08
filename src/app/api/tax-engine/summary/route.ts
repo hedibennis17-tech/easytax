@@ -46,6 +46,23 @@ export async function GET(req: NextRequest) {
   const balanceProvincial = formatBalance(calc.provincialBalanceCents ?? 0);
   const balanceTotal = formatBalance(calc.totalBalanceCents ?? 0);
 
+  // Lire les lignes de règlement stockées dans calculationDetails
+  let settlement: Record<string, number | string> = {};
+  try {
+    const details = typeof calc.calculationDetails === "string"
+      ? JSON.parse(calc.calculationDetails)
+      : calc.calculationDetails;
+    if (details?.settlement) settlement = details.settlement as Record<string, number | string>;
+  } catch { /* no-op */ }
+
+  const line43500 = (settlement.line43500 as number) ?? (calc.federalTaxPayableCents ?? 0);
+  const line43700 = (settlement.line43700 as number) ?? (calc.federalTaxWithheldCents ?? 0);
+  const line45300 = (settlement.line45300 as number) ?? (calc.federalRefundableCreditsCents ?? 0);
+  const line48200 = (settlement.line48200 as number) ?? (line43700 + line45300);
+  const line48400 = (settlement.line48400 as number) ?? Math.max(0, line48200 - line43500);
+  const line48500 = (settlement.line48500 as number) ?? Math.max(0, line43500 - line48200);
+  const settlementStatus = (settlement.status as string) ?? (line48400 > 0 ? "REFUND" : line48500 > 0 ? "BALANCE_OWING" : "ZERO");
+
   return NextResponse.json({
     hasCalculation: true,
     isPreliminary: calc.isPreliminary,
@@ -62,6 +79,22 @@ export async function GET(req: NextRequest) {
       taxPayable: formatCents(calc.federalTaxPayableCents ?? 0),
       withheld: formatCents(calc.federalTaxWithheldCents ?? 0),
       balance: balanceFederal,
+      // Lignes de règlement fédéral (T1)
+      line42000Cents: calc.federalTaxPayableCents ?? 0,
+      line43500Cents: line43500,
+      line43700Cents: line43700,
+      line45300Cents: line45300,
+      line48200Cents: line48200,
+      line48400Cents: line48400,
+      line48500Cents: line48500,
+      line42000: formatCents(calc.federalTaxPayableCents ?? 0),
+      line43500: formatCents(line43500),
+      line43700: formatCents(line43700),
+      line45300: formatCents(line45300),
+      line48200: formatCents(line48200),
+      line48400: formatCents(line48400),
+      line48500: formatCents(line48500),
+      settlementStatus,
     },
     provincial: {
       taxBeforeCredits: formatCents(calc.provincialTaxBeforeCreditsCents ?? 0),
