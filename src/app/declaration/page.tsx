@@ -46,7 +46,7 @@ interface DeclarationData {
     totalRevenuCents: number;
     revenuNetCents: number;
     revenuImposableCents: number;
-    federal: { taxBeforeCredits: number; nonRefundableCredits: number; refundableCredits: number; taxPayable: number; withheld: number; balance: number; isRefund: boolean };
+    federal: { taxBeforeCredits: number; nonRefundableCredits: number; refundableCredits: number; taxPayable: number; withheld: number; totalCredits48200?: number; balance: number; isRefund: boolean };
     provincial: { taxBeforeCredits: number; nonRefundableCredits: number; refundableCredits: number; taxPayable: number; withheld: number; balance: number; isRefund: boolean };
     totalBalance: number;
     isRefund: boolean;

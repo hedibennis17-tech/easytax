@@ -242,6 +242,8 @@ export async function GET() {
 
   // Depuis le moteur fiscal (si disponible)
   // ── PRIORITÉ : lire le settlement stocké dans calculationDetails ────────
+  // Variables settlement hoistées pour être accessibles dans le calcul du solde
+  let s43500 = 0, s43700 = 0, s45300 = 0, s48200 = 0, s48400 = 0, s48500 = 0;
   if (calc) {
     // Parser calculationDetails.settlement pour avoir les lignes exactes du moteur
     let settlement: Record<string, number | string> = {};
@@ -252,14 +254,14 @@ export async function GET() {
       if (details?.settlement) settlement = details.settlement as Record<string, number | string>;
     } catch { /* no-op */ }
 
-    const s43500 = (settlement.line43500 as number | undefined) ?? cents(calc.federalTaxPayableCents);
+    s43500 = (settlement.line43500 as number | undefined) ?? cents(calc.federalTaxPayableCents);
     // ⚠️ 43700 : NE PAS addT1 si déjà rempli depuis deductionEntries (éviter double-count)
-    const s43700 = (settlement.line43700 as number | undefined) ?? cents(calc.federalTaxWithheldCents);
-    const s45300 = (settlement.line45300 as number | undefined) ?? cents(calc.federalRefundableCreditsCents);
+    s43700 = (settlement.line43700 as number | undefined) ?? cents(calc.federalTaxWithheldCents);
+    s45300 = (settlement.line45300 as number | undefined) ?? cents(calc.federalRefundableCreditsCents);
     // 48200 = retenues + crédits remboursables (formule correcte T1)
-    const s48200 = (settlement.line48200 as number | undefined) ?? (s43700 + s45300);
-    const s48400 = (settlement.line48400 as number | undefined) ?? Math.max(0, s48200 - s43500);
-    const s48500 = (settlement.line48500 as number | undefined) ?? Math.max(0, s43500 - s48200);
+    s48200 = (settlement.line48200 as number | undefined) ?? (s43700 + s45300);
+    s48400 = (settlement.line48400 as number | undefined) ?? Math.max(0, s48200 - s43500);
+    s48500 = (settlement.line48500 as number | undefined) ?? Math.max(0, s43500 - s48200);
 
     addT1("42000", s43500, "calculated");
     addT1("43500", s43500, "calculated");
@@ -311,9 +313,13 @@ export async function GET() {
   }
 
   // Solde fédéral
-  const fedWithheld = calc ? cents(calc.federalTaxWithheldCents) : (t1Amounts["43700"]?.cents ?? 0);
-  const fedTax = cents(calc?.federalTaxPayableCents);
-  const fedBalance = fedTax - fedWithheld;
+  // fedBalance = ligne 43500 (impôt net) - ligne 48200 (retenues + crédits remboursables)
+  // Quand le moteur a tourné, utiliser les lignes settlement exactes (s43500, s48200)
+  // Sinon fallback sur les colonnes brutes du calc
+  const fedTax = calc ? s43500 : 0;
+  const fedWithheld = calc ? s43700 : (t1Amounts["43700"]?.cents ?? 0);
+  const fedTotalCredits = calc ? s48200 : fedWithheld; // 48200 = 43700 + 45300
+  const fedBalance = fedTax - fedTotalCredits;
 
   // Solde QC
   const provWithheld = calc ? cents(calc.provincialTaxWithheldCents) : (tp1Amounts["451"]?.cents ?? 0);
@@ -397,7 +403,11 @@ export async function GET() {
         taxBeforeCredits: cents(calc?.federalTaxBeforeCreditsCents),
         nonRefundableCredits: cents(calc?.federalNonRefundableCreditsCents),
         refundableCredits: cents(calc?.federalRefundableCreditsCents),
-        taxPayable: fedTax, withheld: fedWithheld, balance: fedBalance, isRefund: fedBalance < 0,
+        // withheld = ligne 43700 (retenues T4 seulement) — pour l'affichage ligne par ligne
+        taxPayable: fedTax, withheld: fedWithheld,
+        // totalCredits48200 = ligne 48200 (43700 + 45300 CWB) — utilisé pour le solde
+        totalCredits48200: fedTotalCredits,
+        balance: fedBalance, isRefund: fedBalance < 0,
       },
       provincial: {
         taxBeforeCredits: cents(calc?.provincialTaxBeforeCreditsCents),
