@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { fiscalDocuments, documentExtractions, extractionFields, documentAuditLogs, documentTypes, documentPages } from "@/db/schema";
+import { fiscalDocuments, documentExtractions, extractionFields, documentAuditLogs, documentTypes, documentPages, taxReturns as taxReturnsTable } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { getAuthContext, unauthorized } from "@/lib/auth-helpers";
 import { hasTaxMappingForDocumentType, syncOcrToEntries } from "@/lib/ocr-to-entries";
@@ -20,6 +20,7 @@ export async function POST(
       userId: fiscalDocuments.userId,
       status: fiscalDocuments.status,
       taxReturnId: fiscalDocuments.taxReturnId,
+      taxProfileId: fiscalDocuments.taxProfileId,
       uploadedDocumentTypeId: fiscalDocuments.documentTypeId,
     })
     .from(fiscalDocuments)
@@ -62,15 +63,26 @@ export async function POST(
     .set({ status: "ready_for_tax_return", updatedAt: new Date() })
     .where(eq(fiscalDocuments.id, id));
 
+  // Résoudre le taxReturnId si absent du document
+  let resolvedTaxReturnId = doc[0].taxReturnId;
+  if (!resolvedTaxReturnId) {
+    // Chercher le taxReturn actif lié au profil fiscal du document
+    const [activeReturn] = await db.select({ id: taxReturnsTable.id })
+      .from(taxReturnsTable)
+      .where(eq(taxReturnsTable.profileId, doc[0].taxProfileId))
+      .limit(1);
+    resolvedTaxReturnId = activeReturn?.id ?? null;
+  }
+
   let entriesCreated = 0;
-  if (doc[0].taxReturnId && effectiveDocumentType?.code) {
+  if (resolvedTaxReturnId && effectiveDocumentType?.code) {
     const [page] = await db.select({ ocrText: documentPages.ocrText })
       .from(documentPages).where(eq(documentPages.documentId, id)).limit(1);
     const synced = await syncOcrToEntries({
       extractionId: extraction[0].id,
       documentId: id,
       userId: ctx.clerkUserId,
-      taxReturnId: doc[0].taxReturnId,
+      taxReturnId: resolvedTaxReturnId,
       documentTypeCode: effectiveDocumentType.code,
       ocrText: page?.ocrText ?? undefined,
     });

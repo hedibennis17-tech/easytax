@@ -5120,7 +5120,7 @@
           "label_fr": "Cotisation de l'employé au RRQ",
           "label_en": "Employee QPP contribution",
           "t1_line": null,
-          "tp1_line": null,
+          "tp1_line": "248",
           "data_type": "money",
           "keywords_fr": [
             "cotisation",
@@ -5140,7 +5140,7 @@
           "label_fr": "Cotisation supplémentaire de l'employé au RRQ (RRQ2)",
           "label_en": "Additional employee QPP contribution",
           "t1_line": null,
-          "tp1_line": null,
+          "tp1_line": "248",
           "data_type": "money",
           "keywords_fr": [
             "cotisation",
@@ -5162,7 +5162,7 @@
           "label_fr": "Cotisation à l'assurance emploi",
           "label_en": "Employment insurance contribution",
           "t1_line": null,
-          "tp1_line": null,
+          "tp1_line": "248",
           "data_type": "money",
           "keywords_fr": [
             "assurance",
@@ -5242,7 +5242,7 @@
           "label_fr": "Cotisation syndicale",
           "label_en": "Union dues",
           "t1_line": null,
-          "tp1_line": null,
+          "tp1_line": "397",
           "data_type": "money",
           "keywords_fr": [
             "cotisation",
@@ -5318,7 +5318,7 @@
           "label_fr": "Cotisation au RQAP",
           "label_en": "QPIP premium",
           "t1_line": null,
-          "tp1_line": null,
+          "tp1_line": "248",
           "data_type": "money",
           "keywords_fr": [
             "cotisation",

@@ -274,6 +274,8 @@ export async function syncOcrToEntries(params: {
     "206":  { entryType: "credit",             category: "rrq_employee" },
     "375":  { entryType: "credit",             category: "rqap_employee" },
     "456":  { entryType: "credit",             category: "other_credits" },   // prime au travail
+    "248":  { entryType: "credit",             category: "other_credits" },   // RRQ/RQAP employé
+    "397":  { entryType: "deduction",          category: "union_dues" },      // Cotisations syndicales QC
   };
 
   const now = new Date();
@@ -409,13 +411,16 @@ export async function syncOcrToEntries(params: {
         created++;
 
       } else if (mapping.entryType === "withheld_federal" || mapping.entryType === "withheld_provincial") {
+        // Impôt retenu → deductionEntries (le moteur fiscal lit les retenues
+        // depuis deductionEntries via pattern matching sur la description)
+        const desc = `${box.label_fr} (${documentTypeCode} case ${box.code})`;
         const existing = await db.select({ id: deductionEntries.id })
           .from(deductionEntries)
           .where(and(
             eq(deductionEntries.userId, userId),
             eq(deductionEntries.taxReturnId, taxReturnId),
             eq(deductionEntries.sourceDocumentId, documentId),
-            eq(deductionEntries.description, `${box.label_fr} (${documentTypeCode} case ${box.code})`),
+            eq(deductionEntries.description, desc),
           )).limit(1);
         if (existing.length > 0) { skipped++; continue; }
 
@@ -425,7 +430,7 @@ export async function syncOcrToEntries(params: {
           sourceDocumentId: documentId,
           sourceType: "validated_ocr",
           amountCents: box.amountCents,
-          description: `${box.label_fr} (${documentTypeCode} case ${box.code})`,
+          description: desc,
           isValidated: true,
           updatedAt: now,
         });
