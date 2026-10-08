@@ -212,10 +212,13 @@ export async function GET() {
   // Déductions
   for (const ded of deductions) {
     // Retenues fédérales
-    if (ded.description?.includes("Impôt fédéral") || ded.description?.includes("federal tax withheld")) {
+    // Retenue fédérale — T4 case 22 → ligne 43700
+    // Descriptions possibles : "Impôt sur le revenu retenu (T4 case 22)", "Impôt fédéral retenu", "federal income tax withheld", etc.
+    if (/impôt sur le revenu retenu|impôt fédéral|federal income tax withheld|income tax deducted/i.test(ded.description ?? "")) {
       addT1("43700", cents(ded.amountCents), "ocr"); continue;
     }
-    if (ded.description?.includes("Impôt du Québec") || ded.description?.includes("provincial tax withheld")) {
+    // Retenue provinciale — RL-1 case E → ligne 451 (Québec)
+    if (/impôt du québec|impôt provincial|provincial income tax withheld|provincial tax withheld/i.test(ded.description ?? "")) {
       addTp1("451", cents(ded.amountCents), "ocr"); continue;
     }
     const t1l  = CAT_DED_T1[ded.category ?? "other_deductions"];

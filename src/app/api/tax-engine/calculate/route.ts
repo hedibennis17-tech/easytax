@@ -52,14 +52,18 @@ export async function POST(req: NextRequest) {
 
   // Les retenues des feuillets sont conservées comme entrées auditables, mais
   // ne sont ni un revenu ni une déduction. Elles alimentent les lignes 43700/451.
+  // Regex unifié — couvre toutes les descriptions possibles pour la retenue fédérale T4 case 22
+  const FEDERAL_WITHHELD_RE = /impôt sur le revenu retenu|impôt fédéral|federal income tax withheld|income tax deducted/i;
+  const PROVINCIAL_WITHHELD_RE = /impôt du québec|impôt provincial|provincial income tax withheld|provincial tax withheld/i;
+
   const federalWithheldFromSlips = deductions
-    .filter(d => /impôt fédéral|federal income tax withheld|income tax deducted/i.test(d.description ?? ""))
+    .filter(d => FEDERAL_WITHHELD_RE.test(d.description ?? ""))
     .reduce((sum, d) => sum + (d.amountCents ?? 0), 0);
   const provincialWithheldFromSlips = deductions
-    .filter(d => /impôt du québec|provincial income tax withheld|provincial tax withheld/i.test(d.description ?? ""))
+    .filter(d => PROVINCIAL_WITHHELD_RE.test(d.description ?? ""))
     .reduce((sum, d) => sum + (d.amountCents ?? 0), 0);
   const taxableDeductions = deductions.filter(d =>
-    !/impôt fédéral|federal income tax withheld|income tax deducted|impôt du québec|provincial income tax withheld|provincial tax withheld/i.test(d.description ?? "")
+    !FEDERAL_WITHHELD_RE.test(d.description ?? "") && !PROVINCIAL_WITHHELD_RE.test(d.description ?? "")
   );
   const answers = (pancanadian.answers ?? pancanadian.questionnaireAnswers ?? pancanadian) as Record<string, unknown>;
   const earnedIncomeCents = incomes.filter(i => i.category === "employment" || i.category === "self_employment").reduce((sum, i) => sum + (i.amountCents ?? 0), 0);

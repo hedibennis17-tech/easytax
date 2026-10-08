@@ -80,8 +80,10 @@ export async function GET() {
   }
 
   // ── 6. Identifier les entrées de retenue fédérale
+  // Regex unifié — couvre "Impôt sur le revenu retenu (T4 case 22)", "Impôt fédéral retenu", etc.
+  const FEDERAL_WITHHELD_RE = /impôt sur le revenu retenu|impôt fédéral|federal income tax withheld|income tax deducted/i;
   const federalWithheldEntries = allDeductions.filter(d =>
-    /impôt fédéral|federal income tax withheld|income tax deducted/i.test(d.description ?? "")
+    FEDERAL_WITHHELD_RE.test(d.description ?? "")
   );
   const federalWithheldTotal = federalWithheldEntries.reduce((s, d) => s + (d.amountCents ?? 0), 0);
 
@@ -89,8 +91,9 @@ export async function GET() {
   const federalWithheldValidatedTotal = federalWithheldValidatedEntries.reduce((s, d) => s + (d.amountCents ?? 0), 0);
 
   // ── 7. Identifier les entrées de retenue provinciale
+  const PROVINCIAL_WITHHELD_RE = /impôt du québec|impôt provincial|provincial income tax withheld|provincial tax withheld/i;
   const provincialWithheldEntries = allDeductions.filter(d =>
-    /impôt du québec|provincial income tax withheld|provincial tax withheld/i.test(d.description ?? "")
+    PROVINCIAL_WITHHELD_RE.test(d.description ?? "")
   );
 
   // ── 8. Parser pancanadianData pour les réponses questionnaire
@@ -182,7 +185,7 @@ export async function GET() {
 
     // ── SECTION 2 : Détection retenue fédérale (T4 box 22 → ligne 43700)
     federal_withheld_detection: {
-      regex_used: "/impôt fédéral|federal income tax withheld|income tax deducted/i",
+      regex_used: "/impôt sur le revenu retenu|impôt fédéral|federal income tax withheld|income tax deducted/i",
       entries_matching: federalWithheldEntries.map(d => ({
         description: d.description,
         amountCents: d.amountCents,
