@@ -381,6 +381,7 @@ export async function GET() {
       sinLastFour: profile.sinLastFour,
       address: [profile.address, profile.city, province, profile.postalCode].filter(Boolean).join(", "),
       isPreliminary: true,
+      taxReturnId: taxReturn?.id ?? null,
     },
     questionnaireProgress,
     questionnaireDatabase,

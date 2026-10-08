@@ -38,6 +38,7 @@ interface DeclarationData {
     sinLastFour: string | null;
     address: string;
     isPreliminary: boolean;
+    taxReturnId?: string;
   };
   t1: DeclarationLine[];
   tp1: DeclarationLine[];
@@ -640,15 +641,18 @@ export default function DeclarationPage() {
   const { lang } = useApp();
   const T = (fr: string, en: string) => lang === "en" ? en : fr;
 
-  const [data,       setData]       = useState<DeclarationData | null>(null);
-  const [loading,    setLoading]    = useState(true);
-  const [t1Lines,    setT1Lines]    = useState<DeclarationLine[]>([]);
-  const [tp1Lines,   setTp1Lines]   = useState<DeclarationLine[]>([]);
-  const [activeTab,  setActiveTab]  = useState<"t1" | "provincial" | "resume">("resume");
-  const [saving,     setSaving]     = useState(false);
+  const [data,          setData]          = useState<DeclarationData | null>(null);
+  const [loading,       setLoading]       = useState(true);
+  const [t1Lines,       setT1Lines]       = useState<DeclarationLine[]>([]);
+  const [tp1Lines,      setTp1Lines]      = useState<DeclarationLine[]>([]);
+  const [activeTab,     setActiveTab]     = useState<"t1" | "provincial" | "resume">("resume");
+  const [saving,        setSaving]        = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
+  const [recalcMsg,     setRecalcMsg]     = useState<string | null>(null);
 
   // ── Charger les données ─────────────────────────────────────────────────────
-  useEffect(() => {
+  const loadData = useCallback(() => {
+    setLoading(true);
     fetch("/api/declaration")
       .then(r => r.ok ? r.json() : null)
       .then((d: DeclarationData | null) => {
@@ -659,6 +663,34 @@ export default function DeclarationPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // ── Recalculer le moteur fiscal ─────────────────────────────────────────────
+  const recalculate = useCallback(async () => {
+    const taxReturnId = data?.meta?.taxReturnId;
+    if (!taxReturnId || recalculating) return;
+    setRecalculating(true);
+    setRecalcMsg(null);
+    try {
+      const res = await fetch("/api/tax-engine/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taxReturnId }),
+      });
+      if (res.ok) {
+        setRecalcMsg("✅ Calcul mis à jour — rechargement...");
+        setTimeout(() => { setRecalcMsg(null); loadData(); }, 800);
+      } else {
+        const err = await res.json() as { error?: string };
+        setRecalcMsg(`❌ ${err.error ?? "Erreur de calcul"}`);
+      }
+    } catch {
+      setRecalcMsg("❌ Erreur réseau");
+    } finally {
+      setRecalculating(false);
+    }
+  }, [data?.meta?.taxReturnId, recalculating, loadData]);
 
   // ── Éditer une ligne ────────────────────────────────────────────────────────
   const editT1 = useCallback((line: string, cents: number) => {
@@ -848,10 +880,27 @@ export default function DeclarationPage() {
               </div>
               {data?.meta.address && <div style={{ fontSize: 10, color: "#a0b4b0", marginTop: 2 }}>{data.meta.address}</div>}
             </div>
-            <button onClick={() => router.push("/questionnaire")}
-              style={{ padding: "7px 12px", fontSize: 11, color: "#0b6b67", background: "transparent", border: "1px solid #9fd4cc", borderRadius: 8, cursor: "pointer" }}>
-              ✏️ {T("Modifier les réponses","Edit answers")}
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={() => router.push("/questionnaire")}
+                style={{ padding: "7px 12px", fontSize: 11, color: "#0b6b67", background: "transparent", border: "1px solid #9fd4cc", borderRadius: 8, cursor: "pointer" }}>
+                ✏️ {T("Modifier les réponses","Edit answers")}
+              </button>
+              <button onClick={() => void recalculate()} disabled={recalculating || !data?.meta?.taxReturnId}
+                style={{ padding: "7px 12px", fontSize: 11, fontWeight: 600,
+                  color: recalculating ? "#9fd4cc" : "#fff",
+                  background: recalculating ? "#e8f4f4" : "#0b6b67",
+                  border: "1px solid #0b6b67", borderRadius: 8,
+                  cursor: recalculating ? "wait" : "pointer", opacity: !data?.meta?.taxReturnId ? 0.5 : 1 }}>
+                {recalculating ? "⏳ " + T("Calcul...","Calculating...") : "🔄 " + T("Recalculer","Recalculate")}
+              </button>
+            </div>
+            {recalcMsg && (
+              <div style={{ width: "100%", marginTop: 6, fontSize: 11, padding: "4px 10px", borderRadius: 6,
+                background: recalcMsg.startsWith("✅") ? "rgba(5,150,105,0.1)" : "rgba(220,38,38,0.1)",
+                color: recalcMsg.startsWith("✅") ? "#065f46" : "#991b1b" }}>
+                {recalcMsg}
+              </div>
+            )}
           </div>
           {/* Bandeau préliminaire */}
           <div style={{ marginTop: 10, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "#92400e" }}>
