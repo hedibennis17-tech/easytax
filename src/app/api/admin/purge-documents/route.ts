@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+export async function GET(req: NextRequest) {
+  return POST(req);
+}
+
 export async function POST(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token") ?? req.headers.get("x-migrate-token");
   const secret = process.env.MIGRATE_SECRET;
