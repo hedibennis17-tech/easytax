@@ -28,6 +28,9 @@ export async function POST(req: NextRequest) {
       "document_audit_logs",
       "document_pages",
       "document_parties",
+      "income_entries",        // FK → fiscal_documents
+      "deduction_entries",     // FK → fiscal_documents (si existe)
+      "tax_line_entries",      // FK → fiscal_documents (si existe)
       "fiscal_documents",
     ];
 
