@@ -333,19 +333,35 @@ export async function GET() {
     s48200 = s43700; // pas de CWB sans moteur
   }
 
-  // Totaux calculés
-  const totalRevenu = Object.entries(t1Amounts)
-    .filter(([l]) => parseInt(l) >= 10000 && parseInt(l) <= 14999)
-    .reduce((s, [, v]) => s + v.cents, 0);
-  const totalDed = Object.entries(t1Amounts)
-    .filter(([l]) => parseInt(l) >= 20600 && parseInt(l) <= 25999)
-    .reduce((s, [, v]) => s + v.cents, 0);
-  const revenuNet = Math.max(0, totalRevenu - totalDed);
-  const revenuImposable = revenuNet;
+  // ── Totaux des lignes 15000 / 23600 / 26000 ────────────────────────────────
+  // SOURCE DE VÉRITÉ : le moteur fiscal (calc) est prioritaire.
+  // Les entrées OCR dans deductionEntries peuvent contenir des cotisations de paie
+  // (RPC/RRQ/AE/RQAP) enregistrées comme "other_deductions" qui NE doivent PAS
+  // réduire le revenu net (elles sont des crédits non remboursables, pas des déductions).
+  // Utiliser les chiffres du moteur évite ce genre de corruption OCR.
+  let totalRevenu: number;
+  let revenuNet: number;
+  let revenuImposable: number;
 
-  if (totalRevenu > 0)     addT1("15000", totalRevenu, "calculated");
-  if (revenuNet > 0)       addT1("23600", revenuNet, "calculated");
-  if (revenuImposable > 0) addT1("26000", revenuImposable, "calculated");
+  if (calc) {
+    // Moteur disponible → source de vérité propre
+    totalRevenu    = cents(calc.totalIncomeCents);
+    revenuNet      = cents(calc.netIncomeCents);
+    revenuImposable = cents(calc.taxableIncomeCents);
+  } else {
+    // Pas de moteur → fallback OCR (revenus seulement, ignorer les déductions OCR douteuses)
+    totalRevenu = Object.entries(t1Amounts)
+      .filter(([l]) => parseInt(l) >= 10000 && parseInt(l) <= 14999)
+      .reduce((s, [, v]) => s + v.cents, 0);
+    // Sans moteur, pas de déductions validées → revenuNet = totalRevenu (conservateur)
+    revenuNet      = totalRevenu;
+    revenuImposable = totalRevenu;
+  }
+
+  // Forcer les lignes T1 avec les vraies valeurs (overwrite tout OCR précédent)
+  if (totalRevenu > 0) t1Amounts["15000"] = { cents: totalRevenu, source: calc ? "calculated" : "ocr" };
+  if (revenuNet > 0)   t1Amounts["23600"] = { cents: revenuNet,   source: calc ? "calculated" : "ocr" };
+  if (revenuImposable > 0) t1Amounts["26000"] = { cents: revenuImposable, source: calc ? "calculated" : "ocr" };
 
   // TP-1 totaux
   if (isQC) {
