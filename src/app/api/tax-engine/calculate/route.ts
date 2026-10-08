@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     .reduce((sum, d) => sum + (d.amountCents ?? 0), 0);
   // Les cotisations salariales RRQ/RPC, RQAP/AE sont des crédits/éléments de
   // paie. Elles ne doivent jamais réduire directement la ligne 23600.
-  const PAYROLL_CREDIT_RE = /cotisations?\s+(?:au\s+)?(?:rrq|rpc|qpp|cpp)|cotisations?\s+(?:à\s+|a\s+)?(?:l['’])?ae|assurance[- ]emploi|rqap|qpip|cpp\/qpp/i;
+  const PAYROLL_CREDIT_RE = /(?:cotisations?|contributions?).*(?:rrq|rpc|qpp|cpp|rqap|qpip|ae|assurance[- ]emploi)|(?:rrq|rpc|qpp|cpp)\s*\/\s*(?:rrq|rpc|qpp|cpp)|(?:t4|rl[- ]?1).*(?:case|box|caisse)\s*(?:16|18|b|c)\b|(?:case|box)\s*(?:16|18|b|c)\b.*(?:t4|rl[- ]?1)/i;
   const payrollCredits = deductions.filter(d => PAYROLL_CREDIT_RE.test(d.description ?? ""));
   const taxableDeductions = deductions.filter(d =>
     !FEDERAL_WITHHELD_RE.test(d.description ?? "") && !PROVINCIAL_WITHHELD_RE.test(d.description ?? "") && !PAYROLL_CREDIT_RE.test(d.description ?? "")

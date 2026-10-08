@@ -653,7 +653,7 @@ export default function DeclarationPage() {
   // ── Charger les données ─────────────────────────────────────────────────────
   const loadData = useCallback(() => {
     setLoading(true);
-    fetch("/api/declaration")
+    fetch(`/api/declaration?fresh=${Date.now()}`, { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
       .then((d: DeclarationData | null) => {
         if (!d) return;

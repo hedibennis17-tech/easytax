@@ -216,7 +216,7 @@ export async function GET() {
   // Déductions
   for (const ded of deductions) {
     // RRQ/RPC, RQAP/AE : crédit de paie, jamais déduction du revenu net.
-    if (/cotisations?\s+(?:au\s+)?(?:rrq|rpc|qpp|cpp)|cotisations?\s+(?:à\s+|a\s+)?(?:l['’])?ae|assurance[- ]emploi|rqap|qpip|cpp\/qpp/i.test(ded.description ?? "")) {
+    if (/(?:cotisations?|contributions?).*(?:rrq|rpc|qpp|cpp|rqap|qpip|ae|assurance[- ]emploi)|(?:rrq|rpc|qpp|cpp)\s*\/\s*(?:rrq|rpc|qpp|cpp)|(?:t4|rl[- ]?1).*(?:case|box|caisse)\s*(?:16|18|b|c)\b|(?:case|box)\s*(?:16|18|b|c)\b.*(?:t4|rl[- ]?1)/i.test(ded.description ?? "")) {
       continue;
     }
     // Retenues fédérales
