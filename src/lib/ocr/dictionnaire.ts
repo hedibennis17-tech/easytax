@@ -482,9 +482,30 @@ export function extractAllBoxes(
   const slip = getSlipDict(slipCode);
   if (!slip) return [];
 
+  // Tronquer le texte OCR avant la page d'instructions (page 2 des feuillets CRA).
+  // La page 2 des T4A/T4/T5 contient les instructions de l'ARC et ne contient
+  // aucune donnée — mais l'OCR y lit des numéros de lignes (33099, 20600...) comme montants.
+  // Marqueurs fiables de début de page d'instructions :
+  const INSTRUCTIONS_MARKERS = [
+    "Do not report on your tax return",
+    "Ne déclarez pas les renseignements",
+    "Canada Revenue Agency use only",
+    "À l'usage de l'Agence du revenu du Canada",
+    "See the privacy notice on your return",
+    "Consultez l'avis de confidentialité",
+  ];
+  let cleanText = ocrText;
+  for (const marker of INSTRUCTIONS_MARKERS) {
+    const idx = cleanText.indexOf(marker);
+    if (idx > 200) { // Garder au moins 200 chars pour ne pas tronquer trop tôt
+      cleanText = cleanText.slice(0, idx);
+      break;
+    }
+  }
+
   return slip.boxes.map(box => {
     const rawValue = box.data_type === "money"
-      ? findBoxValueInText(ocrText, box)
+      ? findBoxValueInText(cleanText, box)
       : null;
     const amountCents = rawValue ? parseMontantOCR(rawValue) : null;
 
