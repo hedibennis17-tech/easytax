@@ -62,14 +62,21 @@ export async function POST(req: NextRequest) {
   const provincialWithheldFromSlips = deductions
     .filter(d => PROVINCIAL_WITHHELD_RE.test(d.description ?? ""))
     .reduce((sum, d) => sum + (d.amountCents ?? 0), 0);
+  // Les cotisations salariales RRQ/RPC, RQAP/AE sont des crédits/éléments de
+  // paie. Elles ne doivent jamais réduire directement la ligne 23600.
+  const PAYROLL_CREDIT_RE = /cotisations?\s+(?:au\s+)?(?:rrq|rpc|qpp|cpp)|cotisations?\s+(?:à\s+|a\s+)?(?:l['’])?ae|assurance[- ]emploi|rqap|qpip|cpp\/qpp/i;
+  const payrollCredits = deductions.filter(d => PAYROLL_CREDIT_RE.test(d.description ?? ""));
   const taxableDeductions = deductions.filter(d =>
-    !FEDERAL_WITHHELD_RE.test(d.description ?? "") && !PROVINCIAL_WITHHELD_RE.test(d.description ?? "")
+    !FEDERAL_WITHHELD_RE.test(d.description ?? "") && !PROVINCIAL_WITHHELD_RE.test(d.description ?? "") && !PAYROLL_CREDIT_RE.test(d.description ?? "")
   );
   const answers = (pancanadian.answers ?? pancanadian.questionnaireAnswers ?? pancanadian) as Record<string, unknown>;
   const earnedIncomeCents = incomes.filter(i => i.category === "employment" || i.category === "self_employment").reduce((sum, i) => sum + (i.amountCents ?? 0), 0);
   const dependentCount = Array.isArray(answers.dependents)
     ? answers.dependents.length
     : Number(answers.dependentCount ?? answers.numberOfDependents ?? 0) || 0;
+  const cwbConfirmed = [answers.c17, answers.act_cwb, answers.cwb].some(value =>
+    value === true || value === "true" || value === "oui" || value === "yes"
+  );
 
   // ACT/CWB 2025 — calculé automatiquement pour tout résident avec revenu d'emploi éligible.
   // Le questionnaire peut désactiver via answers.cwb_opt_out === true.
@@ -77,7 +84,7 @@ export async function POST(req: NextRequest) {
   // INTERDIT : hardcoder les montants du test de régression.
   const cwbOptOut = [answers.cwb_opt_out].some(value => value === true || value === "true");
   let cwbCents = 0;
-  if (!cwbOptOut && earnedIncomeCents > 0) {
+  if (!cwbOptOut && cwbConfirmed && earnedIncomeCents > 0) {
     if (province === "QC") {
       // ─── 5005-S6 Québec 2025 ──────────────────────────────────────────────
       // Seuils 2025 pour les résidents du Québec (Schedule 6 QC)
@@ -122,6 +129,14 @@ export async function POST(req: NextRequest) {
       description: d.description ?? undefined,
     })),
     credits: [
+      ...payrollCredits.map((d) => ({
+        category: "other_credits" as const,
+        claimedAmountCents: d.amountCents ?? 0,
+        sourceType: (d.sourceType as "validated_ocr" | "manual"),
+        description: d.description ?? "Cotisation salariale",
+        isRefundable: false,
+        jurisdiction: "CA" as const,
+      })),
       ...credits.map((c) => ({
       category: c.category,
       claimedAmountCents: c.claimedAmountCents ?? 0,

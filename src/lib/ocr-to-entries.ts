@@ -19,8 +19,8 @@
  *
  * Mapping RL-1 Revenu Québec:
  *   case_a  → income.employment         (Case A — Revenus d'emploi)
- *   case_b  → deduction.rrq_employee    (RRQ employé)
- *   case_c  → deduction.rqap_employee   (RQAP employé)
+ *   case_b  → credit.other_credits      (RRQ employé — crédit, pas une déduction du revenu)
+ *   case_c  → credit.other_credits      (RQAP employé — crédit, pas une déduction du revenu)
  *   case_e  → withheld provincial       (Impôt retenu QC)
  *   case_j  → deduction.union_dues      (Cotisations syndicales)
  *
@@ -120,8 +120,8 @@ const T4_FIELD_MAP: Record<string, FieldMapping> = {
 const RL1_FIELD_MAP: Record<string, FieldMapping> = {
   case_a: { type: "income",             category: "employment",       labelFr: "Revenus d'emploi (RL-1 case A)",        labelEn: "Employment income (RL-1 box A)" },
   case_e: { type: "withheld_provincial",                              labelFr: "Impôt provincial retenu (RL-1 case E)", labelEn: "Provincial income tax withheld (RL-1 box E)" },
-  case_b: { type: "deduction",          category: "other_deductions", labelFr: "Cotisations RRQ (RL-1 case B)",         labelEn: "QPP contributions (RL-1 box B)" },
-  case_c: { type: "deduction",          category: "other_deductions", labelFr: "Cotisations RQAP (RL-1 case C)",        labelEn: "QPIP premiums (RL-1 box C)" },
+  case_b: { type: "credit",             category: "other_credits",    labelFr: "Cotisations RRQ (RL-1 case B)",         labelEn: "QPP contributions (RL-1 box B)" },
+  case_c: { type: "credit",             category: "other_credits",    labelFr: "Cotisations RQAP (RL-1 case C)",        labelEn: "QPIP premiums (RL-1 box C)" },
   case_j: { type: "deduction",          category: "union_dues",       labelFr: "Cotisations syndicales (RL-1 case J)",  labelEn: "Union dues (RL-1 box J)" },
 };
 

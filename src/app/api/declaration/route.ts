@@ -215,6 +215,10 @@ export async function GET() {
 
   // Déductions
   for (const ded of deductions) {
+    // RRQ/RPC, RQAP/AE : crédit de paie, jamais déduction du revenu net.
+    if (/cotisations?\s+(?:au\s+)?(?:rrq|rpc|qpp|cpp)|cotisations?\s+(?:à\s+|a\s+)?(?:l['’])?ae|assurance[- ]emploi|rqap|qpip|cpp\/qpp/i.test(ded.description ?? "")) {
+      continue;
+    }
     // Retenues fédérales
     // Retenue fédérale — T4 case 22 → ligne 43700
     // Descriptions possibles : "Impôt sur le revenu retenu (T4 case 22)", "Impôt fédéral retenu", "federal income tax withheld", etc.
@@ -291,7 +295,18 @@ export async function GET() {
     s48500 = Math.max(0, s43500 - s48200);
 
     // ── Alimenter le formulaire T1 ───────────────────────────────────────────
-    addT1("35000", cents(calc.federalNonRefundableCreditsCents), "calculated");
+    // Certains anciens calculs ne remplissaient pas federalNonRefundableCreditsCents
+    // alors que le moteur avait bien calculé le BPA et les autres crédits.
+    // La ligne 35000 doit rester cohérente avec la carte de calcul.
+    let detailLine35000 = 0;
+    try {
+      const details = typeof calc.calculationDetails === "string"
+        ? JSON.parse(calc.calculationDetails) as { lines?: Record<string, number> }
+        : null;
+      detailLine35000 = Number(details?.lines?.["35000"] ?? 0);
+    } catch { /* ancien calcul sans détails exploitables */ }
+    const nonRefundableCredits = cents(calc.federalNonRefundableCreditsCents) || detailLine35000;
+    addT1("35000", nonRefundableCredits, "calculated");
     if (s43500 > 0) {
       t1Amounts["42000"] = { cents: s43500, source: "calculated" };
       t1Amounts["43500"] = { cents: s43500, source: "calculated" };
