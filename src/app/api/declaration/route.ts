@@ -238,15 +238,44 @@ export async function GET() {
   if (isQC) addTp1("350", 1857100, "calculated"); // 18 571 $ × 100
 
   // Depuis le moteur fiscal (si disponible)
+  // ── PRIORITÉ : lire le settlement stocké dans calculationDetails ────────
   if (calc) {
-    addT1("42000", cents(calc.federalTaxPayableCents), "calculated");
-    addT1("43500", cents(calc.federalTaxPayableCents), "calculated");
+    // Parser calculationDetails.settlement pour avoir les lignes exactes du moteur
+    let settlement: Record<string, number | string> = {};
+    try {
+      const details = typeof calc.calculationDetails === "string"
+        ? JSON.parse(calc.calculationDetails)
+        : (calc.calculationDetails as Record<string, unknown> | null);
+      if (details?.settlement) settlement = details.settlement as Record<string, number | string>;
+    } catch { /* no-op */ }
+
+    const s43500 = (settlement.line43500 as number | undefined) ?? cents(calc.federalTaxPayableCents);
+    // ⚠️ 43700 : NE PAS addT1 si déjà rempli depuis deductionEntries (éviter double-count)
+    const s43700 = (settlement.line43700 as number | undefined) ?? cents(calc.federalTaxWithheldCents);
+    const s45300 = (settlement.line45300 as number | undefined) ?? cents(calc.federalRefundableCreditsCents);
+    // 48200 = retenues + crédits remboursables (formule correcte T1)
+    const s48200 = (settlement.line48200 as number | undefined) ?? (s43700 + s45300);
+    const s48400 = (settlement.line48400 as number | undefined) ?? Math.max(0, s48200 - s43500);
+    const s48500 = (settlement.line48500 as number | undefined) ?? Math.max(0, s43500 - s48200);
+
+    addT1("42000", s43500, "calculated");
+    addT1("43500", s43500, "calculated");
     addT1("35000", cents(calc.federalNonRefundableCreditsCents), "calculated");
-    addT1("43700", cents(calc.federalTaxWithheldCents), "calculated");
-    addT1("45300", cents(calc.federalRefundableCreditsCents), "calculated");
-    addT1("48200", cents(calc.federalNonRefundableCreditsCents) + cents(calc.federalRefundableCreditsCents), "calculated");
-    const balance = cents(calc.totalBalanceCents);
-    addT1(balance < 0 ? "48400" : "48500", Math.abs(balance), "calculated");
+    // 43700 : n'ajouter depuis calc QUE si pas déjà rempli depuis les déductions OCR
+    if (!t1Amounts["43700"] || t1Amounts["43700"].cents === 0) {
+      addT1("43700", s43700, "calculated");
+    } else {
+      // Forcer la valeur settlement (plus fiable que la somme OCR) si elle existe
+      if (settlement.line43700) {
+        t1Amounts["43700"] = { cents: s43700, source: "calculated" };
+      }
+    }
+    addT1("45300", s45300, "calculated");
+    // 48200 = ligne 43700 + ligne 45300 (formule T1 correcte)
+    t1Amounts["48200"] = { cents: s48200, source: "calculated" };
+    if (s48400 > 0) t1Amounts["48400"] = { cents: s48400, source: "calculated" };
+    if (s48500 > 0) t1Amounts["48500"] = { cents: s48500, source: "calculated" };
+
     if (cents(calc.provincialTaxPayableCents) > 0 && isQC) addTp1("430", cents(calc.provincialTaxPayableCents), "calculated");
   }
 
