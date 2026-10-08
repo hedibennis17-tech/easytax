@@ -13,6 +13,37 @@
     "À l'usage de l'Agence du revenu du Canada"
   ],
 
+  "zones_annotees": {
+    "_note": "Coordonnées normalisées 0-1 (left, top, width, height). Tout montant hors zone = UNMAPPED_VALUE.",
+    "_specimen": "T4 2023 — Jeanne Savard (spécimen CRA avec cases bleues)",
+    "employer_block":      { "left": 0.035, "top": 0.045, "width": 0.300, "height": 0.170, "type": "text" },
+    "box_45":              { "left": 0.455, "top": 0.175, "width": 0.065, "height": 0.045, "type": "boolean" },
+    "box_10":              { "left": 0.455, "top": 0.245, "width": 0.065, "height": 0.045, "type": "text",    "label": "Province d'emploi" },
+    "box_12":              { "left": 0.045, "top": 0.335, "width": 0.240, "height": 0.045, "type": "sin",     "label": "Numéro d'assurance sociale" },
+    "box_28":              { "left": 0.305, "top": 0.335, "width": 0.120, "height": 0.045, "type": "boolean", "label": "Exemption RPC/RRQ, AE, RPAP" },
+    "box_29":              { "left": 0.455, "top": 0.335, "width": 0.065, "height": 0.045, "type": "code",    "label": "Code d'emploi" },
+    "employee_lastname":   { "left": 0.060, "top": 0.500, "width": 0.210, "height": 0.040, "type": "text" },
+    "employee_firstname":  { "left": 0.330, "top": 0.500, "width": 0.090, "height": 0.040, "type": "text" },
+    "employee_address":    { "left": 0.035, "top": 0.560, "width": 0.485, "height": 0.150, "type": "text" },
+    "box_24":              { "left": 0.555, "top": 0.385, "width": 0.130, "height": 0.045, "type": "money",   "label": "Gains assurables AE" },
+    "box_26":              { "left": 0.720, "top": 0.385, "width": 0.130, "height": 0.045, "type": "money",   "label": "Gains ouvrant droit à pension RPC/RRQ" },
+    "box_18":              { "left": 0.555, "top": 0.455, "width": 0.130, "height": 0.045, "type": "money",   "label": "Cotisations AE de l'employé" },
+    "otherinfo_code_1":    { "left": 0.115, "top": 0.820, "width": 0.040, "height": 0.040, "type": "code",   "label": "Autres renseignements — code 1" },
+    "otherinfo_amount_1":  { "left": 0.190, "top": 0.820, "width": 0.155, "height": 0.040, "type": "money",  "label": "Autres renseignements — montant 1" }
+  },
+
+  "zones_manquantes_v2": {
+    "_note": "Cases absentes du spécimen (vides) mais critiques — à annoter sur un T4 rempli réel",
+    "box_14": { "type": "money", "t1_line": "10100", "label": "Revenus d'emploi — CRITIQUE" },
+    "box_16": { "type": "money", "t1_line": "30800", "label": "Cotisations RPC de l'employé" },
+    "box_17": { "type": "money", "t1_line": "30800", "label": "Cotisations RRQ de l'employé" },
+    "box_20": { "type": "money", "t1_line": null,    "label": "Cotisations à un RPA" },
+    "box_22": { "type": "money", "t1_line": "43700", "label": "Impôt sur le revenu retenu — CRITIQUE" },
+    "box_44": { "type": "money", "t1_line": "21200", "label": "Cotisations syndicales" },
+    "box_46": { "type": "money", "t1_line": null,    "label": "Dons de bienfaisance" },
+    "box_52": { "type": "money", "t1_line": "20600", "label": "Facteur d'équivalence" }
+  },
+
   "fields": {
     "taxYear": {
       "type": "year",
@@ -41,12 +72,23 @@
       "keywords_en": ["cpp contributions", "box 16"],
       "mustNotMatch": ["account number", "numéro de compte"]
     },
+    "box_17": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisations de l'employé au RRQ",
+      "label_en": "Employee's QPP contributions",
+      "t1_line": "30800",
+      "keywords_fr": ["cotisations rrq", "case 17"],
+      "keywords_en": ["qpp contributions", "box 17"],
+      "mustNotMatch": ["account number", "numéro de compte"]
+    },
     "box_18": {
       "type": "money",
       "required": false,
       "label_fr": "Cotisations de l'employé à l'assurance-emploi",
       "label_en": "Employee's EI premiums",
       "t1_line": "31200",
+      "zone": "box_18",
       "keywords_fr": ["cotisations ae", "case 18"],
       "keywords_en": ["ei premiums", "box 18"],
       "mustNotMatch": ["account number", "numéro de compte"]
@@ -67,6 +109,7 @@
       "label_fr": "Gains assurables d'assurance-emploi",
       "label_en": "EI insurable earnings",
       "t1_line": null,
+      "zone": "box_24",
       "keywords_en": ["ei insurable earnings", "box 24"]
     },
     "box_26": {
@@ -75,6 +118,7 @@
       "label_fr": "Gains ouvrant droit à pension (RPC/RRQ)",
       "label_en": "CPP/QPP pensionable earnings",
       "t1_line": null,
+      "zone": "box_26",
       "keywords_en": ["pensionable earnings", "box 26"]
     },
     "box_44": {
@@ -100,6 +144,7 @@
   "fiscalMapping": {
     "box_14": { "federal": { "addTo": ["10100"] }, "quebec": { "addTo": ["101"] } },
     "box_16": { "federal": { "addTo": ["30800"] } },
+    "box_17": { "federal": { "addTo": ["30800"] } },
     "box_18": { "federal": { "addTo": ["31200"] } },
     "box_22": { "federal": { "addTo": ["43700"] } },
     "box_44": { "federal": { "addTo": ["21200"] } },
@@ -109,5 +154,20 @@
   "validationRules": {
     "box_14": { "min": 1, "max": 9999999 },
     "box_22": { "max_pct_of": "box_14", "max_pct": 0.55 }
+  },
+
+  "fixture_specimen_2023": {
+    "_file": "fixtures/T4/001_specimen_2023.pdf",
+    "_note": "Spécimen CRA 2023 — Jeanne Savard — cases bleues seulement",
+    "expected": {
+      "taxYear": 2023,
+      "box_12": "123456789",
+      "box_10": "NB",
+      "box_24": 35000.00,
+      "box_26": 0.00,
+      "box_18": 570.50,
+      "otherinfo_code_1": "88",
+      "otherinfo_amount_1": 35000.00
+    }
   }
 }

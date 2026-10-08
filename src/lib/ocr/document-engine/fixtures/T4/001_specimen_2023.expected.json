@@ -1,0 +1,19 @@
+{
+  "_note": "Spécimen officiel CRA 2023 — Jeanne Savard — cases bleues visibles seulement",
+  "_source": "T4(23) specimen avec valeurs pré-remplies en bleu",
+  "documentType": "T4",
+  "taxYear": 2023,
+  "fields": {
+    "box_12": "123456789",
+    "box_10": "NB",
+    "box_24": 35000.00,
+    "box_26": 0.00,
+    "box_18": 570.50,
+    "otherinfo_code_1": "88",
+    "otherinfo_amount_1": 35000.00
+  },
+  "_missing_critical": [
+    "box_14 (Employment income) — vide sur ce spécimen",
+    "box_22 (Income tax deducted) — vide sur ce spécimen"
+  ]
+}
