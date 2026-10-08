@@ -182,11 +182,21 @@ export function extractSlipMetadata(ocrText: string): {
   employerName: string | null;
   recipientNas: string | null;
 } {
-  // Année fiscale
-  const yearMatch = ocrText.match(/(20\d{2})/g);
-  const taxYear = yearMatch
-    ? parseInt(yearMatch.sort().reverse()[0])
-    : null;
+  // Année fiscale — priorité: phrase explicite "de 2025" > "Année d'imposition" > min year
+  // On utilise le MIN (pas MAX) pour éviter que la date du rapport "6 octobre 2026"
+  // écrase l'année fiscale 2025 dans les documents CRA Mon Dossier.
+  const explicitYearM =
+    ocrText.match(/(?:Feuillet|Statement)\s+(?:T4A?|T5007|T5|T3|RL-\d+|T4E|T2202)\s+(?:de\s+|for\s+)?(20\d{2})/i) ??
+    ocrText.match(/Ann[ée]e\s+d['\u2019]imposition\s*[:\s]\s*(20\d{2})/i) ??
+    ocrText.match(/Tax\s+year\s*[:\s]\s*(20\d{2})/i) ??
+    ocrText.match(/(?:Pour\s+l['\u2019]ann[ée]e|for\s+the\s+year)\s+(20\d{2})/i);
+  let taxYear: number | null = null;
+  if (explicitYearM) {
+    taxYear = parseInt(explicitYearM[1]);
+  } else {
+    const allYears = [...(ocrText.matchAll(/\b(20[2-9]\d)\b/g))].map(m => parseInt(m[1]));
+    if (allYears.length > 0) taxYear = Math.min(...allYears);
+  }
 
   // Type de feuillet
   const typePatterns = [
@@ -255,7 +265,8 @@ function findLayoutBoundValue(ocrText: string, box: BoxDef): string | null {
     const codeEsc = escapeRegex(box.code);
     patterns.unshift(
       // montant sur la ligne suivante : "A - Revenus d'emploi\n1 482,62"
-      new RegExp(`\\b${codeEsc}\\s*[-–—]\\s*[^\\r\\n]{0,80}\\r?\\n\\s*${MONEY_CAPTURE}`, "i"),
+      // (?![A-Z][-–—.]) empêche de capturer la ligne suivante si elle commence par un autre code de case
+      new RegExp(`\\b${codeEsc}\\s*[-–—]\\s*[^\\r\\n]{0,80}\\r?\\n\\s*(?![A-Z][-\u2013\u2014\.\s])${MONEY_CAPTURE}`, "i"),
       // montant sur la même ligne : "A - ... 1 482,62"
       new RegExp(`\\b${codeEsc}\\s*[-–—]\\s*[^\\r\\n]{0,80}?${MONEY_CAPTURE}`, "i"),
       // "A  1 482,62" (code seul + espace + montant)
@@ -273,7 +284,13 @@ function findLayoutBoundValue(ocrText: string, box: BoxDef): string | null {
   }
 
   for (const pattern of patterns) {
-    const value = asMoney(pattern.exec(ocrText)?.[1]);
+    const m = pattern.exec(ocrText);
+    if (!m?.[1]) continue;
+    // Exclure tout match dans un contexte "redressement pour" (ajustements historiques T5007)
+    const matchPos = m.index ?? 0;
+    const before80 = ocrText.slice(Math.max(0, matchPos - 80), matchPos);
+    if (/redressement\s+pour/i.test(before80)) continue;
+    const value = asMoney(m[1]);
     if (value) return value;
   }
   return null;
@@ -314,10 +331,15 @@ export function findBoxValueInText(
   if (layoutValue) return layoutValue;
 
   // 3. Code de case explicite dans le texte brut
+  // Inclut le format CRA Mon Dossier: "Case 14\n<label>\n<montant>"
   const codePatterns = [
     new RegExp(`box[_\\s]?${box.code}[:\\s]+([\\d\\s,.']+)`, "i"),
     new RegExp(`case[_\\s]?${box.code}[:\\s]+([\\d\\s,.']+)`, "i"),
     new RegExp(`\\b${box.code}\\s*[:\\-]\\s*([\\d][\\d\\s,.']{2,})`, "im"),
+    // "Case 14\n<libellé quelconque>\n<montant>" — CRA Mon Dossier
+    new RegExp(`(?:Case|Box)\\s+0*${box.code}\\b[^\\n]*\\n[^\\n]{0,80}\\n\\s*([0-9][\\d\\s,.']+)`, "im"),
+    // "Case 14\n<montant>" — variante sans libellé intermédiaire
+    new RegExp(`(?:Case|Box)\\s+0*${box.code}\\b[^\\n]*\\n\\s*([0-9][\\d\\s,.']+)`, "im"),
   ];
   for (const pat of codePatterns) {
     const m = ocrText.match(pat);
@@ -368,10 +390,13 @@ export function findBoxValueInText(
   // 6. Format tableau T4A/T4RSP: code de case suivi du montant.
   // Garde pour T4A (codes 3 chiffres) mais exclut T5007 box 10 car le pattern
   // "\b10\s+2025..." lirait l'année comme montant. On restreint aux codes 3+ chiffres.
+  // Format CRA Mon Dossier T4A : "022\nligne 43700\n<montant>" — on saute la ligne "ligne XXXXX".
   if (box.code.length >= 3) {
     const pat5a = new RegExp("\\b0*" + box.code + "\\s+([0-9][\\d\\s,.']+)", "im");
     const pat5b = new RegExp("\\b0*" + box.code + "\\n([0-9][\\d\\s,.']+)", "im");
-    for (const pat5 of [pat5a, pat5b]) {
+    // Pattern pour "CODE\nligne XXXXX\nAMOUNT" (CRA Mon Dossier)
+    const pat5c = new RegExp("\\b0*" + box.code + "\\s*\\n(?:ligne?\\s+\\d+[^\\n]*\\n)\\s*([0-9][\\d\\s,.']+)", "im");
+    for (const pat5 of [pat5c, pat5a, pat5b]) {
       const m5 = ocrText.match(pat5);
       if (m5?.[1]) {
         const raw5 = m5[1].trim().split(/\s+/)[0];
