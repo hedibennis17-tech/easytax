@@ -331,7 +331,13 @@ export function findBoxValueInText(
     for (const key of candidates) {
       const pat = new RegExp(`${escapeRegex(key)}[:\\s]+${MONEY_CAPTURE}`, "i");
       const m = structText.match(pat);
-      if (m?.[1] && parseMontantOCR(m[1]) !== null) return m[1].trim();
+      if (m?.[1] && parseMontantOCR(m[1]) !== null) {
+        // Reject if this structured field is labeled as an account/reference number in OCR
+        const matchPos = m.index ?? 0;
+        const ctxBefore = structText.slice(Math.max(0, matchPos - 120), matchPos);
+        if (/(?:account\s+number|numéro\s+de\s+compte|payroll\s+(?:account|program)|compte\s+de\s+retenues)[:\s]*$/i.test(ctxBefore)) continue;
+        return m[1].trim();
+      }
     }
   }
 
@@ -479,7 +485,14 @@ export function extractAllBoxes(
   includedIn: string | null;
   confidence: number;
 }> {
-  const slip = getSlipDict(slipCode);
+  // Auto-classify if slipCode is "OTHER" or unrecognized — covers docs stored
+  // before the classifier was added, or where upload failed to detect the type.
+  let resolvedCode = slipCode;
+  if (!getSlipDict(slipCode)) {
+    resolvedCode = classifySlip(ocrText) ?? slipCode;
+  }
+
+  const slip = getSlipDict(resolvedCode);
   if (!slip) return [];
 
   // Tronquer le texte OCR avant la page d'instructions (page 2 des feuillets CRA).
@@ -493,6 +506,15 @@ export function extractAllBoxes(
     "À l'usage de l'Agence du revenu du Canada",
     "See the privacy notice on your return",
     "Consultez l'avis de confidentialité",
+    // Additional markers for T4A / T5 instruction pages
+    "Instructions to the payer",
+    "Instructions à l'émetteur",
+    "Instructions for the recipient",
+    "Instructions pour le bénéficiaire",
+    "Box 14 — Enter employment income",
+    "Case 14 — Entrez les revenus d'emploi",
+    "Where to report",
+    "Où déclarer",
   ];
   let cleanText = ocrText;
   for (const marker of INSTRUCTIONS_MARKERS) {
