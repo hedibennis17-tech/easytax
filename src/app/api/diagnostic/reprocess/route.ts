@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       extractionId = existingExt.id;
     } else {
       const [c] = await db.insert(documentExtractions).values({
-        fiscalDocumentId: doc.id, userId, status: "completed", ocrProvider: "google",
+        fiscalDocumentId: doc.id, userId, status: "completed", ocrProvider: process.env.OCR_PROVIDER ?? "ocrspace",
         extractedAt: new Date(), overallConfidence: extracted.overallConfidence,
         needsHumanReview: extracted.needsHumanReview, updatedAt: new Date(),
       }).returning({ id: documentExtractions.id });
