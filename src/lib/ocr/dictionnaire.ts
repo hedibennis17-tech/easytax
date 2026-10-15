@@ -154,7 +154,9 @@ export function parseMontantOCR(raw: string | null | undefined): number | null {
     s = s.replace(/,(?=\d{3})/g, "").replace(",", ".");
   }
   // Rejeter si plus de 2 décimales (ex: "1580,8016" = deux montants collés)
-  if (/[.,]\d{3,}/.test(raw.replace(/\s/g, ""))) return null;
+  // Exception: si spacedCents a matché, le raw "7,212 90" devient "7,21290" sans espaces
+  // mais c'est un faux positif — on a déjà validé le format, pas la peine de rejeter.
+  if (!spacedCents && /[.,]\d{3,}/.test(raw.replace(/\s/g, ""))) return null;
   // Rejeter les codes de cases isolés (ex: "024"), mais conserver un montant
   // entier à quatre chiffres (ex: « 7201 ») : plusieurs T5007 n'impriment pas
   // les cents et l'ancien seuil de 5 chiffres les supprimait à tort.
