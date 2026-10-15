@@ -10,6 +10,7 @@ import { fiscalDocuments, documentPages, documentExtractions } from "@/db/schema
 import { eq, desc } from "drizzle-orm";
 import { classifyTaxDocument } from "@/lib/document-intelligence/catalog";
 import { guardSelectedDocumentType } from "@/lib/document-intelligence/catalog";
+import { extractAllBoxes } from "@/lib/ocr/dictionnaire";
 
 export async function GET(req: NextRequest) {
   const { userId } = await auth();
@@ -42,6 +43,12 @@ export async function GET(req: NextRequest) {
   const fullText = pages.map(p => p.ocrText ?? "").join("\n\n");
   const classification = classifyTaxDocument(fullText);
   const guard = guardSelectedDocumentType(undefined, classification);
+  const typeCode = classification.documentTypeCode ?? "T4A";
+
+  // Extraction directe pour diagnostic
+  const boxes = extractAllBoxes(fullText, typeCode);
+  const populated = boxes.filter(b => b.rawValue);
+  const empty = boxes.filter(b => !b.rawValue);
 
   return NextResponse.json({
     docId: target.id,
@@ -50,6 +57,20 @@ export async function GET(req: NextRequest) {
     classification,
     guard,
     textLength: fullText.length,
+    // Diagnostic extraction
+    extractionDiag: {
+      typeCode,
+      totalBoxes: boxes.length,
+      populatedCount: populated.length,
+      emptyCount: empty.length,
+      populated: populated.slice(0, 10).map(b => ({ code: b.code, rawValue: b.rawValue, confidence: b.confidence })),
+      emptyCodes: empty.slice(0, 15).map(b => b.code),
+    },
+    // Chars autour de "048" pour voir le format exact
+    around048: (() => {
+      const idx = fullText.indexOf("048");
+      return idx >= 0 ? JSON.stringify(fullText.slice(Math.max(0, idx - 20), idx + 30)) : "not found";
+    })(),
     // Premiers 2000 chars du texte OCR pour diagnostic
     textPreview: fullText.slice(0, 2000),
     // Lignes contenant "T4A" ou anchors clés
