@@ -33,15 +33,18 @@ type Extraction = {
   errorMessage: string | null;
 };
 
+type OcrStatus = {
+  status?: string;
+  provider?: string;
+  message?: string;
+  code?: string | number | null;
+  apiKeyConfigured?: boolean;
+};
+
 type Diagnostic = {
-  google?: {
-    status?: string;
-    provider?: string;
-    message?: string;
-    code?: string | number | null;
-    processorType?: string | null;
-    processorState?: string | null;
-  };
+  ocr?: OcrStatus;
+  mistral?: OcrStatus;
+  google?: OcrStatus;
   diagnostic?: {
     status?: string;
     document?: { workflowStatus?: string };
