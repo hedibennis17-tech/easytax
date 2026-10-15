@@ -303,6 +303,23 @@ function findLayoutBoundValue(ocrText: string, box: BoxDef): string | null {
     const value = asMoney(m[1]);
     if (value) return value;
   }
+
+  // Format OCR.space T4A/T4/T5 : libellé FR ou EN → code de case seul → montant
+  // Exemple: "Fees for services\nHonoraires...\n048\n7,212 90"
+  if (labels.length > 0) {
+    const labelsPattern = labels.join("|");
+    const codeEsc = escapeRegex(box.code);
+    const multilinePattern = new RegExp(
+      `(?:${labelsPattern})[\\s\\S]{0,300}?^\\s*0*${codeEsc}\\s*\\r?\\n\\s*([0-9][\\d\\s,.']+)`,
+      "im"
+    );
+    const m = multilinePattern.exec(ocrText);
+    if (m?.[1]) {
+      const value = asMoney(m[1]);
+      if (value) return value;
+    }
+  }
+
   return null;
 }
 
@@ -356,6 +373,11 @@ export function findBoxValueInText(
     new RegExp(`(?:Case|Box)\\s+0*${box.code}\\b[^\\n]*\\n[^\\n]{0,80}\\n\\s*([0-9][\\d\\s,.']+)`, "im"),
     // "Case 14\n<montant>" — variante sans libellé intermédiaire
     new RegExp(`(?:Case|Box)\\s+0*${box.code}\\b[^\\n]*\\n\\s*([0-9][\\d\\s,.']+)`, "im"),
+    // Format OCR.space T4A/T4/T5: numéro de case seul sur une ligne, montant sur la suivante
+    // ex: "048\n7,212 90" ou "048\n7 212,90"
+    new RegExp(`^0*${box.code}\\s*\\r?\\n\\s*([0-9][\\d\\s,.']+)`, "im"),
+    // Variante avec espace après le numéro avant le saut de ligne
+    new RegExp(`(?:^|\\n)0*${box.code}[ \\t]*\\r?\\n[ \\t]*([0-9][\\d\\s,.']+)`, "im"),
   ];
   for (const pat of codePatterns) {
     const m = ocrText.match(pat);
