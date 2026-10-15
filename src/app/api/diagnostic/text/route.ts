@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
       totalBoxes: boxes.length,
       populatedCount: populated.length,
       emptyCount: empty.length,
-      populated: populated.slice(0, 10).map(b => ({ code: b.code, rawValue: b.rawValue, confidence: b.confidence })),
+      populated: populated.slice(0, 20).map(b => ({ code: b.code, rawValue: b.rawValue, confidence: b.confidence })),
       emptyCodes: empty.slice(0, 15).map(b => b.code),
     },
     // Chars autour de "048" pour voir le format exact

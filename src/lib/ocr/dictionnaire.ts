@@ -447,15 +447,17 @@ export function findBoxValueInText(
   // Garde pour T4A (codes 3 chiffres) mais exclut T5007 box 10 car le pattern
   // "\b10\s+2025..." lirait l'année comme montant. On restreint aux codes 3+ chiffres.
   // Format CRA Mon Dossier T4A : "022\nligne 43700\n<montant>" — on saute la ligne "ligne XXXXX".
+  // IMPORTANT: utiliser [ \t]* au lieu de \s+ pour ne pas traverser plusieurs lignes.
   if (box.code.length >= 3) {
-    const pat5a = new RegExp("\\b0*" + box.code + "\\s+([0-9][\\d\\s,.']+)", "im");
+    const pat5a = new RegExp("\\b0*" + box.code + "[ \\t]*\\n[ \\t]*([0-9][\\d\\s,.']+)", "im");
     const pat5b = new RegExp("\\b0*" + box.code + "\\n([0-9][\\d\\s,.']+)", "im");
     // Pattern pour "CODE\nligne XXXXX\nAMOUNT" (CRA Mon Dossier)
     const pat5c = new RegExp("\\b0*" + box.code + "\\s*\\n(?:ligne?\\s+\\d+[^\\n]*\\n)\\s*([0-9][\\d\\s,.']+)", "im");
     for (const pat5 of [pat5c, pat5a, pat5b]) {
       const m5 = ocrText.match(pat5);
       if (m5?.[1]) {
-        const raw5 = m5[1].trim().split(/\s+/)[0];
+        // Prendre la première ligne (pas juste le premier token — "7,212 90" a un espace)
+        const raw5 = m5[1].split(/\r?\n/)[0].trim();
         // Rejeter si la valeur est précédée d'un libellé "line XXXXX" ou "account number"
         const matchPos = m5.index ?? 0;
         const ctxBefore = ocrText.slice(Math.max(0, matchPos - 60), matchPos + 10);
