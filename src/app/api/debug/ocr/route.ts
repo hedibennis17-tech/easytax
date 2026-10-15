@@ -32,39 +32,53 @@ function redactError(error: unknown): ErrorDetails {
   };
 }
 
+function ocrConfiguration() {
+  const provider = process.env.OCR_PROVIDER ?? "ocrspace";
+  const apiKeyConfigured =
+    provider === "mistral"
+      ? Boolean(process.env.MISTRAL_API_KEY)
+      : provider === "ocrspace"
+        ? Boolean(process.env.OCRSPACE_API_KEY)
+        : true; // mock
+  return { provider, apiKeyConfigured };
+}
+
+async function probeOcr() {
+  const config = ocrConfiguration();
+
+  if (config.provider === "ocrspace") {
+    if (!config.apiKeyConfigured) {
+      return { status: "not_configured", provider: "ocrspace", message: "OCRSPACE_API_KEY manquant." };
+    }
+    return { status: "ready", provider: "ocrspace", message: "OCR.space configuré." };
+  }
+
+  if (config.provider === "mistral") {
+    if (!config.apiKeyConfigured) {
+      return { status: "not_configured", provider: "mistral", message: "MISTRAL_API_KEY manquant." };
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { Mistral } = require("@mistralai/mistralai") as { Mistral: new (o: Record<string, unknown>) => { models: { list: () => Promise<{ data: unknown[] }> } } };
+      const client = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
+      const modelsResponse = await client.models.list();
+      const modelCount = modelsResponse?.data?.length ?? 0;
+      return { status: "ready", provider: "mistral", modelCount, message: `Mistral API accessible — ${modelCount} modèles.` };
+    } catch (error) {
+      return { status: "connection_error", provider: "mistral", ...redactError(error) };
+    }
+  }
+
+  return { status: "ready", provider: config.provider, message: "Provider mock actif (dev uniquement)." };
+}
+
+// Backward-compat: keep mistralConfiguration for the ?ready=1 probe
 function mistralConfiguration() {
-  return {
-    provider: process.env.OCR_PROVIDER ?? "mistral",
-    apiKeyConfigured: Boolean(process.env.MISTRAL_API_KEY),
-  };
+  return ocrConfiguration();
 }
 
 async function probeMistralOcr() {
-  const config = mistralConfiguration();
-  if (config.provider !== "mistral") {
-    return { status: "not_selected", message: "OCR_PROVIDER doit être défini sur mistral." };
-  }
-  if (!config.apiKeyConfigured) {
-    return { status: "not_configured", message: "MISTRAL_API_KEY manquant." };
-  }
-
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Mistral } = require("@mistralai/mistralai") as { Mistral: new (o: Record<string, unknown>) => { models: { list: () => Promise<{ data: unknown[] }> } } };
-    const client = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
-    const modelsResponse = await client.models.list();
-    const modelCount = modelsResponse?.data?.length ?? 0;
-    return {
-      status: "ready",
-      modelCount,
-      message: `Mistral API accessible — ${modelCount} modèles disponibles.`,
-    };
-  } catch (error) {
-    return {
-      status: "connection_error",
-      ...redactError(error),
-    };
-  }
+  return probeOcr();
 }
 
 async function getDocumentDiagnostic(clerkUserId: string, requestedId: string | null) {
@@ -204,15 +218,18 @@ export async function GET(request: NextRequest) {
 
   try {
     const documentId = request.nextUrl.searchParams.get("documentId");
-    const probeMistral = request.nextUrl.searchParams.get("probeMistral") === "1";
+    const probeOcrParam = request.nextUrl.searchParams.get("probeMistral") === "1" || request.nextUrl.searchParams.get("probeGoogle") === "1";
     const diagnostic = await getDocumentDiagnostic(ctx.clerkUserId, documentId);
+    const ocrStatus = probeOcrParam ? await probeOcr() : ocrConfiguration();
     return NextResponse.json({
       generatedAt: new Date().toISOString(),
-      mistral: probeMistral ? await probeMistralOcr() : mistralConfiguration(),
+      ocr: ocrStatus,
+      // backward-compat aliases
+      mistral: ocrStatus,
       diagnostic,
-      nextStep: probeMistral
-        ? "La sonde vérifie l'accès à l'API Mistral sans analyser ni transmettre de document."
-        : "Ajoutez ?probeMistral=1 pour vérifier la connexion à l'API Mistral OCR.",
+      nextStep: probeOcrParam
+        ? "La sonde vérifie l'accès au provider OCR sans analyser ni transmettre de document."
+        : "Ajoutez ?probeMistral=1 pour vérifier la connexion au provider OCR.",
     });
   } catch (error) {
     return NextResponse.json({ error: "Le diagnostic OCR n'a pas pu être généré.", detail: redactError(error) }, { status: 500 });
@@ -226,14 +243,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({})) as { documentId?: string; probeMistral?: boolean };
     const diagnostic = await getDocumentDiagnostic(ctx.clerkUserId, body.documentId ?? null);
-    const mistral = body.probeMistral ? await probeMistralOcr() : mistralConfiguration();
+    const ocrStatus = body.probeMistral ? await probeOcr() : ocrConfiguration();
     return NextResponse.json({
       generatedAt: new Date().toISOString(),
-      mistral,
+      ocr: ocrStatus,
+      mistral: ocrStatus,
       diagnostic,
       nextStep: body.probeMistral
-        ? "La sonde vérifie l'accès à l'API Mistral sans analyser ni transmettre de document."
-        : "Ajoutez probeMistral:true pour vérifier la connexion à l'API Mistral OCR.",
+        ? "La sonde vérifie l'accès au provider OCR sans analyser ni transmettre de document."
+        : "Ajoutez probeMistral:true pour vérifier la connexion au provider OCR.",
     });
   } catch (error) {
     return NextResponse.json({ error: "La sonde OCR n'a pas pu être exécutée.", detail: redactError(error) }, { status: 500 });

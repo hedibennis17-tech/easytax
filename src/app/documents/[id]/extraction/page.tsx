@@ -269,7 +269,8 @@ export default function ExtractionPage() {
   const allConfirmed = fields.length > 0 && confirmed === fields.length;
   const extractedValueCount = fields.filter(field => Boolean((field.validatedValue ?? field.rawOcrValue)?.trim())).length;
   const noExtractedValues = fields.length === 0 || fields.every(field => !(field.rawOcrValue ?? field.validatedValue)?.trim());
-  const googleState = diagnostic?.google?.status ?? diagnostic?.google?.provider ?? null;
+  const ocrInfo = diagnostic?.ocr ?? diagnostic?.mistral ?? null;
+  const ocrState = ocrInfo?.status ?? ocrInfo?.provider ?? null;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -379,14 +380,14 @@ export default function ExtractionPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="font-medium">Diagnostic OCR</h2>
-                  <p className="text-sm text-gray-500">Vérifie Google, le stockage et les compteurs sans exposer vos montants.</p>
+                  <p className="text-sm text-gray-500">Vérifie le provider OCR, le stockage et les compteurs sans exposer vos montants.</p>
                 </div>
                 <button onClick={runDiagnostic} className="rounded-xl border border-teal-700 px-4 py-2 text-teal-800">Lancer le diagnostic</button>
               </div>
               {diagnosticError && <p className="mt-3 text-sm text-red-700">{diagnosticError}</p>}
               {diagnostic && (
                 <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-                  <p><strong>Google :</strong> {googleState ?? "état inconnu"}{diagnostic.google?.message ? ` — ${diagnostic.google.message}` : ""}</p>
+                  <p><strong>OCR ({ocrInfo?.provider ?? "—"}) :</strong> {ocrState ?? "configuré"}{ocrInfo?.message ? ` — ${ocrInfo.message}` : ""}</p>
                   <p><strong>Document :</strong> {diagnostic.diagnostic?.document?.workflowStatus ?? "inconnu"} · stockage {diagnostic.diagnostic?.storage?.status ?? "inconnu"}</p>
                   <p><strong>OCR :</strong> {diagnostic.diagnostic?.pages?.textDetected ?? 0}/{diagnostic.diagnostic?.pages?.count ?? 0} page(s) avec texte · {diagnostic.diagnostic?.fields?.withValue ?? 0}/{diagnostic.diagnostic?.fields?.total ?? 0} champ(s) avec valeur.</p>
                   {diagnostic.diagnostic?.lastFailure?.message && <p className="mt-2 text-red-700"><strong>Dernière erreur :</strong> {diagnostic.diagnostic.lastFailure.message}</p>}
