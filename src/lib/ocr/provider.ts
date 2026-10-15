@@ -46,9 +46,14 @@ export async function getOcrProvider(): Promise<OcrProvider> {
     return new MistralOcrProvider();
   }
 
+  if (providerName === "ocrspace") {
+    const { OcrSpaceProvider } = await import("./ocrspace-ocr");
+    return new OcrSpaceProvider();
+  }
+
   if (process.env.NODE_ENV === "production" && process.env.OCR_ALLOW_MOCK !== "true") {
     throw new Error(
-      "L'analyse OCR réelle n'est pas configurée. Configurez Mistral OCR (MISTRAL_API_KEY) avant de traiter des documents fiscaux."
+      "L'analyse OCR réelle n'est pas configurée. Configurez un provider OCR (OCR_PROVIDER=ocrspace|mistral) avant de traiter des documents fiscaux."
     );
   }
 
