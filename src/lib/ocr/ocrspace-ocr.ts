@@ -1,4 +1,5 @@
 import type { OcrProvider, OcrDocumentResult } from "./provider";
+import { PDFDocument } from "pdf-lib";
 
 /**
  * OcrSpaceProvider
@@ -61,8 +62,27 @@ export class OcrSpaceProvider implements OcrProvider {
     // before encoding — OCR.space rejects files that don't start with %PDF / image magic bytes
     const cleanBuffer = stripFilePreamble(params.buffer);
 
+    // Pour les PDF multi-pages: extraire seulement la page 1
+    // La page 2 des feuillets fiscaux contient les instructions (pleine de chiffres
+    // de référence qui contaminent l'extraction des cases)
+    let finalBuffer = cleanBuffer;
+    if (params.mimeType === "application/pdf") {
+      try {
+        const srcPdf = await PDFDocument.load(cleanBuffer);
+        if (srcPdf.getPageCount() > 1) {
+          const p1Pdf = await PDFDocument.create();
+          const [page1] = await p1Pdf.copyPages(srcPdf, [0]);
+          p1Pdf.addPage(page1);
+          const p1Bytes = await p1Pdf.save();
+          finalBuffer = Buffer.from(p1Bytes);
+        }
+      } catch {
+        // Si extraction page 1 échoue, utiliser le PDF complet
+      }
+    }
+
     // Encode le document en base64 avec data URI
-    const base64 = cleanBuffer.toString("base64");
+    const base64 = finalBuffer.toString("base64");
     const base64Image = `data:${params.mimeType};base64,${base64}`;
 
     const text = await this.callOcrSpace(apiKey, base64Image, 3);
@@ -102,10 +122,6 @@ export class OcrSpaceProvider implements OcrProvider {
     formData.append("detectOrientation", "true");
     formData.append("scale", "true");
     formData.append("isOverlayRequired", "false");
-    // Lire seulement la page 1 — les feuillets fiscaux ont leurs cases sur la page 1,
-    // la page 2 contient les instructions (pleines de chiffres de référence qui
-    // contaminent l'extraction des cases)
-    formData.append("selectedpage", "1");
 
     let response: Response;
     try {
