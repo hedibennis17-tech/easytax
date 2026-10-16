@@ -55,21 +55,34 @@ export async function GET(req: NextRequest) {
   const userId = (userRows[0] as Row | undefined)?.user_id as string | undefined;
   if (!userId) return NextResponse.json({ error: "Utilisateur introuvable", email }, { status: 404 });
 
+  // Diagnostic: compter TOUS les docs du user (avec et sans deleted_at) pour débug
+  const diagRows = await sql`
+    SELECT
+      COUNT(*) FILTER (WHERE deleted_at IS NULL) as active_count,
+      COUNT(*) FILTER (WHERE deleted_at IS NOT NULL) as deleted_count,
+      COUNT(*) as total_count,
+      MIN(uploaded_at) as oldest,
+      MAX(uploaded_at) as newest
+    FROM fiscal_documents
+    WHERE user_id = ${userId}
+  `;
+  const diag = diagRows[0] as Row;
+
   // Documents
   let docsQuery;
   if (docId) {
     docsQuery = await sql`
-      SELECT fd.id, fd.original_filename, fd.status, fd.uploaded_at, dt.code as type_code
+      SELECT fd.id, fd.original_filename, fd.status, fd.uploaded_at, fd.deleted_at, dt.code as type_code
       FROM fiscal_documents fd
       LEFT JOIN document_types dt ON fd.document_type_id = dt.id
-      WHERE fd.id = ${docId} AND fd.user_id = ${userId} AND fd.deleted_at IS NULL
+      WHERE fd.id = ${docId} AND fd.user_id = ${userId}
     `;
   } else {
     docsQuery = await sql`
-      SELECT fd.id, fd.original_filename, fd.status, fd.uploaded_at, dt.code as type_code
+      SELECT fd.id, fd.original_filename, fd.status, fd.uploaded_at, fd.deleted_at, dt.code as type_code
       FROM fiscal_documents fd
       LEFT JOIN document_types dt ON fd.document_type_id = dt.id
-      WHERE fd.user_id = ${userId} AND fd.deleted_at IS NULL
+      WHERE fd.user_id = ${userId}
       ORDER BY fd.uploaded_at DESC
       LIMIT 20
     `;
@@ -174,6 +187,13 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     email,
     userId,
+    diagnostic: {
+      totalDocsForUser: diag.total_count,
+      activeDocs: diag.active_count,
+      deletedDocs: diag.deleted_count,
+      oldest: diag.oldest,
+      newest: diag.newest,
+    },
     documentCount: results.length,
     reextractMode: reextract,
     documents: results,
