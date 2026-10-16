@@ -18,6 +18,24 @@ import type { OcrProvider, OcrDocumentResult } from "./provider";
 
 const OCR_ENDPOINT = "https://api.ocr.space/parse/image";
 
+/**
+ * Supprime le préfixe garbage qu'ajoutent certains serveurs/proxies
+ * (protection CSRF/JSON hijacking: ")]}',\n" ou similaire)
+ * avant les magic bytes réels du fichier (%PDF, \xFF\xD8 JPEG, \x89PNG…)
+ */
+function stripFilePreamble(buf: Buffer): Buffer {
+  // PDF: commence par %PDF
+  const pdfOffset = buf.indexOf(Buffer.from("%PDF"));
+  if (pdfOffset > 0 && pdfOffset < 16) return buf.slice(pdfOffset);
+  // JPEG: magic bytes FF D8
+  const jpegOffset = buf.indexOf(Buffer.from([0xFF, 0xD8]));
+  if (jpegOffset > 0 && jpegOffset < 16) return buf.slice(jpegOffset);
+  // PNG: magic bytes 89 50 4E 47
+  const pngOffset = buf.indexOf(Buffer.from([0x89, 0x50, 0x4E, 0x47]));
+  if (pngOffset > 0 && pngOffset < 16) return buf.slice(pngOffset);
+  return buf; // rien à stripper
+}
+
 export class OcrSpaceProvider implements OcrProvider {
   readonly name = "ocrspace";
 
@@ -39,8 +57,12 @@ export class OcrSpaceProvider implements OcrProvider {
     const start = Date.now();
     const apiKey = this.getApiKey();
 
+    // Strip CSRF/JSON-hijacking prefix (e.g. ")]}'," added by some servers)
+    // before encoding — OCR.space rejects files that don't start with %PDF / image magic bytes
+    const cleanBuffer = stripFilePreamble(params.buffer);
+
     // Encode le document en base64 avec data URI
-    const base64 = params.buffer.toString("base64");
+    const base64 = cleanBuffer.toString("base64");
     const base64Image = `data:${params.mimeType};base64,${base64}`;
 
     const text = await this.callOcrSpace(apiKey, base64Image, 3);

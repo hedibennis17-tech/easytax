@@ -132,7 +132,18 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Dédup ─────────────────────────────────────────────────────────────────
-  const buffer = Buffer.from(await file.arrayBuffer());
+  let buffer = Buffer.from(await file.arrayBuffer());
+  // Strip CSRF/JSON-hijacking prefix avant stockage (ex: ")]}'," ajouté par certains proxies)
+  const pdfOff = buffer.indexOf(Buffer.from("%PDF"));
+  if (pdfOff > 0 && pdfOff < 16) buffer = buffer.slice(pdfOff);
+  else {
+    const jpegOff = buffer.indexOf(Buffer.from([0xFF, 0xD8]));
+    if (jpegOff > 0 && jpegOff < 16) buffer = buffer.slice(jpegOff);
+    else {
+      const pngOff = buffer.indexOf(Buffer.from([0x89, 0x50, 0x4E, 0x47]));
+      if (pngOff > 0 && pngOff < 16) buffer = buffer.slice(pngOff);
+    }
+  }
   const sha256 = computeSHA256(buffer);
 
   const duplicate = await db.select({ id: fiscalDocuments.id, originalFilename: fiscalDocuments.originalFilename })
