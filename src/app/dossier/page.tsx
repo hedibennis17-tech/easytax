@@ -342,9 +342,18 @@ export default function DossierPage() {
   const [totalSlots, setTotalSlots] = useState(0);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [deleteModal, setDeleteModal] = useState<{ slotId: string; fileName: string } | null>(null);
+  const [taxReturnId, setTaxReturnId] = useState<string | null>(null);
 
   // ── Charge les documents existants depuis la DB au montage ──────────────
   useEffect(() => {
+    // Récupérer le taxReturnId en parallèle (nécessaire pour le recalcul après suppression)
+    fetch("/api/declaration", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { meta?: { taxReturnId?: string } } | null) => {
+        if (d?.meta?.taxReturnId) setTaxReturnId(d.meta.taxReturnId);
+      })
+      .catch(() => undefined);
+
     fetch("/api/documents", { cache: "no-store" })
       .then(r => r.json())
       .then((data: { documents?: ApiDocument[] }) => {
@@ -451,8 +460,15 @@ export default function DossierPage() {
     setGroups(g => g.map(x => ({ ...x, slots: x.slots.filter(s => s.id !== slotId) })).filter(x => x.slots.length > 0));
 
     // Déclencher un recalcul silencieux pour mettre à jour les chiffres de déclaration
-    fetch("/api/tax-engine/calculate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ silent: true }) }).catch(() => undefined);
-  }, [deleteModal, groups]);
+    // Le taxReturnId est requis par le tax engine — sans lui le recalcul échoue silencieusement
+    if (taxReturnId) {
+      fetch("/api/tax-engine/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taxReturnId }),
+      }).catch(() => undefined);
+    }
+  }, [deleteModal, groups, taxReturnId]);
 
   const handleUpload = useCallback(async (id: string, file: File) => {
     const group = groups.find(g => g.slots.some(s => s.id === id));
