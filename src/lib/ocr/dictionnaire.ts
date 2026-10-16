@@ -815,6 +815,14 @@ export function extractAllBoxes(
     "Case 14 — Entrez les revenus d'emploi",
     "Where to report",
     "Où déclarer",
+    // ── Page 2 du T4A CRA (instructions ARC) ──────────────────────────────────
+    // La page 2 commence par "Report these amounts on your tax return." (EN)
+    // ou "Déclarez ces montants dans votre déclaration de revenus." (FR).
+    // Cette page liste TOUTES les cases (Box 016, Box 018, Box 024, Box 032,
+    // Box 048…) avec leurs descriptions — l'OCR y trouve les keywords de chaque
+    // case et leur assigne la valeur du feuillet, causant des doublons.
+    "Report these amounts on your tax return",
+    "Déclarez ces montants dans votre déclaration de revenus",
     // Marqueurs RL-1 Revenu Québec (page 2 / bas de page)
     "À l'usage de Revenu Québec",
     "Instructions à l'employé",
