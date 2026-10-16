@@ -68,6 +68,29 @@ export async function GET(req: NextRequest) {
   `;
   const diag = diagRows[0] as Row;
 
+  // Si aucun doc trouvé, chercher dans toute la table pour debug
+  let globalDiag: Row | null = null;
+  if (Number(diag.total_count) === 0) {
+    const globalRows = await sql`
+      SELECT
+        COUNT(*) as total_docs,
+        COUNT(DISTINCT user_id) as distinct_users,
+        (SELECT user_id FROM fiscal_documents ORDER BY uploaded_at DESC LIMIT 1) as last_user_id,
+        (SELECT original_filename FROM fiscal_documents ORDER BY uploaded_at DESC LIMIT 1) as last_filename,
+        (SELECT uploaded_at FROM fiscal_documents ORDER BY uploaded_at DESC LIMIT 1) as last_uploaded
+      FROM fiscal_documents
+    `;
+    globalDiag = globalRows[0] as Row;
+
+    // Chercher si ce clerk_user_id existe dans fiscal_documents sous une forme différente
+    const altRows = await sql`
+      SELECT DISTINCT user_id FROM fiscal_documents
+      WHERE user_id ILIKE ${'%' + userId.slice(-8) + '%'}
+      LIMIT 5
+    `;
+    (globalDiag as Record<string, unknown>).possibleAltUserIds = altRows.map((r: Row) => r.user_id);
+  }
+
   // Documents
   let docsQuery;
   if (docId) {
@@ -193,6 +216,7 @@ export async function GET(req: NextRequest) {
       deletedDocs: diag.deleted_count,
       oldest: diag.oldest,
       newest: diag.newest,
+      ...(globalDiag ? { globalStats: globalDiag } : {}),
     },
     documentCount: results.length,
     reextractMode: reextract,
