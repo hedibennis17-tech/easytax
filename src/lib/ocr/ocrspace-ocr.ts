@@ -118,7 +118,10 @@ export class OcrSpaceProvider implements OcrProvider {
     formData.append("base64Image", base64Image);
     formData.append("language", "auto");
     formData.append("OCREngine", String(engine));
-    formData.append("isTable", "true");
+    // isTable=true réorganise le texte en colonnes et brise le format séquentiel
+    // des feuillets fiscaux (RL-1, T4...). On le désactive pour préserver
+    // l'ordre CODE → LIBELLÉ → MONTANT ligne par ligne.
+    formData.append("isTable", "false");
     formData.append("detectOrientation", "true");
     formData.append("scale", "true");
     formData.append("isOverlayRequired", "false");
