@@ -6,34 +6,35 @@ import { useState, useEffect, useCallback } from "react";
 
 type DocumentType = { id: string; code: string; labelFr: string; category: string };
 
-const CATEGORY_LABELS: Record<string, string> = {
-  employment: "Revenus d'emploi",
-  investment: "Placements",
-  medical: "Médical",
-  donations: "Dons",
-  education: "Études",
-  self_employment: "Travail autonome",
-  other: "Autres",
+const STATUS_DISPLAY: Record<string, { icon: string; label: string; color: string; bg: string }> = {
+  stored:               { icon: "✅", label: "Ajouté",        color: "#15803d", bg: "#f0fdf4" },
+  verified:             { icon: "✅", label: "Vérifié",       color: "#15803d", bg: "#f0fdf4" },
+  needs_review:         { icon: "⚠️", label: "À vérifier",   color: "#b45309", bg: "#fffbeb" },
+  processing:           { icon: "⏳", label: "Traitement…",  color: "#1d4ed8", bg: "#eff6ff" },
+  ocr_completed:        { icon: "🔍", label: "OCR terminé",  color: "#1d4ed8", bg: "#eff6ff" },
+  extracted:            { icon: "📊", label: "Extrait",       color: "#7c3aed", bg: "#f5f3ff" },
+  ready_for_tax_return: { icon: "✅", label: "Validé",        color: "#15803d", bg: "#f0fdf4" },
+  rejected:             { icon: "⚠️", label: "Type rejeté",   color: "#b91c1c", bg: "#fef2f2" },
+  archived:             { icon: "📦", label: "Archivé",       color: "#6b7280", bg: "#f9fafb" },
+  processing_failed:    { icon: "❌", label: "Erreur",        color: "#b91c1c", bg: "#fef2f2" },
+  uploaded:             { icon: "⬆️", label: "Téléversé",    color: "#1d4ed8", bg: "#eff6ff" },
 };
 
-const STATUS_DISPLAY: Record<string, { icon: string; label: string; color: string }> = {
-  stored:               { icon: "✅", label: "Ajouté",        color: "text-green-600" },
-  verified:             { icon: "✅", label: "Vérifié",       color: "text-green-700" },
-  needs_review:         { icon: "⚠️", label: "À vérifier",   color: "text-yellow-600" },
-  processing:           { icon: "⏳", label: "En traitement", color: "text-blue-600" },
-  ocr_completed:        { icon: "🔍", label: "OCR fait",      color: "text-blue-600" },
-  extracted:            { icon: "📊", label: "Extrait",       color: "text-purple-600" },
-  ready_for_tax_return: { icon: "✅", label: "Validé",        color: "text-green-700" },
-  rejected:             { icon: "⚠️", label: "Type rejeté",   color: "text-red-700" },
-  archived:             { icon: "📦", label: "Archivé",       color: "text-gray-400" },
-  processing_failed:    { icon: "❌", label: "Erreur",        color: "text-red-600" },
-  uploaded:             { icon: "⬆️", label: "Téléversé",    color: "text-blue-500" },
+const TYPE_EMOJI: Record<string, string> = {
+  T4: "🏢", T4A: "💰", "T4A-OAS": "👴", T4E: "📋",
+  RL1: "🏢", RL2: "💸", "T5013": "📊", T5: "📈",
+  T3: "📑", RRSP: "🏦", OTH: "📄",
 };
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("fr-CA", { day: "numeric", month: "short", year: "numeric" });
 }
 
 type Doc = {
@@ -47,9 +48,9 @@ type Doc = {
   typeCategory: string;
   year: number;
   uploadedAt: string;
+  archivedAt?: string | null;
 };
 
-// Récupérer le taxYearId pour 2025 depuis l'API
 async function getTaxYearId(): Promise<string | null> {
   try {
     const res = await fetch("/api/tax-years");
@@ -75,7 +76,7 @@ export default function DocumentsPage() {
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [allowDuplicate, setAllowDuplicate] = useState(false);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
-  const [actionMessage, setActionMessage] = useState("");
+  const [actionMessage, setActionMessage] = useState<{ text: string; kind: "success" | "error" } | null>(null);
 
   const loadDocs = useCallback(async () => {
     setLoading(true);
@@ -94,29 +95,23 @@ export default function DocumentsPage() {
       void loadDocs();
       void getTaxYearId().then(setTaxYearId);
       void fetch("/api/documents/types")
-        .then(response => response.ok ? response.json() : null)
-        .then((data: { types?: unknown[] } | null) => setDocumentTypes(Array.isArray(data?.types) ? data.types as DocumentType[] : []))
+        .then(r => r.ok ? r.json() : null)
+        .then((data: { types?: unknown[] } | null) =>
+          setDocumentTypes(Array.isArray(data?.types) ? data.types as DocumentType[] : []))
         .catch(() => setDocumentTypes([]));
     }, 0);
     return () => clearTimeout(t);
   }, [loadDocs]);
 
-  const filteredDocs = filterType === "all" ? docs : docs.filter(d => d.typeCode === filterType);
-
-  const grouped = filteredDocs.reduce<Record<string, Doc[]>>((acc, doc) => {
-    const cat = doc.typeCategory ?? "other";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(doc);
-    return acc;
-  }, {});
+  const activeDocs = docs.filter(d => d.status !== "archived");
+  const archivedDocs = docs.filter(d => d.status === "archived");
+  const filteredDocs = filterType === "all" ? activeDocs : activeDocs.filter(d => d.typeCode === filterType);
 
   async function handleUpload() {
     if (!selectedFile || !selectedType) return;
     setUploading(true);
     setUploadError("");
-
     try {
-      // Si pas de taxYearId, créer l'année 2025 d'abord
       let yearId = taxYearId;
       if (!yearId) {
         const yr = await fetch("/api/tax-years", {
@@ -130,7 +125,6 @@ export default function DocumentsPage() {
           setTaxYearId(yearId);
         }
       }
-
       if (!yearId) throw new Error("Impossible de créer l'année fiscale");
 
       const formData = new FormData();
@@ -141,7 +135,6 @@ export default function DocumentsPage() {
 
       const res = await fetch("/api/documents/upload", { method: "POST", body: formData });
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.error ?? "Erreur upload");
 
       if (data.id) {
@@ -169,7 +162,7 @@ export default function DocumentsPage() {
         setSelectedType("");
         setAllowDuplicate(false);
         setUploading(false);
-        loadDocs(); // Recharger la liste
+        loadDocs();
       }, 1200);
     } catch (e) {
       setUploadError((e as Error).message ?? "Erreur");
@@ -188,7 +181,7 @@ export default function DocumentsPage() {
 
   async function archiveDocument(doc: Doc) {
     setActionBusyId(doc.id);
-    setActionMessage("");
+    setActionMessage(null);
     try {
       const action = doc.status === "archived" ? "restore" : "archive";
       const response = await fetch(`/api/documents/${doc.id}/archive`, {
@@ -198,20 +191,22 @@ export default function DocumentsPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error ?? "Action impossible");
-      setActionMessage(action === "archive" ? "Document archivé. Il peut être restauré ou supprimé définitivement." : "Document restauré.");
+      setActionMessage({ text: action === "archive" ? "Document archivé." : "Document restauré.", kind: "success" });
       await loadDocs();
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : "Action impossible");
+      setActionMessage({ text: error instanceof Error ? error.message : "Action impossible", kind: "error" });
     } finally {
       setActionBusyId(null);
     }
   }
 
   async function permanentlyDeleteDocument(doc: Doc) {
-    const accepted = window.confirm(`Supprimer définitivement « ${doc.originalFilename} » ?\n\nLe fichier, son OCR et les montants issus de ce feuillet seront retirés du dossier. Cette action est irréversible.`);
+    const accepted = window.confirm(
+      `Supprimer définitivement « ${doc.originalFilename} » ?\n\nLe fichier, son OCR et les montants issus de ce feuillet seront retirés du dossier. Cette action est irréversible.`
+    );
     if (!accepted) return;
     setActionBusyId(doc.id);
-    setActionMessage("");
+    setActionMessage(null);
     try {
       const response = await fetch(`/api/documents/${doc.id}`, {
         method: "DELETE",
@@ -220,213 +215,422 @@ export default function DocumentsPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error ?? "Suppression impossible");
-      setDocs(current => current.filter(currentDocument => currentDocument.id !== doc.id));
-      setActionMessage(data.storageCleanupWarning
-        ? "Document supprimé de la base, de l’OCR et du calcul. Le nettoyage du fichier de stockage devra être repris."
-        : "Document supprimé définitivement, avec son OCR et ses données associées.");
+      setDocs(current => current.filter(d => d.id !== doc.id));
+      setActionMessage({
+        text: data.storageCleanupWarning
+          ? "Supprimé de la base et du calcul. Le nettoyage du fichier de stockage sera repris."
+          : "Document supprimé définitivement.",
+        kind: "success",
+      });
       await loadDocs();
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : "Suppression impossible");
+      setActionMessage({ text: error instanceof Error ? error.message : "Suppression impossible", kind: "error" });
     } finally {
       setActionBusyId(null);
     }
   }
 
+  const uniqueTypes = [...new Set(activeDocs.map(d => d.typeCode))];
+
   return (
-    <main style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
+    <main style={{ background: "#f8f9fb", minHeight: "100vh" }}>
       <NavClient />
 
-            <div className="max-w-4xl mx-auto px-6 py-10">
-        <div className="flex items-center justify-between mb-6">
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 20px" }}>
+
+        {/* En-tête */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, gap: 16 }}>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Mes documents fiscaux</h1>
-            <p className="text-gray-500 text-sm mt-1">Coffre-fort · Saison 2025</p>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111827", margin: 0 }}>Mes documents</h1>
+            <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 4 }}>Coffre-fort fiscal · Saison 2025</p>
           </div>
-          <button onClick={openModal}
-            className="bg-red-600 text-white rounded-xl px-5 py-2.5 text-sm font-semibold hover:bg-red-700 transition-colors flex items-center gap-2">
-            <span>📄</span> Ajouter un document
+          <button
+            onClick={openModal}
+            style={{
+              background: "#dc2626", color: "#fff", border: "none", borderRadius: 12,
+              padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+            }}
+          >
+            <span>+</span> Ajouter
           </button>
         </div>
 
+        {/* Message d'action */}
         {actionMessage && (
-          <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-            {actionMessage}
+          <div style={{
+            marginBottom: 16, borderRadius: 12, padding: "12px 16px", fontSize: 13,
+            background: actionMessage.kind === "success" ? "#f0fdf4" : "#fef2f2",
+            color: actionMessage.kind === "success" ? "#15803d" : "#b91c1c",
+            border: `1px solid ${actionMessage.kind === "success" ? "#bbf7d0" : "#fecaca"}`,
+          }}>
+            {actionMessage.kind === "success" ? "✓ " : "✗ "}{actionMessage.text}
           </div>
         )}
 
-        {/* Filtres */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          <button onClick={() => setFilterType("all")}
-            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${filterType === "all" ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-600"}`}>
-            Tous ({docs.length})
-          </button>
-          {documentTypes.filter(t => t.code !== "AUTO").slice(0, 12).map(t => (
-            <button key={t.code} onClick={() => setFilterType(t.code)}
-              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${filterType === t.code ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-600"}`}>
-              {t.code}
+        {/* Filtres par type */}
+        {uniqueTypes.length > 1 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+            <button
+              onClick={() => setFilterType("all")}
+              style={{
+                fontSize: 12, padding: "5px 12px", borderRadius: 999, fontWeight: 500, cursor: "pointer", border: "1px solid",
+                background: filterType === "all" ? "#111827" : "#fff",
+                color: filterType === "all" ? "#fff" : "#6b7280",
+                borderColor: filterType === "all" ? "#111827" : "#e5e7eb",
+              }}
+            >
+              Tous ({activeDocs.length})
             </button>
-          ))}
-        </div>
-
-        {/* Documents */}
-        {loading ? (
-          <div className="text-center py-16 text-gray-400">
-            <div className="w-8 h-8 border-4 border-gray-200 border-t-red-500 rounded-full animate-spin mx-auto mb-3" />
-            Chargement...
-          </div>
-        ) : Object.keys(grouped).length === 0 ? (
-          <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
-            <div className="text-4xl mb-3">📂</div>
-            <h3 className="font-semibold text-gray-900 mb-1">Aucun document</h3>
-            <p className="text-gray-400 text-sm mb-4">Ajoutez vos T4, RL-1 et autres feuillets fiscaux.</p>
-            <button onClick={openModal} className="bg-red-600 text-white rounded-xl px-5 py-2 text-sm font-semibold hover:bg-red-700">
-              📄 Ajouter un document
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {Object.entries(grouped).map(([cat, catDocs]) => (
-              <section key={cat} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-6 py-3 bg-gray-50 border-b border-gray-100">
-                  <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                    {CATEGORY_LABELS[cat] ?? cat}
-                  </h2>
-                </div>
-                <div className="divide-y divide-gray-50">
-                  {catDocs.map(doc => {
-                    const st = STATUS_DISPLAY[doc.status] ?? STATUS_DISPLAY.stored;
-                    return (
-                      <div key={doc.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
-                        <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600 font-bold text-xs flex-shrink-0">
-                          {doc.typeCode?.slice(0, 3)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-gray-900 text-sm truncate">{doc.typeLabelFr}</div>
-                          <div className="text-xs text-gray-400 truncate mt-0.5">
-                            {doc.originalFilename} · {formatFileSize(doc.fileSizeBytes)}
-                          </div>
-                        </div>
-                        <div className={`text-xs font-medium flex items-center gap-1 flex-shrink-0 ${st.color}`}>
-                          <span>{st.icon}</span>
-                          <span className="hidden sm:inline">{st.label}</span>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <Link href={`/documents/${doc.id}/extraction`}
-                            className="text-xs text-blue-600 hover:underline">
-                            OCR
-                          </Link>
-                          <button
-                            onClick={() => archiveDocument(doc)}
-                            disabled={actionBusyId === doc.id}
-                            className="text-xs text-gray-600 hover:underline disabled:opacity-50"
-                          >
-                            {doc.status === "archived" ? "Restaurer" : "Archiver"}
-                          </button>
-                          <button
-                            onClick={() => permanentlyDeleteDocument(doc)}
-                            disabled={actionBusyId === doc.id}
-                            className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                          >
-                            Supprimer
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
+            {uniqueTypes.map(code => (
+              <button
+                key={code}
+                onClick={() => setFilterType(code)}
+                style={{
+                  fontSize: 12, padding: "5px 12px", borderRadius: 999, fontWeight: 500, cursor: "pointer", border: "1px solid",
+                  background: filterType === code ? "#111827" : "#fff",
+                  color: filterType === code ? "#fff" : "#6b7280",
+                  borderColor: filterType === code ? "#111827" : "#e5e7eb",
+                }}
+              >
+                {code} ({activeDocs.filter(d => d.typeCode === code).length})
+              </button>
             ))}
           </div>
         )}
 
-        <div className="mt-6 bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
-          <span className="text-xl">🔒</span>
-          <div className="text-sm">
-            <div className="font-semibold text-blue-900 mb-0.5">Coffre-fort sécurisé</div>
-            <div className="text-blue-700">Vos documents sont chiffrés. Les liens de téléchargement expirent après 15 minutes.</div>
+        {/* Liste documents */}
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "60px 0", color: "#9ca3af" }}>
+            <div style={{
+              width: 32, height: 32, border: "3px solid #e5e7eb", borderTopColor: "#dc2626",
+              borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px",
+            }} />
+            Chargement…
+          </div>
+        ) : filteredDocs.length === 0 && archivedDocs.length === 0 ? (
+          <div style={{
+            background: "#fff", borderRadius: 16, border: "2px dashed #e5e7eb",
+            padding: "48px 24px", textAlign: "center",
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📂</div>
+            <div style={{ fontWeight: 600, color: "#111827", marginBottom: 6 }}>Aucun document</div>
+            <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 20 }}>
+              Ajoutez vos T4, T4A, RL-1 et autres feuillets fiscaux.
+            </div>
+            <button
+              onClick={openModal}
+              style={{
+                background: "#dc2626", color: "#fff", border: "none", borderRadius: 10,
+                padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              + Ajouter un document
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {filteredDocs.map(doc => {
+              const st = STATUS_DISPLAY[doc.status] ?? STATUS_DISPLAY.stored;
+              const emoji = TYPE_EMOJI[doc.typeCode] ?? "📄";
+              const isBusy = actionBusyId === doc.id;
+              const isProcessing = ["processing", "uploaded"].includes(doc.status);
+              const hasExtraction = ["extracted", "ready_for_tax_return", "ocr_completed"].includes(doc.status);
+
+              return (
+                <div
+                  key={doc.id}
+                  style={{
+                    background: "#fff", borderRadius: 14, border: "1px solid #f0f0f0",
+                    overflow: "hidden", opacity: isBusy ? 0.6 : 1,
+                    transition: "box-shadow 0.15s",
+                  }}
+                >
+                  {/* Ligne principale */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px" }}>
+                    {/* Icône type */}
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 12, background: "#fef2f2",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 20, flexShrink: 0,
+                    }}>
+                      {emoji}
+                    </div>
+
+                    {/* Infos principales */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontWeight: 600, color: "#111827", fontSize: 14 }}>
+                          {doc.typeLabelFr}
+                        </span>
+                        <span style={{
+                          fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
+                          background: st.bg, color: st.color,
+                        }}>
+                          {st.icon} {st.label}
+                        </span>
+                        {isProcessing && (
+                          <span style={{ fontSize: 11, color: "#9ca3af" }}>en cours…</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <span title={doc.originalFilename} style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {doc.originalFilename}
+                        </span>
+                        <span>{formatFileSize(doc.fileSizeBytes)}</span>
+                        <span>Ajouté le {formatDate(doc.uploadedAt)}</span>
+                      </div>
+                    </div>
+
+                    {/* Badge année */}
+                    <div style={{
+                      fontSize: 12, fontWeight: 600, color: "#6b7280",
+                      background: "#f3f4f6", borderRadius: 8, padding: "3px 8px", flexShrink: 0,
+                    }}>
+                      {doc.year}
+                    </div>
+                  </div>
+
+                  {/* Barre d'actions */}
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 0,
+                    borderTop: "1px solid #f9fafb", padding: "0 8px",
+                    background: "#fafafa",
+                  }}>
+                    {hasExtraction && (
+                      <Link
+                        href={`/documents/${doc.id}/extraction`}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 5,
+                          padding: "8px 12px", fontSize: 12, color: "#4f46e5",
+                          textDecoration: "none", fontWeight: 500,
+                        }}
+                      >
+                        📊 Voir les données extraites
+                      </Link>
+                    )}
+                    {!hasExtraction && !isProcessing && (
+                      <Link
+                        href={`/documents/${doc.id}/extraction`}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 5,
+                          padding: "8px 12px", fontSize: 12, color: "#6b7280",
+                          textDecoration: "none",
+                        }}
+                      >
+                        🔍 Détails OCR
+                      </Link>
+                    )}
+
+                    <div style={{ flex: 1 }} />
+
+                    <button
+                      onClick={() => archiveDocument(doc)}
+                      disabled={isBusy}
+                      style={{
+                        background: "none", border: "none", padding: "8px 10px",
+                        fontSize: 12, color: "#9ca3af", cursor: "pointer", fontWeight: 500,
+                      }}
+                    >
+                      {doc.status === "archived" ? "↩ Restaurer" : "📦 Archiver"}
+                    </button>
+                    <button
+                      onClick={() => permanentlyDeleteDocument(doc)}
+                      disabled={isBusy}
+                      style={{
+                        background: "none", border: "none", padding: "8px 10px",
+                        fontSize: 12, color: "#ef4444", cursor: "pointer", fontWeight: 500,
+                      }}
+                    >
+                      🗑 Supprimer
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Section archivés */}
+            {archivedDocs.length > 0 && filterType === "all" && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+                  📦 Archivés ({archivedDocs.length})
+                </div>
+                {archivedDocs.map(doc => {
+                  const isBusy = actionBusyId === doc.id;
+                  const emoji = TYPE_EMOJI[doc.typeCode] ?? "📄";
+                  return (
+                    <div key={doc.id} style={{
+                      background: "#f9fafb", borderRadius: 14, border: "1px solid #f0f0f0",
+                      overflow: "hidden", opacity: isBusy ? 0.5 : 0.75, marginBottom: 8,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px" }}>
+                        <div style={{
+                          width: 40, height: 40, borderRadius: 10, background: "#e5e7eb",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 18, flexShrink: 0,
+                        }}>
+                          {emoji}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 500, color: "#6b7280", fontSize: 13 }}>{doc.typeLabelFr}</div>
+                          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{doc.originalFilename}</div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            onClick={() => archiveDocument(doc)}
+                            disabled={isBusy}
+                            style={{ background: "none", border: "none", fontSize: 12, color: "#6b7280", cursor: "pointer" }}
+                          >
+                            ↩ Restaurer
+                          </button>
+                          <button
+                            onClick={() => permanentlyDeleteDocument(doc)}
+                            disabled={isBusy}
+                            style={{ background: "none", border: "none", fontSize: 12, color: "#ef4444", cursor: "pointer" }}
+                          >
+                            🗑 Supprimer
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Info sécurité */}
+        <div style={{
+          marginTop: 24, background: "#eff6ff", border: "1px solid #bfdbfe",
+          borderRadius: 12, padding: "12px 16px", display: "flex", gap: 10, alignItems: "flex-start",
+        }}>
+          <span style={{ fontSize: 18 }}>🔒</span>
+          <div>
+            <div style={{ fontWeight: 600, color: "#1e40af", fontSize: 13 }}>Coffre-fort sécurisé</div>
+            <div style={{ fontSize: 12, color: "#3b82f6", marginTop: 2 }}>
+              Vos documents sont chiffrés. Les liens de téléchargement expirent après 15 minutes.
+            </div>
           </div>
         </div>
       </div>
 
       {/* Modal Upload */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-gray-900">Ajouter un document</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "flex-end", justifyContent: "center",
+          zIndex: 50, padding: 16,
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 20, width: "100%", maxWidth: 420,
+            padding: 24, boxShadow: "0 25px 50px rgba(0,0,0,0.25)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <span style={{ fontWeight: 700, fontSize: 16, color: "#111827" }}>Ajouter un document</span>
+              <button onClick={() => setShowModal(false)} style={{ background: "none", border: "none", fontSize: 24, color: "#9ca3af", cursor: "pointer", lineHeight: 1 }}>×</button>
             </div>
 
             {uploadDone ? (
-              <div className="text-center py-6">
-                <div className="text-4xl mb-3">✅</div>
-                <div className="font-semibold text-gray-900">Document ajouté</div>
-                <div className="text-gray-400 text-sm mt-1">Enregistré dans le coffre-fort.</div>
+              <div style={{ textAlign: "center", padding: "24px 0" }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                <div style={{ fontWeight: 600, color: "#111827" }}>Document ajouté</div>
+                <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 4 }}>Enregistré et analyse OCR lancée.</div>
               </div>
             ) : (
               <>
+                {/* Zone drag & drop */}
                 <div
                   onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) setSelectedFile(f); }}
-                  className={`border-2 border-dashed rounded-xl p-6 text-center mb-4 transition-colors ${dragOver ? "border-red-400 bg-red-50" : "border-gray-200"}`}>
+                  style={{
+                    border: `2px dashed ${dragOver ? "#dc2626" : "#e5e7eb"}`,
+                    borderRadius: 12, padding: 20, textAlign: "center", marginBottom: 14,
+                    background: dragOver ? "#fef2f2" : "#fafafa", transition: "all 0.15s",
+                  }}
+                >
                   {selectedFile ? (
                     <div>
-                      <div className="text-2xl mb-2">📄</div>
-                      <div className="font-medium text-gray-900 text-sm truncate">{selectedFile.name}</div>
-                      <div className="text-xs text-gray-400 mt-0.5">{formatFileSize(selectedFile.size)}</div>
-                      <button onClick={() => setSelectedFile(null)} className="text-xs text-red-500 mt-2 hover:underline">Changer</button>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
+                      <div style={{ fontWeight: 500, color: "#111827", fontSize: 13, wordBreak: "break-all" }}>{selectedFile.name}</div>
+                      <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>{formatFileSize(selectedFile.size)}</div>
+                      <button onClick={() => setSelectedFile(null)} style={{ fontSize: 12, color: "#ef4444", background: "none", border: "none", cursor: "pointer", marginTop: 8 }}>Changer de fichier</button>
                     </div>
                   ) : (
-                    <label className="cursor-pointer">
-                      <div className="text-3xl mb-2">📁</div>
-                      <div className="text-sm font-medium text-gray-700 mb-1">Glisser un fichier ici</div>
-                      <div className="text-xs text-gray-400 mb-3">PDF · JPG · PNG · Max 20 Mo</div>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg">Parcourir</span>
-                      <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={e => { const f = e.target.files?.[0]; if (f) setSelectedFile(f); }} />
+                    <label style={{ cursor: "pointer", display: "block" }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>📁</div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 4 }}>Glisser un fichier ici</div>
+                      <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 12 }}>PDF · JPG · PNG · Max 20 Mo</div>
+                      <span style={{ fontSize: 12, background: "#f3f4f6", color: "#4b5563", padding: "6px 14px", borderRadius: 8 }}>Parcourir</span>
+                      <input type="file" style={{ display: "none" }} accept=".pdf,.jpg,.jpeg,.png" onChange={e => { const f = e.target.files?.[0]; if (f) setSelectedFile(f); }} />
                     </label>
                   )}
                 </div>
 
-                <label className="flex items-center gap-2 text-sm text-gray-600 border border-gray-200 rounded-xl px-4 py-3 cursor-pointer hover:bg-gray-50 mb-4">
-                  <span className="text-xl">📷</span>
-                  <span>Photographier un document</span>
-                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setSelectedFile(f); }} />
+                {/* Photo (mobile) */}
+                <label style={{
+                  display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                  border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px",
+                  marginBottom: 14, background: "#fafafa",
+                }}>
+                  <span style={{ fontSize: 20 }}>📷</span>
+                  <span style={{ fontSize: 13, color: "#374151" }}>Photographier un document</span>
+                  <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) setSelectedFile(f); }} />
                 </label>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Type de document</label>
-                  <select value={selectedType} onChange={e => setSelectedType(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white">
-                    <option value="">Sélectionner...</option>
+                {/* Type de document */}
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 13, fontWeight: 500, color: "#374151", display: "block", marginBottom: 6 }}>Type de document</label>
+                  <select
+                    value={selectedType}
+                    onChange={e => setSelectedType(e.target.value)}
+                    style={{
+                      width: "100%", border: "1px solid #e5e7eb", borderRadius: 8,
+                      padding: "9px 12px", fontSize: 13, background: "#fff",
+                      outline: "none", boxSizing: "border-box",
+                    }}
+                  >
+                    <option value="">Sélectionner le type…</option>
                     {documentTypes.map(t => <option key={t.code} value={t.code}>{t.code} — {t.labelFr}</option>)}
                   </select>
                 </div>
 
-                <label className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={allowDuplicate}
-                    onChange={event => setAllowDuplicate(event.target.checked)}
-                    className="mt-0.5"
-                  />
-                  <span><strong>Conserver une deuxième copie du même fichier</strong><br />À activer uniquement si vous souhaitez volontairement conserver deux exemplaires identiques.</span>
+                {/* Checkbox doublon */}
+                <label style={{
+                  display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer",
+                  border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px",
+                  marginBottom: 14, background: "#fffbeb", fontSize: 12, color: "#92400e",
+                }}>
+                  <input type="checkbox" checked={allowDuplicate} onChange={e => setAllowDuplicate(e.target.checked)} style={{ marginTop: 2 }} />
+                  <span><strong>Conserver un doublon</strong><br />À activer uniquement si vous souhaitez intentionnellement deux exemplaires identiques.</span>
                 </label>
 
                 {uploadError && (
-                  <div className="mb-3 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{uploadError}</div>
+                  <div style={{ marginBottom: 12, fontSize: 12, color: "#b91c1c", background: "#fef2f2", borderRadius: 8, padding: "8px 12px" }}>
+                    {uploadError}
+                  </div>
                 )}
 
-                <button onClick={handleUpload}
+                <button
+                  onClick={handleUpload}
                   disabled={!selectedFile || !selectedType || uploading}
-                  className="w-full bg-red-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                  {uploading ? "Téléversement..." : "Ajouter ce document"}
+                  style={{
+                    width: "100%", background: "#dc2626", color: "#fff", border: "none",
+                    borderRadius: 12, padding: "13px 0", fontSize: 14, fontWeight: 600,
+                    cursor: (!selectedFile || !selectedType || uploading) ? "not-allowed" : "pointer",
+                    opacity: (!selectedFile || !selectedType || uploading) ? 0.5 : 1,
+                  }}
+                >
+                  {uploading ? "Téléversement en cours…" : "Ajouter ce document"}
                 </button>
               </>
             )}
           </div>
         </div>
       )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </main>
   );
 }
