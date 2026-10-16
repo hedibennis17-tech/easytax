@@ -170,7 +170,7 @@ export async function GET(req: NextRequest) {
 
     // Extraction fields (valeurs stockées en DB)
     const extractions = await sql`
-      SELECT de.id as extraction_id, de.tax_year,
+      SELECT de.id as extraction_id,
              ef.field_code, ef.raw_value, ef.normalized_value, ef.confidence, ef.is_validated
       FROM document_extractions de
       JOIN extraction_fields ef ON ef.extraction_id = de.id
