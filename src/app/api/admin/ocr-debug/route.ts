@@ -48,12 +48,20 @@ export async function GET(req: NextRequest) {
     }, { status: 400 });
   }
 
+  // Paramètre optionnel: forcer un userId spécifique (pour debug multi-compte)
+  const forceUserId = req.nextUrl.searchParams.get("userId");
+
   const sql = neon(process.env.DATABASE_URL!);
 
-  // Trouver userId
-  const userRows = await sql`SELECT clerk_user_id as user_id FROM users WHERE email = ${email} LIMIT 1`;
-  const userId = (userRows[0] as Row | undefined)?.user_id as string | undefined;
-  if (!userId) return NextResponse.json({ error: "Utilisateur introuvable", email }, { status: 404 });
+  // Trouver userId via email, ou utiliser forceUserId si fourni
+  let userId: string | undefined;
+  if (forceUserId) {
+    userId = forceUserId;
+  } else {
+    const userRows = await sql`SELECT clerk_user_id as user_id FROM users WHERE email = ${email} LIMIT 1`;
+    userId = (userRows[0] as Row | undefined)?.user_id as string | undefined;
+    if (!userId) return NextResponse.json({ error: "Utilisateur introuvable", email }, { status: 404 });
+  }
 
   // Diagnostic: compter TOUS les docs du user (avec et sans deleted_at) pour débug
   const diagRows = await sql`
@@ -89,6 +97,17 @@ export async function GET(req: NextRequest) {
       LIMIT 5
     `;
     (globalDiag as Record<string, unknown>).possibleAltUserIds = altRows.map((r: Row) => r.user_id);
+
+    // Lister tous les users distincts avec leur email (si disponible dans users table)
+    const allUsersRows = await sql`
+      SELECT fd.user_id, COUNT(*) as doc_count, u.email
+      FROM fiscal_documents fd
+      LEFT JOIN users u ON u.clerk_user_id = fd.user_id
+      GROUP BY fd.user_id, u.email
+      ORDER BY doc_count DESC
+      LIMIT 10
+    `;
+    (globalDiag as Record<string, unknown>).allUsersWithDocs = allUsersRows;
   }
 
   // Documents
