@@ -102,6 +102,10 @@ export class OcrSpaceProvider implements OcrProvider {
     formData.append("detectOrientation", "true");
     formData.append("scale", "true");
     formData.append("isOverlayRequired", "false");
+    // Lire seulement la page 1 — les feuillets fiscaux ont leurs cases sur la page 1,
+    // la page 2 contient les instructions (pleines de chiffres de référence qui
+    // contaminent l'extraction des cases)
+    formData.append("selectedpage", "1");
 
     let response: Response;
     try {
