@@ -198,15 +198,24 @@ export function extractSlipMetadata(ocrText: string): {
   // On utilise le MIN (pas MAX) pour éviter que la date du rapport "6 octobre 2026"
   // écrase l'année fiscale 2025 dans les documents CRA Mon Dossier.
   const explicitYearM =
-    ocrText.match(/(?:Feuillet|Statement)\s+(?:T4A?|T5007|T5|T3|RL-\d+|T4E|T2202)\s+(?:de\s+|for\s+)?(20\d{2})/i) ??
+    // "Feuillet T4A de 2023" / "T4A Statement 2023"
+    ocrText.match(/(?:Feuillet|Statement|Slip)\s+(?:T4A?|T5007|T5|T3|RL-?\d+|T4E|T2202)\s+(?:de\s+|for\s+)?(20\d{2})/i) ??
+    // "T4A 2023" sans mot avant
+    ocrText.match(/\b(?:T4A?|T5007|T5|T3|RL-?\d+|T4E|T2202)\s+(20\d{2})\b/i) ??
     ocrText.match(/Ann[ée]e\s+d['\u2019]imposition\s*[:\s]\s*(20\d{2})/i) ??
-    ocrText.match(/Tax\s+year\s*[:\s]\s*(20\d{2})/i) ??
-    ocrText.match(/(?:Pour\s+l['\u2019]ann[ée]e|for\s+the\s+year)\s+(20\d{2})/i);
+    ocrText.match(/Tax\s+year\s*[:\-]?\s*(20\d{2})/i) ??
+    ocrText.match(/(?:Pour\s+l['\u2019]ann[ée]e|for\s+the\s+(?:tax\s+)?year)\s+(20\d{2})/i) ??
+    ocrText.match(/(?:Taxation\s+year|Ann[ée]e\s+fiscale)\s*[:\-]?\s*(20\d{2})/i) ??
+    ocrText.match(/\(\s*(20[12]\d)\s*\)/);
   let taxYear: number | null = null;
   if (explicitYearM) {
     taxYear = parseInt(explicitYearM[1]);
   } else {
-    const allYears = [...(ocrText.matchAll(/\b(20[2-9]\d)\b/g))].map(m => parseInt(m[1]));
+    // Fallback: plus petite année dans le texte, en excluant l'année courante+1
+    const currentYear = new Date().getFullYear();
+    const allYears = [...(ocrText.matchAll(/\b(20[1-9]\d)\b/g))]
+      .map(m => parseInt(m[1]))
+      .filter(y => y <= currentYear);
     if (allYears.length > 0) taxYear = Math.min(...allYears);
   }
 

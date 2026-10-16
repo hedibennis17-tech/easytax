@@ -227,13 +227,16 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       });
     }
 
-    // ── Injecter employer_name et tax_year depuis slipMeta si non déjà extraits ──
-    // Ces champs sont lus par extractSlipMetadata() pour TOUS les types de feuillets
-    // (T4, T4A, RL1, RL2, T5, etc.) mais pas nécessairement inclus par chaque extractor.
-    // On les insère seulement s'ils ne sont pas déjà présents dans extractionResult.
-    const existingCodes = new Set((extractionResult?.fields ?? []).map(f => f.fieldCode));
+    // ── Injecter employer_name et tax_year depuis slipMeta si non déjà extraits avec une valeur ──
+    // Ces champs sont lus par extractSlipMetadata() pour TOUS les types de feuillets.
+    // On les insère seulement si l'extractor n'a PAS fourni de valeur non-nulle pour ce code.
+    const existingWithValue = new Set(
+      (extractionResult?.fields ?? [])
+        .filter(f => f.rawOcrValue !== null && f.rawOcrValue !== "")
+        .map(f => f.fieldCode)
+    );
 
-    if (slipMeta.employerName && !existingCodes.has("employer_name")) {
+    if (slipMeta.employerName && !existingWithValue.has("employer_name")) {
       await db.insert(extractionFields).values({
         extractionId: extraction.id,
         fieldCode: "employer_name",
@@ -247,7 +250,7 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       });
     }
 
-    if (slipMeta.taxYear && !existingCodes.has("tax_year")) {
+    if (slipMeta.taxYear && !existingWithValue.has("tax_year")) {
       await db.insert(extractionFields).values({
         extractionId: extraction.id,
         fieldCode: "tax_year",
