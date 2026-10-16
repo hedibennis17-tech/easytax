@@ -77,6 +77,7 @@ export default function DocumentsPage() {
   const [allowDuplicate, setAllowDuplicate] = useState(false);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ text: string; kind: "success" | "error" } | null>(null);
+  const [viewBusyId, setViewBusyId] = useState<string | null>(null);
 
   const loadDocs = useCallback(async () => {
     setLoading(true);
@@ -177,6 +178,20 @@ export default function DocumentsPage() {
     setSelectedFile(null);
     setSelectedType("");
     setAllowDuplicate(false);
+  }
+
+  async function viewDocument(doc: Doc) {
+    setViewBusyId(doc.id);
+    try {
+      const response = await fetch(`/api/documents/${doc.id}/download`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? "Impossible d'ouvrir le document");
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      setActionMessage({ text: error instanceof Error ? error.message : "Impossible d'ouvrir le document", kind: "error" });
+    } finally {
+      setViewBusyId(null);
+    }
   }
 
   async function archiveDocument(doc: Doc) {
@@ -397,16 +412,33 @@ export default function DocumentsPage() {
                     borderTop: "1px solid #f9fafb", padding: "0 8px",
                     background: "#fafafa",
                   }}>
+                    {/* Bouton Voir le fichier original */}
+                    <button
+                      onClick={() => viewDocument(doc)}
+                      disabled={viewBusyId === doc.id}
+                      style={{
+                        background: "none", border: "none", padding: "8px 12px",
+                        fontSize: 12, color: "#1d4ed8", cursor: "pointer", fontWeight: 600,
+                        display: "flex", alignItems: "center", gap: 4,
+                        opacity: viewBusyId === doc.id ? 0.5 : 1,
+                      }}
+                    >
+                      {viewBusyId === doc.id ? "⏳" : "👁"} {viewBusyId === doc.id ? "Chargement…" : "Voir le document"}
+                    </button>
+
+                    {/* Séparateur */}
+                    <span style={{ color: "#e5e7eb", fontSize: 16 }}>|</span>
+
                     {hasExtraction && (
                       <Link
                         href={`/documents/${doc.id}/extraction`}
                         style={{
                           display: "flex", alignItems: "center", gap: 5,
-                          padding: "8px 12px", fontSize: 12, color: "#4f46e5",
+                          padding: "8px 10px", fontSize: 12, color: "#7c3aed",
                           textDecoration: "none", fontWeight: 500,
                         }}
                       >
-                        📊 Voir les données extraites
+                        📊 Données extraites
                       </Link>
                     )}
                     {!hasExtraction && !isProcessing && (
@@ -414,11 +446,11 @@ export default function DocumentsPage() {
                         href={`/documents/${doc.id}/extraction`}
                         style={{
                           display: "flex", alignItems: "center", gap: 5,
-                          padding: "8px 12px", fontSize: 12, color: "#6b7280",
+                          padding: "8px 10px", fontSize: 12, color: "#6b7280",
                           textDecoration: "none",
                         }}
                       >
-                        🔍 Détails OCR
+                        🔍 Détails
                       </Link>
                     )}
 
@@ -475,7 +507,14 @@ export default function DocumentsPage() {
                           <div style={{ fontWeight: 500, color: "#6b7280", fontSize: 13 }}>{doc.typeLabelFr}</div>
                           <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{doc.originalFilename}</div>
                         </div>
-                        <div style={{ display: "flex", gap: 8 }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <button
+                            onClick={() => viewDocument(doc)}
+                            disabled={viewBusyId === doc.id}
+                            style={{ background: "none", border: "none", fontSize: 12, color: "#1d4ed8", cursor: "pointer", fontWeight: 600 }}
+                          >
+                            {viewBusyId === doc.id ? "⏳" : "👁"} Voir
+                          </button>
                           <button
                             onClick={() => archiveDocument(doc)}
                             disabled={isBusy}
