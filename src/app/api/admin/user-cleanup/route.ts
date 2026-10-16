@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       fd.id,
       fd.original_filename,
       fd.status,
-      fd.created_at,
+      fd.uploaded_at,
       dt.code as type_code,
       (SELECT COUNT(*) FROM income_entries ie WHERE ie.source_document_id = fd.id) as income_count,
       (SELECT COALESCE(SUM(amount_cents), 0) FROM income_entries ie WHERE ie.source_document_id = fd.id) as income_total_cents,
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     FROM fiscal_documents fd
     LEFT JOIN document_types dt ON fd.document_type_id = dt.id
     WHERE fd.user_id = ${userId} AND fd.deleted_at IS NULL
-    ORDER BY fd.created_at DESC
+    ORDER BY fd.uploaded_at DESC
   `;
 
   // Totaux globaux
