@@ -1,9 +1,13 @@
 /**
  * GET /api/admin/ocr-debug?email=xxx&token=et-migrate-2025-prod
- *   → Montre le texte OCR brut stocké + les extraction_fields pour tous les docs du user
+ *   → OCR brut + extraction_fields + re-extraction live pour tous les docs du user
  *
  * GET /api/admin/ocr-debug?email=xxx&token=et-migrate-2025-prod&docId=xxx
  *   → Idem mais pour un seul document
+ *
+ * Paramètres optionnels:
+ *   &reextract=1  → Re-run extractAllBoxes() en live sur le texte OCR stocké (debug extraction)
+ *   &rawOnly=1    → Retourner seulement le texte OCR brut (rapide)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -27,6 +31,8 @@ export async function GET(req: NextRequest) {
 
   const email = req.nextUrl.searchParams.get("email");
   const docId = req.nextUrl.searchParams.get("docId");
+  const reextract = req.nextUrl.searchParams.get("reextract") === "1";
+  const rawOnly = req.nextUrl.searchParams.get("rawOnly") === "1";
 
   if (!email) return NextResponse.json({ error: "Paramètre email requis" }, { status: 400 });
 
@@ -53,13 +59,26 @@ export async function GET(req: NextRequest) {
       LEFT JOIN document_types dt ON fd.document_type_id = dt.id
       WHERE fd.user_id = ${userId} AND fd.deleted_at IS NULL
       ORDER BY fd.uploaded_at DESC
+      LIMIT 20
     `;
+  }
+
+  // Import conditionnel de l'extracteur (seulement si reextract=1)
+  let extractAllBoxes: ((text: string, slipCode: string) => unknown[]) | null = null;
+  if (reextract) {
+    try {
+      const mod = await import("@/lib/ocr/dictionnaire");
+      extractAllBoxes = mod.extractAllBoxes;
+    } catch (e) {
+      console.error("[ocr-debug] import extractAllBoxes failed:", e);
+    }
   }
 
   const results = [];
 
   for (const doc of docsQuery as Row[]) {
     const dId = doc.id as string;
+    const typeCode = (doc.type_code as string) ?? "T4A";
 
     // Pages OCR (texte brut)
     const pages = await sql`
@@ -69,7 +88,20 @@ export async function GET(req: NextRequest) {
       ORDER BY page_number
     `;
 
-    // Extraction fields (valeurs extraites par le pipeline)
+    if (rawOnly) {
+      results.push({
+        docId: dId,
+        filename: doc.original_filename,
+        typeCode,
+        pages: (pages as Row[]).map(p => ({
+          pageNumber: p.page_number,
+          ocrText: p.ocr_text,
+        })),
+      });
+      continue;
+    }
+
+    // Extraction fields (valeurs stockées en DB)
     const extractions = await sql`
       SELECT de.id as extraction_id, de.tax_year,
              ef.field_code, ef.raw_value, ef.normalized_value, ef.confidence, ef.is_validated
@@ -87,24 +119,43 @@ export async function GET(req: NextRequest) {
       ORDER BY source_box_code
     `;
 
+    // Re-extraction live (debug extraction en temps réel)
+    let liveExtraction: unknown[] | null = null;
+    if (reextract && extractAllBoxes) {
+      const allPageText = (pages as Row[])
+        .map(p => p.ocr_text as string ?? "")
+        .join("\n\n--- PAGE BREAK ---\n\n");
+      try {
+        liveExtraction = extractAllBoxes(allPageText, typeCode)
+          .filter((b: unknown) => {
+            const box = b as Record<string, unknown>;
+            return box.rawValue !== null;
+          });
+      } catch (e) {
+        liveExtraction = [{ error: String(e) }];
+      }
+    }
+
+    const pagesData = (pages as Row[]).map(p => ({
+      pageNumber: p.page_number,
+      ocrTextPreview: (p.ocr_text as string)?.slice(0, 4000) ?? null,
+      ocrTextLength: (p.ocr_text as string)?.length ?? 0,
+      // 500 derniers chars = début page 2 instructions ?
+      ocrTextTail: (p.ocr_text as string)?.length > 500
+        ? (p.ocr_text as string).slice(-500)
+        : null,
+    }));
+
     results.push({
       docId: dId,
       filename: doc.original_filename,
       status: doc.status,
-      typeCode: doc.type_code,
+      typeCode,
       uploadedAt: doc.uploaded_at,
-      pages: (pages as Row[]).map(p => ({
-        pageNumber: p.page_number,
-        // Tronquer à 3000 chars pour la lisibilité — assez pour voir la page 1 complète
-        ocrTextPreview: (p.ocr_text as string)?.slice(0, 3000) ?? null,
-        ocrTextLength: (p.ocr_text as string)?.length ?? 0,
-        // Montrer aussi les 500 derniers chars (fin du texte = début page 2?)
-        ocrTextTail: (p.ocr_text as string)?.length > 500
-          ? (p.ocr_text as string).slice(-500)
-          : null,
-      })),
+      pages: pagesData,
       extractionFields: extractions,
       incomeEntries,
+      ...(reextract ? { liveExtraction } : {}),
     });
   }
 
@@ -112,6 +163,7 @@ export async function GET(req: NextRequest) {
     email,
     userId,
     documentCount: results.length,
+    reextractMode: reextract,
     documents: results,
   }, { status: 200 });
 }
