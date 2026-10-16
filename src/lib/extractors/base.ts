@@ -58,6 +58,9 @@ export function extractYear(text: string): number | null {
 /** Parser un montant monétaire vers des cents. */
 export function parseMoney(raw: string | null): number | null {
   if (!raw) return null;
+  // Rejeter immédiatement toute valeur qui contient des lettres : ce n'est
+  // pas un montant (ex: numéros de programme OCR comme "731602124RP0001").
+  if (/[a-zA-Z]/.test(raw)) return null;
   const cleaned = raw.replace(/[$\s,]/g, "").replace(",", ".");
   const num = parseFloat(cleaned);
   return Number.isNaN(num) ? null : Math.round(num * 100);
@@ -75,7 +78,20 @@ export function spatialBoxValue(ocrText: string, boxCode: string): string | null
     .map(match => match[1]?.trim())
     .filter((value): value is string => Boolean(value));
   if (!matches.length) return null;
-  // Plusieurs occurrences peuvent provenir de feuillets multiples : la plus
-  // longue conserve les milliers + cents au lieu d’un fragment tronqué.
-  return matches.sort((left, right) => right.replace(/\D/g, "").length - left.replace(/\D/g, "").length)[0];
+
+  // Un montant monétaire valide ne contient que des chiffres, espaces, virgules,
+  // points et le symbole $. Si une valeur contient des lettres (ex: numéro de
+  // programme comme "731602124RP0001"), elle n’est PAS un montant et doit être rejetée.
+  const MONEY_RE = /^[\d\s,.$]+$/;
+  const moneyMatches = matches.filter(v => MONEY_RE.test(v));
+
+  // Préférer les valeurs monétaires; sinon tomber en arrière sur toutes les valeurs.
+  const candidates = moneyMatches.length > 0 ? moneyMatches : matches;
+
+  // Parmi les candidats monétaires : prendre celui avec le plus de chiffres
+  // (pour conserver les milliers + cents plutôt qu’un fragment tronqué).
+  // Si aucun candidat monétaire n’existe, retourner null plutôt qu’un numéro de programme.
+  if (moneyMatches.length === 0) return null;
+
+  return candidates.sort((left, right) => right.replace(/\D/g, "").length - left.replace(/\D/g, "").length)[0];
 }
