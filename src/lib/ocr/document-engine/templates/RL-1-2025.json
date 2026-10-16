@@ -3,22 +3,74 @@
   "taxYear": 2025,
   "authority": "quebec",
   "name_fr": "Revenus d'emploi et revenus divers",
-  "name_en": "Employment and Other Income",
-  "anchors": ["Relevé 1", "RL-1", "Revenus d'emploi et revenus divers", "Employment and Other Income"],
+  "name_en": "Employment and Miscellaneous Income",
+  "anchors": ["Relevé 1", "RL-1", "Revenus d'emploi et revenus divers", "Employment and Miscellaneous Income", "Employment and Other Income"],
 
   "instructionsMarkers": [
     "Ne déclarez pas les renseignements",
     "Do not report on your tax return",
-    "Revenu Québec",
-    "À l'usage de Revenu Québec"
+    "À l'usage de Revenu Québec",
+    "Instructions à l'employé",
+    "Pour obtenir des renseignements",
+    "Comment remplir",
+    "Numéro d'inscription"
   ],
+
+  "identityFields": {
+    "employerName": {
+      "type": "string",
+      "required": true,
+      "keywords_fr": [
+        "nom de l'employeur",
+        "nom du payeur",
+        "employeur ou du payeur",
+        "nom et adresse de l'employeur",
+        "nom et adresse du payeur"
+      ],
+      "keywords_en": ["employer name", "payer name", "employer or payer name"],
+      "ocrPatterns": [
+        "(?:Nom\\s+(?:de\\s+l['']employeur|du\\s+payeur|de\\s+l['']employeur\\s+ou\\s+du\\s+payeur))\\s*[:\\-]?\\s*([A-Za-zÀ-ÿ0-9][^\\n]{2,80})",
+        "(?:Employer(?:'s)?\\s+(?:or\\s+payer(?:'s)?\\s+)?name)\\s*[:\\-]?\\s*([A-Za-zÀ-ÿ0-9][^\\n]{2,80})"
+      ]
+    },
+    "employerAddress": {
+      "type": "address",
+      "required": false,
+      "keywords_fr": ["adresse de l'employeur", "adresse du payeur"]
+    },
+    "recipientName": {
+      "type": "string",
+      "required": false,
+      "keywords_fr": ["nom de famille", "prénom", "nom et prénom"],
+      "keywords_en": ["last name", "first name", "recipient name"]
+    },
+    "recipientSIN": {
+      "type": "sin",
+      "required": false,
+      "sensitive": true,
+      "keywords_fr": ["numéro d'assurance sociale", "nas"],
+      "keywords_en": ["social insurance number", "sin"]
+    },
+    "slipNumber": {
+      "type": "string",
+      "required": false,
+      "keywords_fr": ["numéro du dernier relevé", "n° du relevé"],
+      "keywords_en": ["slip number"]
+    },
+    "slipCode": {
+      "type": "string",
+      "required": false,
+      "keywords_fr": ["code du relevé"],
+      "keywords_en": ["slip code"]
+    }
+  },
 
   "fields": {
     "taxYear": {
       "type": "year",
       "required": true,
-      "keywords_fr": ["année"],
-      "keywords_en": ["year"]
+      "keywords_fr": ["année", "année fiscale"],
+      "keywords_en": ["year", "tax year"]
     },
     "box_A": {
       "type": "money",
@@ -26,36 +78,59 @@
       "label_fr": "Revenus d'emploi",
       "label_en": "Employment income",
       "tp1_line": "101",
-      "keywords_fr": ["revenus d'emploi", "case a"],
+      "keywords_fr": ["revenus d emploi", "salaires traitements", "rémunérations", "case a", "a -"],
       "keywords_en": ["employment income", "box a"],
+      "ocrAliases": ["a - revenus", "revenus emploi", "revenus d'emploi", "salaires traitements et autres"],
       "mustNotMatch": ["account number", "numéro de compte"]
     },
     "box_B": {
       "type": "money",
       "required": false,
-      "label_fr": "Cotisations au RRQ",
+      "label_fr": "Cotisation de l'employé au RRQ",
       "label_en": "QPP contributions",
       "tp1_line": "98",
-      "keywords_fr": ["cotisations rrq", "case b"],
+      "keywords_fr": ["cotisation rrq", "cotisation au rrq", "case b", "b -"],
       "keywords_en": ["qpp contributions", "box b"],
+      "ocrAliases": ["b - cotisation rrq", "cotisation au rrq"],
       "mustNotMatch": ["account number", "numéro de compte"]
+    },
+    "box_B.A": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisation de l'employé au RRQ",
+      "label_en": "QPP additional contributions",
+      "tp1_line": "248",
+      "keywords_fr": ["cotisation supplémentaire rrq", "case b.a", "b.a"],
+      "keywords_en": ["qpp additional", "box b.a"],
+      "ocrAliases": ["b.a - cotisation rrq", "b.b - cotisation supplémentaire"]
+    },
+    "box_B.B": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisation supplémentaire de l'employé au RRQ",
+      "label_en": "QPP enhanced contributions",
+      "tp1_line": "248",
+      "keywords_fr": ["cotisation supplémentaire rrq renforcée", "case b.b", "b.b"],
+      "keywords_en": ["qpp enhanced", "box b.b"],
+      "ocrAliases": ["b.b - cotisation supplémentaire"]
     },
     "box_C": {
       "type": "money",
       "required": false,
-      "label_fr": "Cotisations à l'assurance-emploi",
+      "label_fr": "Cotisation à l'assurance-emploi",
       "label_en": "EI premiums",
       "tp1_line": "375",
-      "keywords_fr": ["cotisations ae", "case c"],
-      "keywords_en": ["ei premiums", "box c"]
+      "keywords_fr": ["cotisation assurance emploi", "cotisations ae", "case c", "c -"],
+      "keywords_en": ["ei premiums", "box c"],
+      "ocrAliases": ["assurance emploi", "cotisation à l'assurance"]
     },
     "box_D": {
       "type": "money",
       "required": false,
-      "label_fr": "Cotisations à un RPA",
+      "label_fr": "Cotisation à un RPA",
       "label_en": "RPP contributions",
       "tp1_line": "205",
-      "keywords_fr": ["cotisations rpa", "case d"],
+      "keywords_fr": ["cotisation rpa", "régime de pension agréé", "case d", "d -"],
       "keywords_en": ["rpp contributions", "box d"]
     },
     "box_E": {
@@ -64,9 +139,20 @@
       "label_fr": "Impôt du Québec retenu",
       "label_en": "Quebec income tax withheld",
       "tp1_line": "451",
-      "keywords_fr": ["impôt du québec retenu", "impôt retenu", "case e"],
+      "keywords_fr": ["impôt du québec retenu", "impôt retenu", "case e", "e -"],
       "keywords_en": ["quebec income tax", "box e"],
+      "ocrAliases": ["impôt du québec retenu", "e - impôt"],
       "mustNotMatch": ["ligne 451", "line 451"]
+    },
+    "box_F": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Cotisation syndicale",
+      "label_en": "Union dues",
+      "tp1_line": "397",
+      "keywords_fr": ["cotisation syndicale", "case f", "f -"],
+      "keywords_en": ["union dues", "box f"],
+      "ocrAliases": ["cotisation syndicale", "f - cotisation syndicale"]
     },
     "box_G": {
       "type": "money",
@@ -74,17 +160,18 @@
       "label_fr": "Salaire admissible au RRQ",
       "label_en": "QPP pensionable salary",
       "tp1_line": null,
-      "keywords_fr": ["salaire admissible rrq", "case g"],
+      "keywords_fr": ["salaire admissible rrq", "case g", "g -"],
       "keywords_en": ["qpp pensionable salary", "box g"]
     },
     "box_H": {
       "type": "money",
       "required": false,
-      "label_fr": "Cotisations au RQAP",
+      "label_fr": "Cotisation au RQAP",
       "label_en": "QPIP premiums",
       "tp1_line": "375",
-      "keywords_fr": ["cotisations rqap", "case h"],
-      "keywords_en": ["qpip premiums", "box h"]
+      "keywords_fr": ["cotisation rqap", "case h", "h -"],
+      "keywords_en": ["qpip premiums", "box h"],
+      "ocrAliases": ["cotisation au rqap", "h - cotisation rqap"]
     },
     "box_I": {
       "type": "money",
@@ -92,35 +179,80 @@
       "label_fr": "Salaire admissible au RQAP",
       "label_en": "QPIP insurable salary",
       "tp1_line": null,
-      "keywords_fr": ["salaire admissible rqap", "case i"],
+      "keywords_fr": ["salaire admissible rqap", "case i", "i -"],
       "keywords_en": ["qpip insurable salary", "box i"]
     },
     "box_J": {
       "type": "money",
       "required": false,
-      "label_fr": "Cotisations syndicales",
-      "label_en": "Union dues",
-      "tp1_line": "373",
-      "keywords_fr": ["cotisations syndicales", "case j"],
-      "keywords_en": ["union dues", "box j"]
+      "label_fr": "Régime privé d'assurance maladie",
+      "label_en": "Private health insurance",
+      "tp1_line": "381",
+      "keywords_fr": ["assurance maladie", "régime privé assurance", "case j", "j -"],
+      "keywords_en": ["private health insurance", "box j"]
+    },
+    "box_K": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Voyages — région éloignée",
+      "label_en": "Trips — remote area",
+      "tp1_line": null,
+      "keywords_fr": ["voyages région éloignée", "case k", "k -"],
+      "keywords_en": ["trips remote", "box k"]
     },
     "box_L": {
       "type": "money",
       "required": false,
       "label_fr": "Autres avantages",
       "label_en": "Other benefits",
-      "tp1_line": "101",
-      "keywords_fr": ["autres avantages", "case l"],
+      "tp1_line": null,
+      "keywords_fr": ["autres avantages", "avantages imposables", "case l", "l -"],
       "keywords_en": ["other benefits", "box l"]
+    },
+    "box_M": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Commissions",
+      "label_en": "Commissions",
+      "tp1_line": "100",
+      "keywords_fr": ["commissions", "case m", "m -"],
+      "keywords_en": ["commissions", "box m"]
+    },
+    "box_N": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Dons de bienfaisance",
+      "label_en": "Charitable donations",
+      "tp1_line": "395",
+      "keywords_fr": ["dons de bienfaisance", "case n", "n -"],
+      "keywords_en": ["charitable donations", "box n"]
+    },
+    "box_O": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Autres revenus",
+      "label_en": "Other income",
+      "tp1_line": "154",
+      "keywords_fr": ["autres revenus", "case o", "o -"],
+      "keywords_en": ["other income", "box o"]
+    },
+    "box_O_code": {
+      "type": "code",
+      "required": false,
+      "label_fr": "Code (case O)",
+      "label_en": "Code (box O)",
+      "tp1_line": null,
+      "keywords_fr": ["code case o", "code o"],
+      "keywords_en": ["code box o"]
     },
     "box_P": {
       "type": "money",
       "required": false,
-      "label_fr": "Régime d'assurance collective",
-      "label_en": "Group insurance premiums",
+      "label_fr": "Régime d'assurance interentreprises",
+      "label_en": "Multi-employer insurance plan",
       "tp1_line": null,
-      "keywords_fr": ["assurance collective", "case p"],
-      "keywords_en": ["group insurance", "box p"]
+      "keywords_fr": ["assurance interentreprises", "case p", "p -"],
+      "keywords_en": ["multi-employer insurance", "box p"]
     },
     "box_Q": {
       "type": "money",
@@ -128,28 +260,81 @@
       "label_fr": "Salaires différés",
       "label_en": "Deferred salary",
       "tp1_line": null,
-      "keywords_fr": ["salaires différés", "case q"],
+      "keywords_fr": ["salaires différés", "case q", "q -"],
       "keywords_en": ["deferred salary", "box q"]
     },
     "box_R": {
       "type": "money",
       "required": false,
-      "label_fr": "Revenu de retraite progressif",
-      "label_en": "Phased retirement income",
-      "tp1_line": "122",
-      "keywords_fr": ["retraite progressive", "case r"],
-      "keywords_en": ["phased retirement", "box r"]
+      "label_fr": "Revenu situé dans une réserve",
+      "label_en": "Income on a reserve",
+      "tp1_line": "293",
+      "keywords_fr": ["revenu réserve", "situé dans une réserve", "case r", "r -"],
+      "keywords_en": ["income reserve", "box r"]
+    },
+    "box_S": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Pourboires reçus",
+      "label_en": "Tips received",
+      "tp1_line": null,
+      "keywords_fr": ["pourboires reçus", "pourboires", "case s", "s -"],
+      "keywords_en": ["tips received", "box s"]
+    },
+    "box_T": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Pourboires attribués",
+      "label_en": "Allocated tips",
+      "tp1_line": null,
+      "keywords_fr": ["pourboires attribués", "case t", "t -"],
+      "keywords_en": ["allocated tips", "box t"]
+    },
+    "box_V": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Avantage — logement et nourriture",
+      "label_en": "Benefit — board and lodging",
+      "tp1_line": null,
+      "keywords_fr": ["avantage logement", "avantage nourriture", "avantage repas", "case v", "v -"],
+      "keywords_en": ["board and lodging", "benefit lodging", "box v"]
+    },
+    "box_W": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Avantage — véhicule à moteur",
+      "label_en": "Benefit — motor vehicle",
+      "tp1_line": null,
+      "keywords_fr": ["avantage véhicule", "avantage automobile", "case w", "w -"],
+      "keywords_en": ["motor vehicle benefit", "box w"]
+    },
+    "box_235": {
+      "type": "money",
+      "required": false,
+      "label_fr": "Prime versée à un régime privé d'assurance maladie",
+      "label_en": "Premium paid to a private health plan",
+      "tp1_line": "381",
+      "keywords_fr": ["prime régime privé assurance maladie", "case 235"],
+      "keywords_en": ["private health plan premium", "box 235"]
     }
   },
 
   "fiscalMapping": {
-    "box_A": { "federal": { "addTo": ["10100"] }, "quebec": { "addTo": ["101"] } },
-    "box_B": { "federal": { "addTo": ["30800"] }, "quebec": { "addTo": ["98"] } },
-    "box_C": { "federal": { "addTo": ["31200"] }, "quebec": { "addTo": ["375"] } },
-    "box_D": { "federal": { "addTo": ["20700"] }, "quebec": { "addTo": ["205"] } },
-    "box_E": { "quebec": { "addTo": ["451"] } },
-    "box_J": { "federal": { "addTo": ["21200"] }, "quebec": { "addTo": ["373"] } },
-    "box_H": { "quebec": { "addTo": ["375"] } }
+    "box_A":   { "federal": { "addTo": ["10100"] }, "quebec": { "addTo": ["101"] } },
+    "box_B":   { "federal": { "addTo": ["30800"] }, "quebec": { "addTo": ["98"] } },
+    "box_B.A": { "quebec": { "addTo": ["248"] } },
+    "box_B.B": { "quebec": { "addTo": ["248"] } },
+    "box_C":   { "federal": { "addTo": ["31200"] }, "quebec": { "addTo": ["375"] } },
+    "box_D":   { "federal": { "addTo": ["20700"] }, "quebec": { "addTo": ["205"] } },
+    "box_E":   { "quebec": { "addTo": ["451"] } },
+    "box_F":   { "federal": { "addTo": ["21200"] }, "quebec": { "addTo": ["397"] } },
+    "box_H":   { "quebec": { "addTo": ["375"] } },
+    "box_J":   { "quebec": { "addTo": ["381"] } },
+    "box_M":   { "quebec": { "addTo": ["100"] } },
+    "box_N":   { "federal": { "addTo": ["34900"] }, "quebec": { "addTo": ["395"] } },
+    "box_O":   { "quebec": { "addTo": ["154"] } },
+    "box_R":   { "quebec": { "addTo": ["293"] } },
+    "box_235": { "quebec": { "addTo": ["381"] } }
   },
 
   "validationRules": {

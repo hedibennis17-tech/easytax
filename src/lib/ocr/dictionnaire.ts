@@ -230,15 +230,34 @@ export function extractSlipMetadata(ocrText: string): {
   }
 
   // Nom employeur/payeur
-  const employerPatterns = [
-    /(?:Payer['']?s?\s+name|Nom\s+du\s+payeur|Employer['']?s?\s+name|Nom\s+de\s+l['']employeur)\s*[:\-]?\s*([A-Za-zÀ-ÿ0-9][^\n]{2,80})/i,
-    /(?:Payer.{0,5}name|Nom.{0,5}payeur|Employer.{0,5}name)\s*[:\-]?\s*([A-Za-zÀ-ÿ0-9][^\n]{2,80})/i,
-    /(?:organisme|employeur|institution)\s*[:\-]?\s*([A-Za-zÀ-ÿ0-9][^\n]{2,80})/i,
+  // RL-1 Revenu Quebec: "Nom de l'employeur ou du payeur\n<NOM SUR LIGNE SUIVANTE>"
+  // T4/T4A: "Employer's name / Nom de l'employeur: XYZ"
+  // L'ordre: plus precis (RL-1 multilignes) => plus souple (fallback)
+  const employerPatterns: RegExp[] = [
+    // RL-1 : label + nom sur la MEME ligne
+    /(?:Nom\s+(?:de\s+l[’‘']employeur|du\s+payeur)(?:\s+ou\s+du\s+payeur)?)\s*[:\-]?\s*([A-Za-zÀ-ÿ0-9][^\n]{2,100})/i,
+    // RL-1 : label + nom sur la LIGNE SUIVANTE (OCR saute ligne)
+    /(?:Nom\s+(?:de\s+l[’‘']employeur|du\s+payeur)(?:\s+ou\s+du\s+payeur)?)\s*[:\-]?\r?\n\s*([A-Za-zÀ-ÿ0-9][^\n]{2,100})/i,
+    // T4/T4A federal: "Employer's name" ou "Payer's name" meme ligne
+    /(?:Employer[’‘']?s?\s+(?:or\s+payer[’‘']?s?\s+)?name|Payer[’‘']?s?\s+name)\s*[:\-\/]?\s*([A-Za-zÀ-ÿ0-9][^\n]{2,100})/i,
+    // T4A/T5007: "Payer's name" + nom ligne suivante
+    /(?:Payer[’‘']?s?\s+name|Nom\s+du\s+payeur)\s*[:\-]?\r?\n\s*([A-Za-zÀ-ÿ0-9][^\n]{2,100})/i,
+    // Fuzzy avec tolérance OCR
+    /(?:Payer.{0,5}name|Nom.{0,8}payeur|Employer.{0,5}name)\s*[:\-]?\s*([A-Za-zÀ-ÿ0-9][^\n]{2,80})/i,
+    // Fallback mot-cle seul avec séparateur obligatoire
+    /(?:organisme|employeur|institution)\s*[:\-]\s*([A-Za-zÀ-ÿ0-9][^\n]{2,80})/i,
   ];
   let employerName: string | null = null;
   for (const pat of employerPatterns) {
     const m = ocrText.match(pat);
-    if (m?.[1]?.trim()) { employerName = m[1].trim(); break; }
+    const candidate = m?.[1]?.trim() ?? null;
+    if (!candidate) continue;
+    // Rejeter faux positifs: NAS (000-000-000), montant pur, trop court
+    if (/^\d{3}[\s\-]\d{3}/.test(candidate)) continue;
+    if (/^[0-9\s,\.]+$/.test(candidate)) continue;
+    if (candidate.length < 3) continue;
+    employerName = candidate;
+    break;
   }
 
   // NAS (format: 3 chiffres espace/tiret 3 chiffres espace/tiret 3 chiffres)
@@ -283,7 +302,7 @@ function findLayoutBoundValue(ocrText: string, box: BoxDef): string | null {
   // premier, le libellé sur la même ligne et le montant sur la ligne suivante.
   // Pattern pour toutes les cases RL-1 (alphabétiques A, C, E… et alphanumériques B.A, B.B).
   // On n'active ce pattern que si le texte OCR contient "RL-1" ou "relevé 1" (identification).
-  if (/RL-?1\b|Relevé\s+1/i.test(ocrText.slice(0, 600))) {
+  if (/RL-?1\b|Relevé\s+1/i.test(ocrText.slice(0, 1200))) {
     const codeEsc = escapeRegex(box.code);
     patterns.unshift(
       // montant sur la ligne suivante : "A - Revenus d'emploi\n1 482,62"
@@ -633,6 +652,17 @@ export function extractAllBoxes(
     "Case 14 — Entrez les revenus d'emploi",
     "Where to report",
     "Où déclarer",
+    // Marqueurs RL-1 Revenu Québec (page 2 / bas de page)
+    "À l'usage de Revenu Québec",
+    "Instructions à l'employé",
+    "Feuillet de renseignements",
+    "Comment remplir le relevé",
+    "Renseignements complémentaires — codes",
+    "Ne déclarez pas les renseignements de ce relevé",
+    "Pour obtenir des renseignements supplémentaires",
+    // Marqueurs RL-2 / autres relevés Revenu Québec
+    "Instructions au payeur",
+    "Conservez ce feuillet",
   ];
   let cleanText = ocrText;
   for (const marker of INSTRUCTIONS_MARKERS) {
