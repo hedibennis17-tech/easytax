@@ -449,6 +449,24 @@ export function findBoxValueInText(
   // Format CRA Mon Dossier T4A : "022\nligne 43700\n<montant>" — on saute la ligne "ligne XXXXX".
   // IMPORTANT: utiliser [ \t]* au lieu de \s+ pour ne pas traverser plusieurs lignes.
   if (box.code.length >= 3) {
+    // 6a. Layout inline "Other information" du T4A gouvernement canadien:
+    // tableau horizontal — "202  3 000,00  203  2 500,00" tout sur une seule ligne.
+    // OCR.space (isTable=true) sort les cellules séparées par des espaces/tabs,
+    // le code de la case est suivi DIRECTEMENT du montant sans retour de ligne.
+    // On cherche: début de ligne OU précédé de whitespace, CODE, espaces/tabs, MONTANT,
+    // puis soit fin de ligne soit un autre code de case ou du whitespace multiple.
+    // Le montant ne doit PAS être suivi d'un chiffre collé (évite de capturer "2022").
+    const pat5inline = new RegExp(
+      "(?:^|[\\t ])0*" + box.code + "[ \\t]+([0-9][\\d\\s,.']*[0-9])(?=[ \\t]{2,}\\d{3}\\b|[ \\t]*$|[ \\t]*\\r?\\n)",
+      "im"
+    );
+    const m5i = ocrText.match(pat5inline);
+    if (m5i?.[1]) {
+      const raw5i = m5i[1].trim();
+      // Vérifier que ce n'est pas un code de case adjacente capturé par erreur
+      if (!/^\d{3}\s/.test(raw5i) && parseMontantOCR(raw5i) !== null) return raw5i;
+    }
+
     const pat5a = new RegExp("\\b0*" + box.code + "[ \\t]*\\n[ \\t]*([0-9][\\d\\s,.']+)", "im");
     const pat5b = new RegExp("\\b0*" + box.code + "\\n([0-9][\\d\\s,.']+)", "im");
     // Pattern pour "CODE\nligne XXXXX\nAMOUNT" (CRA Mon Dossier)
