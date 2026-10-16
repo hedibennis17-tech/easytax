@@ -463,6 +463,11 @@ export function findBoxValueInText(
         const ctxBefore = ocrText.slice(Math.max(0, matchPos - 60), matchPos + 10);
         if (/\b(?:ligne?|line)\s+\d+\s*$/i.test(ctxBefore)) continue;
         if (/(?:account\s+number|numéro\s+de\s+compte)[:\s]*$/i.test(ctxBefore)) continue;
+        // Rejeter si la "valeur" commence par un code de case à 3 chiffres suivi d'un espace
+        // (ex: "022 275,00" capturé pour box_016 parce que OCR aligne les cases adjacentes
+        // dans le tableau "Autres renseignements" du T4A — on a en réalité capturé le CODE
+        // de la case suivante + sa valeur sur la même ligne OCR)
+        if (/^\d{3}\s/.test(raw5)) continue;
         if (parseMontantOCR(raw5) !== null) return raw5;
       }
     }
