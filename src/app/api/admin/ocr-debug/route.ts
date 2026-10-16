@@ -27,14 +27,26 @@ function isAuthorized(req: NextRequest): boolean {
 type Row = Record<string, unknown>;
 
 export async function GET(req: NextRequest) {
+  try {
   if (!isAuthorized(req)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const email = req.nextUrl.searchParams.get("email");
-  const docId = req.nextUrl.searchParams.get("docId");
+  const docIdRaw = req.nextUrl.searchParams.get("docId");
   const reextract = req.nextUrl.searchParams.get("reextract") === "1";
   const rawOnly = req.nextUrl.searchParams.get("rawOnly") === "1";
 
   if (!email) return NextResponse.json({ error: "Paramètre email requis" }, { status: 400 });
+
+  // Valider le format UUID si docId fourni (évite crash SQL sur "XXX" ou valeur invalide)
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const docId = docIdRaw && UUID_RE.test(docIdRaw) ? docIdRaw : null;
+  if (docIdRaw && !docId) {
+    return NextResponse.json({
+      error: "docId invalide — doit être un UUID (ex: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)",
+      received: docIdRaw,
+      hint: "Utilise l'URL sans &docId= pour lister tous tes documents et trouver le bon ID"
+    }, { status: 400 });
+  }
 
   const sql = neon(process.env.DATABASE_URL!);
 
@@ -166,4 +178,16 @@ export async function GET(req: NextRequest) {
     reextractMode: reextract,
     documents: results,
   }, { status: 200 });
+
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error("[ocr-debug] 500:", message, stack);
+    return NextResponse.json({
+      error: "Erreur interne",
+      message,
+      // Stack seulement en dev (pas en prod pour sécurité)
+      ...(process.env.NODE_ENV !== "production" ? { stack } : {}),
+    }, { status: 500 });
+  }
 }
