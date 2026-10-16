@@ -654,7 +654,13 @@ export function findBoxValueInText(
       if (charAfter && /\d/.test(charAfter)) continue;
     }
     if (idx >= 0) {
-      const after = searchText.slice(idx, idx + 120);
+      // IMPORTANT: Pour les keywords purement numériques (code de la case lui-même,
+      // ex: "048" pour box_048), on ne cherche la money QU’APRÈS le keyword.
+      // Sinon MONEY_RE (qui inclut \s dans son character class) peut capturer
+      // "048        410,76" comme un seul token, ce qui donne des faux positifs.
+      const isNumericKeyword = /^\d+$/.test(kw);
+      const searchStart = isNumericKeyword ? idx + kw.length : idx;
+      const after = searchText.slice(searchStart, searchStart + 120);
       // Exclure un match de mot-clé si "redressement pour" précède dans les 80 chars avant.
       // Ce contexte décrit des ajustements historiques, pas la case 10 du T5007.
       const before = searchText.slice(Math.max(0, idx - 80), idx);
@@ -662,19 +668,35 @@ export function findBoxValueInText(
       // Exclure contexte "account number" / "numéro de compte" (numeros de compte employé)
       if (/(?:account\s+number|numéro\s+de\s+compte)[:\s]*$/i.test(before)) continue;
       const m = after.match(MONEY_RE);
-      if (m?.[1] && parseMontantOCR(m[1]) !== null) {
+      if (m?.[1]) {
+        // MONEY_RE inclut \s dans son character class, elle peut donc traverser
+        // des espaces et des newlines pour capturer un faux gros token comme
+        // "048        410,76" ou "15 000,00\n024\n048". On corrige en deux passes :
+        //
+        // Passe 1 — tronquer au premier newline: un montant monétaire ne s’étale
+        // jamais sur plusieurs lignes. Si MONEY_RE a traversé un \n, on ne garde
+        // que la première ligne du match (ex: "15 000,00\n024\n..." → "15 000,00").
+        const firstLine = m[1].split(/\n/)[0].trim();
+        if (!firstLine || parseMontantOCR(firstLine) === null) continue;
+        //
+        // Passe 2 — rejeter si la valeur commence par un code de case à 3 chiffres
+        // suivi d’espaces (ex: "048        410,76"). Cela indique que MONEY_RE a
+        // traversé le code d’une autre case vers son montant.
+        if (/^\d{3}\s/.test(firstLine)) continue;
+        //
         // Exclure les numéros civiques d’adresse (ex: "1547, RUE TREPANIER")
-        const matchStart = idx + (m.index ?? 0);
+        const matchStart = searchStart + (m.index ?? 0);
         const surroundAfter = searchText.slice(matchStart, matchStart + 50);
         if (/^\d+,?\s+(?:rue|avenue|boul|blvd|chemin|ch\.|place|pl\.|drive|dr\.|road|rd\.)\b/i.test(surroundAfter)) continue;
-        // Rejeter si entre le keyword et le montant il y a un code de case à 3 chiffres
+        // Rejeter si entre la FIN du keyword et le montant il y a un code de case à 3 chiffres
         // (différent de la case courante) — cela indique qu’on a traversé le code d’une
         // autre case et que le montant ne nous appartient pas.
         //
         // Ex1 (multi-ligne): keyword "Annuities" (box_024) → "024\n048\nHEDI\n275,00"
         //     between contient "\n048\n" (code différent de 024) → bloquer.
         // Ex2 (même ligne): T4A layout "024        048        410,76"
-        //     keyword "024" matche en début, between contient "   048   "  → doit bloquer.
+        //     keyword "024" → searchStart pointe après "024", between contient "   048   " → bloque.
+        //     keyword "048" → searchStart pointe après "048", between contient "   " → OK, retourne 410,76.
         //
         // On cherche TOUT code 3-chiffres dans between, sauf le code de cette case,
         // que ce soit en début de ligne OU séparé par des espaces (layout horizontal T4A).
@@ -683,7 +705,7 @@ export function findBoxValueInText(
           "(?:^|[\\n\\s])0*(?!" + box.code + "\\b)\\d{3}(?:[\\n\\s]|$)"
         );
         if (otherCodeInBetween.test(between)) continue;
-        return m[1].trim();
+        return firstLine;
       }
     }
   }
