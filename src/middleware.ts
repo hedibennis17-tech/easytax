@@ -33,8 +33,13 @@ const isProtectedRoute = createRouteMatcher([
   "/api/debug/ocr(.*)",
 ]);
 
-// Route de migration — pas de vérification Clerk
-const isAdminMigrateRoute = createRouteMatcher(["/api/admin/migrate"]);
+// Routes admin avec token propre — pas de vérification Clerk
+const isAdminMigrateRoute = createRouteMatcher([
+  "/api/admin/migrate",
+  "/api/admin/user-cleanup",
+  "/api/admin/user-entries",
+  "/api/admin/purge-documents",
+]);
 
 function isPublicOcrReadinessRoute(request: NextRequest): boolean {
   return request.nextUrl.pathname === "/api/debug/ocr" && request.nextUrl.searchParams.get("ready") === "1";
