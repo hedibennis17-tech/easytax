@@ -284,7 +284,96 @@ function relaxedLabelPattern(label: string): string {
 }
 
 /**
- * Lecture d’une rangée de gabarit : « 10 Workers' compensation benefits 7 201,32 ».
+ * Parse la structure tabulaire d’un relevé RL-1 en une seule passe séquentielle.
+ *
+ * L’OCR.space rend le RL-1 comme:
+ *   "A - Revenus d’emploi\n1 482,62\nB.A - Cotisation au RRQ\n74,01\n..."
+ * ou avec le montant sur la même ligne:
+ *   "A - Revenus d’emploi 1 482,62"
+ *
+ * On parcourt ligne par ligne:
+ *   - Si la ligne commence par un CODE RL-1 connu (A, B.A, B.B, C, D, E, …, W)
+ *     suivi de " - " ou "—", on note le code et on attend le montant
+ *   - La première ligne suivante qui ressemble à un montant → on l’attribue au dernier code noté
+ *
+ * Retourne une Map<codeRL1, rawMontant> (ex: "A" → "1 482,62")
+ */
+function parseRL1OcrTable(ocrText: string): Map<string, string> {
+  const result = new Map<string, string>();
+
+  // Codes RL-1 valides, du plus long au plus court (pour éviter que "B" matche avant "B.A")
+  const RL1_CODES = [
+    "B.A", "B.B", "G-1", "G-2", "G-3",
+    "A-1","A-2","A-3","A-4","A-5","A-6","A-7","A-9","A-10","A-11","A-12","A-13","A-14",
+    "B-1","B-2",
+    "D-1","D-2","D-3",
+    "K-1",
+    "L-2","L-3","L-4","L-7","L-8","L-9","L-10",
+    "R-1",
+    "V-1",
+    "235",
+    "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","V","W",
+  ];
+
+  // Regex pour détecter une ligne qui commence par un code RL-1
+  // Format: "A - Libellé" ou "B.A - Libellé" ou "235 - Libellé"
+  // Les codes longs (B.A, G-1…) sont listés avant les codes courts (A, B…) pour
+  // éviter qu'une alternative courte matche en premier dans le groupe d'alternance.
+  const codeRe = new RegExp(
+    `^(${RL1_CODES.map(c => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\s*[-\\u2013\\u2014]\\s*(.{0,120})$`
+  );
+
+  // Regex montant RL-1 : valeur entière ou décimale en format français ("1 482,62", "74,01")
+  // Doit occuper la totalité de la ligne (pas de texte parasite)
+  const moneyLineRe = /^([0-9]{1,3}(?:[\s\u00a0][0-9]{3})*[.,][0-9]{2})$/;
+
+  const lines = ocrText.split(/\r?\n/);
+  let pendingCode: string | null = null;
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    // Tester si la ligne est une ligne de code RL-1
+    const codeMatch = line.match(codeRe);
+
+    if (codeMatch) {
+      const foundCode = codeMatch[1];
+      const rest = codeMatch[2].trim();
+
+      // Le montant peut être en fin de ligne, après le libellé
+      const inlineMoneyMatch = rest.match(/\s+([0-9]{1,3}(?:[\s\u00a0][0-9]{3})*[.,][0-9]{2})$/);
+      if (inlineMoneyMatch) {
+        const val = asMoney(inlineMoneyMatch[1]);
+        if (val && !result.has(foundCode)) result.set(foundCode, val);
+        pendingCode = null;
+      } else {
+        // Montant attendu sur la ligne suivante
+        pendingCode = foundCode;
+      }
+      continue;
+    }
+
+    // Si on attendait un montant pour le code précédent
+    if (pendingCode !== null) {
+      const moneyMatch = line.match(moneyLineRe);
+      if (moneyMatch) {
+        const val = asMoney(moneyMatch[1]);
+        if (val && !result.has(pendingCode)) result.set(pendingCode, val);
+        pendingCode = null;
+      } else if (line.length > 30 || /[a-zA-Z\u00c0-\u00ff]{4,}/.test(line)) {
+        // Ligne qui n'est pas un montant et contient du texte substantiel → annule l'attente
+        // On ignore les numéros courts (NAS, numéros de page, codes additionnels)
+        pendingCode = null;
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Lecture d’une rangée de gabarit : « 10 Workers’ compensation benefits 7 201,32 ».
  * Cette stratégie intervient avant la recherche par mots isolés afin que le montant
  * reste attaché à son libellé de case, même dans un tableau sans séparateur |.
  */
@@ -673,21 +762,41 @@ export function extractAllBoxes(
     }
   }
 
+  // Pour RL-1 : pré-parser la structure tabulaire en une passe séquentielle.
+  // Cela évite que la valeur de case A (1 482,62) soit absorbée par toutes les
+  // autres cases via les patterns keyword/layout qui ne sont pas assez ancrés.
+  const isRL1 = /RL-?1\b|Relevé\s+1/i.test(cleanText.slice(0, 1200));
+  const rl1Table: Map<string, string> = isRL1 ? parseRL1OcrTable(cleanText) : new Map();
+
   return slip.boxes.map(box => {
-    const rawValue = box.data_type === "money"
-      ? findBoxValueInText(cleanText, box)
-      : null;
+    let rawValue: string | null = null;
+
+    if (box.data_type === "money") {
+      // RL-1 : utiliser la table parsée en priorité absolue
+      if (isRL1 && rl1Table.size > 0) {
+        rawValue = rl1Table.get(box.code) ?? null;
+        // Si pas dans la table RL-1, on ne fait PAS de fallback keyword pour RL-1
+        // (évite l'absorption inter-cases)
+        // Exception: boxes numériques comme 235 qui peuvent avoir d'autres formats
+      } else {
+        rawValue = findBoxValueInText(cleanText, box);
+      }
+    }
     const amountCents = rawValue ? parseMontantOCR(rawValue) : null;
 
-    // Confiance: structured fields = 92%, keywords = 75%, non trouvé = 0%
+    // Confiance: RL-1 table = 85%, structured fields = 92%, keywords = 75%, non trouvé = 0%
     let confidence = 0;
     if (rawValue) {
-      const structStart = ocrText.indexOf("--- STRUCTURED FIELDS ---");
-      if (structStart >= 0) {
-        const key = `box_${box.code}`;
-        confidence = ocrText.slice(structStart).toLowerCase().includes(key.toLowerCase()) ? 92 : 75;
+      if (isRL1 && rl1Table.has(box.code)) {
+        confidence = 85;
       } else {
-        confidence = 75;
+        const structStart = ocrText.indexOf("--- STRUCTURED FIELDS ---");
+        if (structStart >= 0) {
+          const key = `box_${box.code}`;
+          confidence = ocrText.slice(structStart).toLowerCase().includes(key.toLowerCase()) ? 92 : 75;
+        } else {
+          confidence = 75;
+        }
       }
     }
 
