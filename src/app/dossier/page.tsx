@@ -5,6 +5,16 @@ import Link from "next/link";
 import { NavClient } from "@/components/NavClient";
 import { CATALOG_DOCUMENT_TYPES, catalogDocumentLabelFr } from "@/lib/document-intelligence/catalog";
 
+// Type retourné par GET /api/documents
+type ApiDocument = {
+  id: string;
+  originalFilename: string;
+  status: string;
+  typeCode: string;
+  typeLabelFr: string;
+  year?: number;
+};
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 type DocStatus = "empty" | "uploading" | "analyzing" | "done" | "rejected" | "error";
 
@@ -286,6 +296,41 @@ function TypePicker({ onSelect }: { onSelect: (type: PickerType) => void }) {
   );
 }
 
+// ─── Modal de confirmation de suppression ────────────────────────────────
+function DeleteModal({ fileName, onConfirm, onCancel }: { fileName: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000,
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+    }}>
+      <div style={{ background: "#fff", borderRadius: 16, padding: 24, maxWidth: 380, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ fontSize: 28, textAlign: "center", marginBottom: 12 }}>🗑️</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#0f1f1e", textAlign: "center", marginBottom: 8 }}>
+          Supprimer ce feuillet ?
+        </div>
+        <div style={{ fontSize: 13, color: "#526865", textAlign: "center", lineHeight: 1.5, marginBottom: 20 }}>
+          <strong>{fileName}</strong><br />
+          Le fichier, son OCR et les montants extraits seront <strong>définitivement supprimés</strong> et le calcul sera mis à jour.
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onCancel}
+            style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 600, background: "#f7f9f8", color: "#526865", border: "1px solid #dde8e5", cursor: "pointer" }}
+          >
+            Annuler
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 700, background: "#dc2626", color: "#fff", border: "none", cursor: "pointer" }}
+          >
+            Supprimer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── PAGE PRINCIPALE ──────────────────────────────────────────────────────
 export default function DossierPage() {
   // groups: { typeCode, typeLabel, typeDesc, slots }
@@ -295,6 +340,44 @@ export default function DossierPage() {
   const [showPicker, setShowPicker] = useState(false);
   const [totalDone, setTotalDone] = useState(0);
   const [totalSlots, setTotalSlots] = useState(0);
+  const [loadingDocs, setLoadingDocs] = useState(true);
+  const [deleteModal, setDeleteModal] = useState<{ slotId: string; fileName: string } | null>(null);
+
+  // ── Charge les documents existants depuis la DB au montage ──────────────
+  useEffect(() => {
+    fetch("/api/documents", { cache: "no-store" })
+      .then(r => r.json())
+      .then((data: { documents?: ApiDocument[] }) => {
+        const docs = data.documents ?? [];
+        if (docs.length === 0) { setLoadingDocs(false); return; }
+
+        // Reconstitue les groupes depuis les docs en DB
+        const groupMap = new Map<string, { typeCode: string; typeLabel: string; typeDesc: string; slots: DocSlot[] }>();
+        docs.forEach(doc => {
+          const typeCode = doc.typeCode ?? "OTHER";
+          const typeLabel = doc.typeLabelFr ?? typeCode;
+          if (!groupMap.has(typeCode)) {
+            groupMap.set(typeCode, { typeCode, typeLabel, typeDesc: `Année ${doc.year ?? 2025}`, slots: [] });
+          }
+          const group = groupMap.get(typeCode)!;
+          const slotStatus: DocStatus =
+            doc.status === "validated" || doc.status === "processed" || doc.status === "processing_complete" ? "done" :
+            doc.status === "rejected" ? "rejected" :
+            doc.status === "failed" ? "error" : "done";
+          group.slots.push({
+            id: `loaded-${doc.id}`,
+            typeCode,
+            typeLabel: `${typeLabel} — Feuillet ${group.slots.length + 1}`,
+            status: slotStatus,
+            fileName: doc.originalFilename,
+            documentId: doc.id,
+          });
+        });
+        setGroups(Array.from(groupMap.values()));
+        setLoadingDocs(false);
+      })
+      .catch(() => setLoadingDocs(false));
+  }, []);
 
   useEffect(() => {
     let done = 0, total = 0;
@@ -333,27 +416,43 @@ export default function DossierPage() {
     }));
   }, []);
 
-  const removeSlot = useCallback(async (id: string) => {
-    const slot = groups.flatMap(group => group.slots).find(candidate => candidate.id === id);
-    if (slot?.documentId) {
-      const accepted = window.confirm(`Supprimer définitivement « ${slot.fileName ?? slot.typeLabel} » ?\n\nLe fichier, son OCR et les montants provenant de ce feuillet seront retirés. Cette action est irréversible.`);
-      if (!accepted) return;
-      const response = await fetch(`/api/documents/${slot.documentId}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmation: "DELETE_PERMANENTLY" }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        window.alert(data.error ?? "Suppression impossible");
-        return;
-      }
+  // Ouvre le modal de confirmation
+  const removeSlot = useCallback((id: string) => {
+    const slot = groups.flatMap(g => g.slots).find(s => s.id === id);
+    if (!slot) return;
+    if (!slot.documentId) {
+      // Slot sans doc en DB → retirer directement
+      setGroups(g => g.map(x => ({ ...x, slots: x.slots.filter(s => s.id !== id) })).filter(x => x.slots.length > 0));
+      return;
     }
-    setGroups(g => g
-      .map(x => ({ ...x, slots: x.slots.filter(s => s.id !== id) }))
-      .filter(x => x.slots.length > 0)
-    );
+    setDeleteModal({ slotId: id, fileName: slot.fileName ?? slot.typeLabel });
   }, [groups]);
+
+  // Exécute la suppression après confirmation dans le modal
+  const confirmDelete = useCallback(async () => {
+    if (!deleteModal) return;
+    const { slotId } = deleteModal;
+    setDeleteModal(null);
+    const slot = groups.flatMap(g => g.slots).find(s => s.id === slotId);
+    if (!slot?.documentId) return;
+
+    const response = await fetch(`/api/documents/${slot.documentId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmation: "DELETE_PERMANENTLY" }),
+    });
+    const data = await response.json().catch(() => ({})) as { error?: string };
+    if (!response.ok) {
+      alert(data.error ?? "Suppression impossible");
+      return;
+    }
+
+    // Retirer le slot de l'affichage
+    setGroups(g => g.map(x => ({ ...x, slots: x.slots.filter(s => s.id !== slotId) })).filter(x => x.slots.length > 0));
+
+    // Déclencher un recalcul silencieux pour mettre à jour les chiffres de déclaration
+    fetch("/api/tax-engine/calculate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ silent: true }) }).catch(() => undefined);
+  }, [deleteModal, groups]);
 
   const handleUpload = useCallback(async (id: string, file: File) => {
     const group = groups.find(g => g.slots.some(s => s.id === id));
@@ -393,6 +492,15 @@ export default function DossierPage() {
   return (
     <div style={{ background: "#f7f9f8", minHeight: "100vh" }}>
       <NavClient />
+
+      {/* Modal de confirmation de suppression */}
+      {deleteModal && (
+        <DeleteModal
+          fileName={deleteModal.fileName}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteModal(null)}
+        />
+      )}
 
       <main style={{ maxWidth: 680, margin: "0 auto", padding: "24px 16px 80px" }}>
 
@@ -436,7 +544,12 @@ export default function DossierPage() {
         </div>
 
         {/* ── Documents ajoutés ────────────────────────────────────── */}
-        {groups.length > 0 && (
+        {loadingDocs && (
+          <div style={{ textAlign: "center", padding: "20px 0", color: "#7a9c97", fontSize: 13 }}>
+            ⋯ Chargement de vos documents…
+          </div>
+        )}
+        {!loadingDocs && groups.length > 0 && (
           <div style={{ marginBottom: 10 }}>
             {groups.map(g => (
               <DocGroup
@@ -454,7 +567,7 @@ export default function DossierPage() {
         )}
 
         {/* ── Sélecteur de type ou zone d'ajout ────────────────────── */}
-        {showPicker ? (
+        {!loadingDocs && showPicker ? (
           <div>
             <TypePicker onSelect={addGroup} />
             <button
@@ -479,7 +592,7 @@ export default function DossierPage() {
         )}
 
         {/* ── Types courants (raccourcis rapides) ──────────────────── */}
-        {!showPicker && groups.length === 0 && (
+        {!loadingDocs && !showPicker && groups.length === 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#7a9c97", marginBottom: 8 }}>Documents courants</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
