@@ -93,8 +93,13 @@ export default function DocumentsPage() {
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      void loadDocs();
+    const t = setTimeout(async () => {
+      await loadDocs();
+      // Backfill silencieux des champs manquants (employer_name, tax_year) pour les docs existants.
+      // On recharge ensuite pour afficher les noms de payeur nouvellement trouvés.
+      const bf = await fetch("/api/documents/backfill-meta", { method: "POST" }).catch(() => null);
+      const bfData = bf?.ok ? await bf.json().catch(() => null) : null;
+      if (bfData?.fieldsInserted > 0) void loadDocs();
       void getTaxYearId().then(setTaxYearId);
       void fetch("/api/documents/types")
         .then(r => r.ok ? r.json() : null)

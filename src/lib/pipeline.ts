@@ -227,6 +227,40 @@ export async function runOcrPipeline(params: { documentId: string; userId: strin
       });
     }
 
+    // ── Injecter employer_name et tax_year depuis slipMeta si non déjà extraits ──
+    // Ces champs sont lus par extractSlipMetadata() pour TOUS les types de feuillets
+    // (T4, T4A, RL1, RL2, T5, etc.) mais pas nécessairement inclus par chaque extractor.
+    // On les insère seulement s'ils ne sont pas déjà présents dans extractionResult.
+    const existingCodes = new Set((extractionResult?.fields ?? []).map(f => f.fieldCode));
+
+    if (slipMeta.employerName && !existingCodes.has("employer_name")) {
+      await db.insert(extractionFields).values({
+        extractionId: extraction.id,
+        fieldCode: "employer_name",
+        fieldLabel: "Nom du payeur",
+        pageNumber: 1,
+        rawOcrValue: slipMeta.employerName,
+        ocrConfidence: 80,
+        needsReview: false,
+        isRequired: true,
+        validationStatus: "unreviewed",
+      });
+    }
+
+    if (slipMeta.taxYear && !existingCodes.has("tax_year")) {
+      await db.insert(extractionFields).values({
+        extractionId: extraction.id,
+        fieldCode: "tax_year",
+        fieldLabel: "Année fiscale",
+        pageNumber: 1,
+        rawOcrValue: String(slipMeta.taxYear),
+        ocrConfidence: 85,
+        needsReview: false,
+        isRequired: true,
+        validationStatus: "unreviewed",
+      });
+    }
+
     const finalDocumentStatus = !guard.accepted ? "rejected" : needsHumanReview ? "needs_review" : "extracted";
     await db.update(fiscalDocuments).set({ status: finalDocumentStatus, updatedAt: new Date() })
       .where(eq(fiscalDocuments.id, documentId));
