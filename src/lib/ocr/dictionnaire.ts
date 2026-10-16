@@ -298,9 +298,10 @@ function relaxedLabelPattern(label: string): string {
  *   "A - Revenus d'emploi\nB.A - Cotisation au RRQ\nB.B - ...\nC - ...\nDonnées\n1 482,62\n74,01\n19,42\n"
  *   → A=1 482,62, B.A=74,01, C=19,42, B.B vide (cotisation supplémentaire non applicable)
  *
- * Pour le format B, on utilise une heuristique : quand le nombre de montants < nombre de codes,
- * les codes « rarement remplis » (B.B, G-2, G-3, codes complémentaires…) sont supposés vides
- * en priorité, et les montants sont assignés aux codes restants dans l'ordre.
+ * Pour le format B, les montants sont assignés automatiquement seulement lorsque
+ * la correspondance est déterministe. Si le nombre de montants ne permet pas de
+ * prouver la correspondance, aucune valeur n'est décalée vers une autre case :
+ * les cases restent vides et le document est laissé à la révision humaine.
  *
  * Retourne une Map<codeRL1, rawMontant> (ex: "A" → "1 482,62")
  */
@@ -385,12 +386,16 @@ function parseRL1OcrTable(ocrText: string): Map<string, string> {
             if (val && !result.has(c)) result.set(c, val);
           });
         } else {
-          // Fallback : assigner dans l'ordre (normaux d'abord, rares ensuite)
-          const orderedCodes = [...normalCodes, ...rareCodes];
-          for (let i = 0; i < Math.min(groupAmounts.length, orderedCodes.length); i++) {
-            const val = asMoney(groupAmounts[i]);
-            if (val && !result.has(orderedCodes[i])) result.set(orderedCodes[i], val);
-          }
+          // Correspondance ambiguë : surtout ne pas décaler un montant vers
+          // B.B, D, F, J ou une autre case. Laisser les cases absentes vides
+          // force la vérification humaine au lieu de produire une donnée fiscale
+          // silencieusement attribuée à la mauvaise case.
+          console.warn('[RL-1] Correspondance tabulaire ambiguë — révision requise', {
+            pendingCodes: pendingGroup,
+            normalCodes,
+            rareCodes,
+            amountCount: groupAmounts.length,
+          });
         }
       }
 
