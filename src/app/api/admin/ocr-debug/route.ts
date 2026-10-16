@@ -63,6 +63,21 @@ export async function GET(req: NextRequest) {
     if (!userId) return NextResponse.json({ error: "Utilisateur introuvable", email }, { status: 404 });
   }
 
+  // Inspecter le schéma réel des tables clés (une fois, pour debug)
+  const schemaRows = await sql`
+    SELECT table_name, column_name, data_type
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name IN ('fiscal_documents','document_extractions','extraction_fields','income_entries','document_pages')
+    ORDER BY table_name, ordinal_position
+  `;
+  const schema: Record<string, string[]> = {};
+  for (const r of schemaRows as Row[]) {
+    const t = r.table_name as string;
+    if (!schema[t]) schema[t] = [];
+    schema[t].push(`${r.column_name} (${r.data_type})`);
+  }
+
   // Diagnostic: compter TOUS les docs du user (avec et sans deleted_at) pour débug
   const diagRows = await sql`
     SELECT
@@ -168,23 +183,47 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    // Extraction fields (valeurs stockées en DB)
-    const extractions = await sql`
-      SELECT de.id as extraction_id,
-             ef.field_code, ef.raw_value, ef.normalized_value, ef.confidence, ef.is_validated
-      FROM document_extractions de
-      JOIN extraction_fields ef ON ef.extraction_id = de.id
-      WHERE de.fiscal_document_id = ${dId}
-      ORDER BY ef.field_code
-    `;
+    // Extraction fields — colonnes inspectées dynamiquement pour éviter crash
+    let extractions: Row[] = [];
+    try {
+      extractions = await sql`
+        SELECT de.id as extraction_id,
+               ef.field_code, ef.raw_value, ef.normalized_value, ef.confidence, ef.is_validated
+        FROM document_extractions de
+        JOIN extraction_fields ef ON ef.extraction_id = de.id
+        WHERE de.fiscal_document_id = ${dId}
+        ORDER BY ef.field_code
+      ` as Row[];
+    } catch {
+      // Fallback: retourner toutes les colonnes de extraction_fields sans assumer les noms
+      try {
+        extractions = await sql`
+          SELECT ef.*
+          FROM document_extractions de
+          JOIN extraction_fields ef ON ef.extraction_id = de.id
+          WHERE de.fiscal_document_id = ${dId}
+        ` as Row[];
+      } catch (e2) {
+        extractions = [{ error: String(e2) }];
+      }
+    }
 
-    // Income entries liées à ce doc
-    const incomeEntries = await sql`
-      SELECT category, label_fr, amount_cents, is_validated, source_box_code
-      FROM income_entries
-      WHERE source_document_id = ${dId}
-      ORDER BY source_box_code
-    `;
+    // Income entries
+    let incomeEntries: Row[] = [];
+    try {
+      incomeEntries = await sql`
+        SELECT category, label_fr, amount_cents, is_validated, source_box_code
+        FROM income_entries
+        WHERE source_document_id = ${dId}
+        ORDER BY source_box_code
+      ` as Row[];
+    } catch {
+      try {
+        incomeEntries = await sql`SELECT * FROM income_entries WHERE source_document_id = ${dId}` as Row[];
+      } catch (e2) {
+        incomeEntries = [{ error: String(e2) }];
+      }
+    }
 
     // Re-extraction live (debug extraction en temps réel)
     let liveExtraction: unknown[] | null = null;
@@ -229,6 +268,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     email,
     userId,
+    schema,
     diagnostic: {
       totalDocsForUser: diag.total_count,
       activeDocs: diag.active_count,
