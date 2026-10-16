@@ -284,17 +284,23 @@ function relaxedLabelPattern(label: string): string {
 }
 
 /**
- * Parse la structure tabulaire d’un relevé RL-1 en une seule passe séquentielle.
+ * Parse la structure tabulaire d'un relevé RL-1 en une seule passe séquentielle.
  *
- * L’OCR.space rend le RL-1 comme:
- *   "A - Revenus d’emploi\n1 482,62\nB.A - Cotisation au RRQ\n74,01\n..."
- * ou avec le montant sur la même ligne:
- *   "A - Revenus d’emploi 1 482,62"
+ * Supporte deux formats OCR.space :
  *
- * On parcourt ligne par ligne:
- *   - Si la ligne commence par un CODE RL-1 connu (A, B.A, B.B, C, D, E, …, W)
- *     suivi de " - " ou "—", on note le code et on attend le montant
- *   - La première ligne suivante qui ressemble à un montant → on l’attribue au dernier code noté
+ * Format A — séquentiel (RL-1 physique / scan) :
+ *   "A - Revenus d'emploi\n1 482,62\nB.A - Cotisation au RRQ\n74,01\n..."
+ *   ou avec montant inline : "A - Revenus d'emploi 1 482,62"
+ *
+ * Format B — deux colonnes (Mon Dossier Citoyens) :
+ *   L'OCR lit la colonne des labels d'abord, puis l'en-tête "Données",
+ *   puis la colonne des montants (en sautant les cases vides).
+ *   "A - Revenus d'emploi\nB.A - Cotisation au RRQ\nB.B - ...\nC - ...\nDonnées\n1 482,62\n74,01\n19,42\n"
+ *   → A=1 482,62, B.A=74,01, C=19,42, B.B vide (cotisation supplémentaire non applicable)
+ *
+ * Pour le format B, on utilise une heuristique : quand le nombre de montants < nombre de codes,
+ * les codes « rarement remplis » (B.B, G-2, G-3, codes complémentaires…) sont supposés vides
+ * en priorité, et les montants sont assignés aux codes restants dans l'ordre.
  *
  * Retourne une Map<codeRL1, rawMontant> (ex: "A" → "1 482,62")
  */
@@ -315,24 +321,83 @@ function parseRL1OcrTable(ocrText: string): Map<string, string> {
     "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","V","W",
   ];
 
-  // Regex pour détecter une ligne qui commence par un code RL-1
-  // Format: "A - Libellé" ou "B.A - Libellé" ou "235 - Libellé"
-  // Les codes longs (B.A, G-1…) sont listés avant les codes courts (A, B…) pour
-  // éviter qu'une alternative courte matche en premier dans le groupe d'alternance.
+  // Codes rarement remplis — prioritairement supposés vides dans le format deux colonnes
+  // (cotisations supplémentaires RRQ2, codes complémentaires, etc.)
+  const RARELY_FILLED = new Set([
+    "B.B","G-2","G-3",
+    "A-1","A-2","A-3","A-4","A-5","A-6","A-7","A-9","A-10","A-11","A-12","A-13","A-14",
+    "B-1","B-2","D-1","D-2","D-3","K-1",
+    "L-2","L-3","L-4","L-7","L-8","L-9","L-10",
+    "R-1","V-1","235",
+  ]);
+
+  // Regex code RL-1 : "A - Libellé" | "B.A - Libellé" | "235 - Libellé"
   const codeRe = new RegExp(
     `^(${RL1_CODES.map(c => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\s*[-\\u2013\\u2014]\\s*(.{0,120})$`
   );
 
-  // Regex montant RL-1 : valeur entière ou décimale en format français ("1 482,62", "74,01")
-  // Doit occuper la totalité de la ligne (pas de texte parasite)
+  // Montant sur toute la ligne — format français ("1 482,62", "74,01")
   const moneyLineRe = /^([0-9]{1,3}(?:[\s\u00a0][0-9]{3})*[.,][0-9]{2})$/;
+
+  // Mots-pivot du format deux colonnes Mon Dossier Citoyens
+  const pivotLineRe = /^(Données|Montants|Data|Cases)$/i;
 
   const lines = ocrText.split(/\r?\n/);
   let pendingCode: string | null = null;
 
-  for (const raw of lines) {
-    const line = raw.trim();
+  // Groupe de codes sans montant en attente (format deux colonnes)
+  const pendingGroup: string[] = [];
+
+  for (let idx = 0; idx < lines.length; idx++) {
+    const line = lines[idx].trim();
     if (!line) continue;
+
+    // Mot-pivot "Données" / "Cases" — format deux colonnes Mon Dossier Citoyens
+    if (pivotLineRe.test(line) && pendingGroup.length > 0) {
+      // Collecter les montants consécutifs qui suivent immédiatement le pivot
+      const groupAmounts: string[] = [];
+      let j = idx + 1;
+      while (j < lines.length) {
+        const nl = lines[j].trim();
+        if (!nl) { j++; continue; }
+        const mm = nl.match(moneyLineRe);
+        if (mm) { groupAmounts.push(mm[1]); j++; }
+        else break;
+      }
+      idx = j - 1;  // avancer l'index (la boucle fait idx++ ensuite)
+
+      if (groupAmounts.length > 0) {
+        // Heuristique d'assignation :
+        // Tentative 1 : montants == codes normaux (cas courant : B.B vide, les autres remplis)
+        const normalCodes = pendingGroup.filter(c => !RARELY_FILLED.has(c));
+        const rareCodes   = pendingGroup.filter(c =>  RARELY_FILLED.has(c));
+
+        if (groupAmounts.length === normalCodes.length) {
+          // Cas typique Mon Dossier Citoyens : les rarement-remplis (B.B…) sont vides
+          normalCodes.forEach((c, i) => {
+            const val = asMoney(groupAmounts[i]);
+            if (val && !result.has(c)) result.set(c, val);
+          });
+        } else if (groupAmounts.length === pendingGroup.length) {
+          // Aucune case vide dans ce groupe
+          pendingGroup.forEach((c, i) => {
+            const val = asMoney(groupAmounts[i]);
+            if (val && !result.has(c)) result.set(c, val);
+          });
+        } else {
+          // Fallback : assigner dans l'ordre (normaux d'abord, rares ensuite)
+          const orderedCodes = [...normalCodes, ...rareCodes];
+          for (let i = 0; i < Math.min(groupAmounts.length, orderedCodes.length); i++) {
+            const val = asMoney(groupAmounts[i]);
+            if (val && !result.has(orderedCodes[i])) result.set(orderedCodes[i], val);
+          }
+        }
+      }
+
+      pendingGroup.length = 0;
+      pendingCode = null;
+      continue;
+    }
 
     // Tester si la ligne est une ligne de code RL-1
     const codeMatch = line.match(codeRe);
@@ -347,8 +412,10 @@ function parseRL1OcrTable(ocrText: string): Map<string, string> {
         const val = asMoney(inlineMoneyMatch[1]);
         if (val && !result.has(foundCode)) result.set(foundCode, val);
         pendingCode = null;
+        pendingGroup.length = 0;  // ce code a son montant, fermer le groupe
       } else {
-        // Montant attendu sur la ligne suivante
+        // Montant attendu sur la ligne suivante (ou via pivot)
+        pendingGroup.push(foundCode);
         pendingCode = foundCode;
       }
       continue;
@@ -360,10 +427,13 @@ function parseRL1OcrTable(ocrText: string): Map<string, string> {
       if (moneyMatch) {
         const val = asMoney(moneyMatch[1]);
         if (val && !result.has(pendingCode)) result.set(pendingCode, val);
+        // Retirer ce code du groupe (il a son montant)
+        const gi = pendingGroup.lastIndexOf(pendingCode);
+        if (gi >= 0) pendingGroup.splice(gi, 1);
         pendingCode = null;
       } else if (line.length > 30 || /[a-zA-Z\u00c0-\u00ff]{4,}/.test(line)) {
-        // Ligne qui n'est pas un montant et contient du texte substantiel → annule l'attente
-        // On ignore les numéros courts (NAS, numéros de page, codes additionnels)
+        // Texte substantiel non-pivot → annule l'attente du dernier code
+        // mais CONSERVE le groupe (pivot peut encore arriver)
         pendingCode = null;
       }
     }
@@ -371,7 +441,6 @@ function parseRL1OcrTable(ocrText: string): Map<string, string> {
 
   return result;
 }
-
 /**
  * Lecture d’une rangée de gabarit : « 10 Workers’ compensation benefits 7 201,32 ».
  * Cette stratégie intervient avant la recherche par mots isolés afin que le montant
