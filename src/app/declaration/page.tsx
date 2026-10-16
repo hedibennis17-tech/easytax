@@ -787,7 +787,9 @@ export default function DeclarationPage() {
     {
       id: "totaux_qc", icon: "📊", title_fr: "Totaux (199 / 275 / 299)", title_en: "Totals (199 / 275 / 299)",
       lines: tp1Lines.filter(l => l.section === "totaux"),
-      totalCents: tp1Lines.filter(l => l.section === "totaux").reduce((s, l) => s + l.amountCents, 0),
+      // Afficher la ligne 299 (revenu imposable) comme total représentatif — ne pas sommer
+      // les 3 lignes 199+275+299 qui sont des totaux progressifs (pas des montants additifs)
+      totalCents: tp1Lines.find(l => l.line === "299")?.amountCents ?? tp1Lines.find(l => l.line === "275")?.amountCents ?? tp1Lines.find(l => l.line === "199")?.amountCents ?? 0,
       filledCount: tp1Lines.filter(l => l.section === "totaux" && l.amountCents > 0).length,
     },
     {
