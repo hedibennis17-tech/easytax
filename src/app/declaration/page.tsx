@@ -673,14 +673,18 @@ export default function DeclarationPage() {
     setRecalculating(true);
     setRecalcMsg(null);
     try {
+      setRecalcMsg("⏳ Nettoyage des anciens calculs et des entrées OCR...");
       const res = await fetch("/api/tax-engine/calculate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taxReturnId }),
+        body: JSON.stringify({ taxReturnId, rebuild: true }),
       });
       if (res.ok) {
-        setRecalcMsg("✅ Calcul mis à jour — rechargement...");
-        setTimeout(() => { setRecalcMsg(null); loadData(); }, 800);
+        const payload = await res.json() as { rebuild?: { documents?: number; entries?: number } };
+        const documents = payload.rebuild?.documents ?? 0;
+        const entries = payload.rebuild?.entries ?? 0;
+        setRecalcMsg(`✅ Données actuelles reconstruites : ${documents} document(s), ${entries} entrée(s) OCR. Calcul mis à jour.`);
+        await loadData();
       } else {
         const err = await res.json() as { error?: string };
         setRecalcMsg(`❌ ${err.error ?? "Erreur de calcul"}`);
@@ -891,7 +895,7 @@ export default function DeclarationPage() {
                   background: recalculating ? "#e8f4f4" : "#0b6b67",
                   border: "1px solid #0b6b67", borderRadius: 8,
                   cursor: recalculating ? "wait" : "pointer", opacity: !data?.meta?.taxReturnId ? 0.5 : 1 }}>
-                {recalculating ? "⏳ " + T("Calcul...","Calculating...") : "🔄 " + T("Recalculer","Recalculate")}
+                {recalculating ? "⏳ " + T("Reconstruction et calcul...","Rebuilding and calculating...") : "🔄 " + T("Purger et recalculer","Purge and recalculate")}
               </button>
             </div>
             {recalcMsg && (

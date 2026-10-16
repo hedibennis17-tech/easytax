@@ -194,9 +194,8 @@ export async function GET() {
   const noticeOfAssessment = readNoticeReference(profile.pancanadianData);
 
   // Données DB
-  // RÈGLE : seules les entrées validées (isValidated=true) sont prises en compte,
-  // identique au filtre du tax engine — garantit la cohérence entre l'affichage
-  // et le calcul fiscal.
+  // Même source de vérité que le Tax Engine : une entrée non validée ne doit
+  // ni apparaître dans la déclaration ni être incluse dans le calcul.
   const incomes    = taxReturn ? await db.select().from(incomeEntries).where(and(eq(incomeEntries.userId, userId), eq(incomeEntries.taxReturnId, taxReturn.id), eq(incomeEntries.isValidated, true))) : [];
   const deductions = taxReturn ? await db.select().from(deductionEntries).where(and(eq(deductionEntries.userId, userId), eq(deductionEntries.taxReturnId, taxReturn.id), eq(deductionEntries.isValidated, true))) : [];
   const creds      = taxReturn ? await db.select().from(creditEntries).where(and(eq(creditEntries.userId, userId), eq(creditEntries.taxReturnId, taxReturn.id), eq(creditEntries.isValidated, true))) : [];

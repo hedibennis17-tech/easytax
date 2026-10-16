@@ -17,6 +17,7 @@ import {
   incomeEntries,
   preparerMessages,
   taxYears,
+  taxCalculations,
 } from "@/db/schema";
 
 async function getDocumentForUser(documentId: string, userId: string) {
@@ -53,7 +54,7 @@ async function getDocumentForUser(documentId: string, userId: string) {
 // propriétaire et ne doit jamais bloquer le nettoyage du coffre-fort.
 async function getDocumentRecordForDeletion(documentId: string, userId: string) {
   const [document] = await db
-    .select({ id: fiscalDocuments.id, storageKey: fiscalDocuments.storageKey })
+    .select({ id: fiscalDocuments.id, storageKey: fiscalDocuments.storageKey, taxReturnId: fiscalDocuments.taxReturnId })
     .from(fiscalDocuments)
     .where(and(
       eq(fiscalDocuments.id, documentId),
@@ -155,6 +156,14 @@ export async function DELETE(
     await tx.delete(deductionEntries).where(eq(deductionEntries.sourceDocumentId, document.id));
     await tx.delete(creditEntries).where(eq(creditEntries.sourceDocumentId, document.id));
     await tx.delete(documentAuditLogs).where(eq(documentAuditLogs.documentId, document.id));
+    // Le dernier calcul sauvegardé ne doit pas survivre à la suppression de
+    // son document source : il serait sinon affiché comme un résultat actuel.
+    if (document.taxReturnId) {
+      await tx.delete(taxCalculations).where(and(
+        eq(taxCalculations.userId, ctx.clerkUserId),
+        eq(taxCalculations.taxReturnId, document.taxReturnId),
+      ));
+    }
     const removed = await tx.delete(fiscalDocuments).where(and(
       eq(fiscalDocuments.id, document.id),
       eq(fiscalDocuments.userId, ctx.clerkUserId),

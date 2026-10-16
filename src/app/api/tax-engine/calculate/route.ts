@@ -4,10 +4,13 @@ import { db } from "@/lib/db";
 import {
   taxReturns, taxProfiles, taxYears,
   incomeEntries, deductionEntries, creditEntries, taxCalculations,
+  fiscalDocuments, documentExtractions, documentPages, documentTypes,
 } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray, isNull, desc } from "drizzle-orm";
 import { calculate } from "@/lib/tax-engine/engine";
 import type { TaxEngineInput } from "@/lib/tax-engine/types";
+import { classifySlip } from "@/lib/ocr/dictionnaire";
+import { syncOcrToEntries } from "@/lib/ocr-to-entries";
 
 export async function POST(req: NextRequest) {
   const { userId: clerkUserId } = await auth();
@@ -15,6 +18,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { taxReturnId } = body;
+  const rebuild = body.rebuild === true;
   if (!taxReturnId) return NextResponse.json({ error: "taxReturnId requis" }, { status: 400 });
 
   const profile = await db.select({ id: taxProfiles.id, province: taxProfiles.province, fiscalResidence: taxProfiles.fiscalResidence, pancanadianData: taxProfiles.pancanadianData })
@@ -26,6 +30,67 @@ export async function POST(req: NextRequest) {
     .where(and(eq(taxReturns.id, taxReturnId), eq(taxReturns.profileId, profile[0].id)))
     .limit(1);
   if (!taxReturn[0]) return NextResponse.json({ error: "Dossier introuvable" }, { status: 404 });
+
+  // Recalcul complet : repartir uniquement des documents actuels. Les entrées
+  // manuelles restent intactes; seules les entrées produites par un document
+  // encore présent sont supprimées puis reconstruites depuis l'OCR enregistré.
+  // Cela évite les doublons historiques et garantit qu'un document supprimé ne
+  // peut plus alimenter la déclaration.
+  let rebuiltDocuments = 0;
+  let rebuiltEntries = 0;
+  if (rebuild) {
+    const currentDocuments = await db.select({
+      id: fiscalDocuments.id,
+      typeCode: documentTypes.code,
+    })
+      .from(fiscalDocuments)
+      .leftJoin(documentTypes, eq(fiscalDocuments.documentTypeId, documentTypes.id))
+      .where(and(
+        eq(fiscalDocuments.userId, clerkUserId),
+        eq(fiscalDocuments.taxReturnId, taxReturnId),
+        isNull(fiscalDocuments.deletedAt),
+      ));
+    const documentIds = currentDocuments.map((document) => document.id);
+
+    if (documentIds.length > 0) {
+      await Promise.all([
+        db.delete(incomeEntries).where(and(eq(incomeEntries.userId, clerkUserId), inArray(incomeEntries.sourceDocumentId, documentIds))),
+        db.delete(deductionEntries).where(and(eq(deductionEntries.userId, clerkUserId), inArray(deductionEntries.sourceDocumentId, documentIds))),
+        db.delete(creditEntries).where(and(eq(creditEntries.userId, clerkUserId), inArray(creditEntries.sourceDocumentId, documentIds))),
+      ]);
+    }
+    await db.delete(taxCalculations).where(and(eq(taxCalculations.userId, clerkUserId), eq(taxCalculations.taxReturnId, taxReturnId)));
+
+    for (const document of currentDocuments) {
+      const [extraction] = await db.select({ id: documentExtractions.id })
+        .from(documentExtractions)
+        .where(eq(documentExtractions.fiscalDocumentId, document.id))
+        .orderBy(desc(documentExtractions.updatedAt))
+        .limit(1);
+      if (!extraction) continue;
+      const pages = await db.select({ text: documentPages.ocrText })
+        .from(documentPages)
+        .where(eq(documentPages.documentId, document.id))
+        .orderBy(documentPages.pageNumber);
+      const ocrText = pages.map((page) => page.text ?? "").filter(Boolean).join("\n\n");
+      const detectedType = ocrText ? classifySlip(ocrText) : null;
+      const rawType = detectedType ?? document.typeCode ?? "T4";
+      const documentTypeCode = rawType.match(/^RL(\d+)$/i)?.[1]
+        ? `RL-${rawType.match(/^RL(\d+)$/i)?.[1]}`
+        : rawType;
+      const sync = await syncOcrToEntries({
+        extractionId: extraction.id,
+        documentId: document.id,
+        userId: clerkUserId,
+        taxReturnId,
+        documentTypeCode,
+        ocrText: ocrText || undefined,
+        replaceExisting: true,
+      });
+      rebuiltDocuments++;
+      rebuiltEntries += sync.created;
+    }
+  }
 
   const taxYear = await db.select({ year: taxYears.year }).from(taxYears)
     .where(eq(taxYears.id, taxReturn[0].taxYearId)).limit(1);
@@ -196,6 +261,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       calculationId: saved.id,
       result,
+      rebuild: rebuild ? { documents: rebuiltDocuments, entries: rebuiltEntries } : undefined,
       warning: "RÉSULTATS PRÉLIMINAIRES — Aucune déclaration transmise.",
     });
   } catch (error) {
