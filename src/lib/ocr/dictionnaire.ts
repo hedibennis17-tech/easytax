@@ -337,6 +337,46 @@ export function findBoxValueInText(
   ocrText: string,
   box: BoxDef,
 ): string | null {
+  // 0. Stratégies haute-confiance pour les layouts T4A gouvernement canadien.
+
+  // 0a. Section "Other information / Autres renseignements" du T4A gouvernement canadien.
+  // OCR.space sort cette section comme:
+  //   "Box - Case\nAmount - Montant\n202\n3 000,00\nBox - Case\n203\nAmount - Montant\n2 500,00"
+  // On extrait cette section et on cherche le code dedans en PRIORITÉ absolue,
+  // avant les stratégies keyword qui débordent dans cette section par erreur.
+  const otherInfoStart = ocrText.search(/Other information|Autres renseignements/i);
+  if (otherInfoStart >= 0 && box.code.length >= 3) {
+    const otherInfoSection = ocrText.slice(otherInfoStart);
+    // Chercher "CODE\nMONTANT" ou "CODE\nAmount - Montant\nMONTANT" dans cette section.
+    // OCR.space sort parfois "Box - Case\n203\nAmount - Montant\n2 500,00"
+    // et parfois "Box - Case\nAmount - Montant\n202\n3 000,00" (ordre variable).
+    // On tolère une ligne optionnelle entre le code et le montant.
+    const patOther = new RegExp(
+      "(?:^|\\n)0*" + box.code + "\\s*\\n(?:[^\\n]{0,40}\\n)?\\s*([0-9][\\d\\s,.']+)",
+      "im"
+    );
+    const mOther = otherInfoSection.match(patOther);
+    if (mOther?.[1]) {
+      const rawOther = mOther[1].split(/\r?\n/)[0].trim();
+      if (!/^\d{3}/.test(rawOther) && parseMontantOCR(rawOther) !== null) return rawOther;
+    }
+  }
+
+  // 0b. Layout T4A 2-colonnes: "016\n022\n[labels]\n024\n048\nNOM\nMONTANT"
+  // OCR.space retourne les codes de cases de gauche (016, 022) séparément des codes de
+  // droite (024, 048). La valeur de box_022 (impôt retenu) apparaît APRÈS le nom du
+  // bénéficiaire, après les codes 024/048, sous la forme "PRÉNOM\n275,00".
+  // Pattern: "016\n022\n" puis (dans les 400 chars) "024\n048\n" puis "PRÉNOM\nMONTANT"
+  if (box.code === "022") {
+    const t4aLayout = ocrText.match(
+      /\b016\b[^\n]*\n[^\n]*\b022\b[\s\S]{0,400}?\b024\b[^\n]*\n[^\n]*\b048\b[^\n]*\n[^\n]{0,40}\n([0-9][\d\s,.']+)/i
+    );
+    if (t4aLayout?.[1]) {
+      const rawVal = t4aLayout[1].split(/\r?\n/)[0].trim();
+      if (parseMontantOCR(rawVal) !== null) return rawVal;
+    }
+  }
+
   // 1. Structured fields (haute confiance — Google Document AI)
   const structStart = ocrText.indexOf("--- STRUCTURED FIELDS ---");
   if (structStart >= 0) {
@@ -402,31 +442,50 @@ export function findBoxValueInText(
   // 4. Keywords FR et EN — secours lorsque le gabarit n’a pas de libellé complet.
   // Pour T5007 box 10, on filtre les faux positifs : le mot "indemnités" peut
   // apparaître dans "Redressement pour indemnités reçues" suivi d’une adresse.
-  const lower = ocrText.toLowerCase();
+  //
+  // GARDE SECTION "Other information" du T4A:
+  // Si le texte contient une section "Other information / Autres renseignements",
+  // on limite la recherche keyword à ce qui précède cette section.
+  // Sinon les keywords de box_134 (CELI), box_196, box_024, box_048 capturent
+  // les montants de la section "Other information" (202=3000, 203=2500) par erreur.
+  const otherInfoBoundary = ocrText.search(/Other information|Autres renseignements/i);
+  const searchText = otherInfoBoundary >= 0 ? ocrText.slice(0, otherInfoBoundary) : ocrText;
+  const lower = searchText.toLowerCase();
   const MONEY_RE = new RegExp(MONEY_CAPTURE);
   for (const kw of [...new Set([...box.keywords_fr, ...(box.ocrAliases ?? []), ...box.keywords_en])]) {
     const kwLower = kw.toLowerCase();
     const idx = lower.indexOf(kwLower);
     // Éviter que le keyword soit un sous-mot: "150" dans "1500" ou "15000".
-    // Vérifier que le caractère après le keyword n'est pas un chiffre.
+    // Vérifier que le caractère après le keyword n’est pas un chiffre.
     if (idx >= 0 && /^\d+$/.test(kw)) {
       const charAfter = lower[idx + kw.length];
       if (charAfter && /\d/.test(charAfter)) continue;
     }
     if (idx >= 0) {
-      const after = ocrText.slice(idx, idx + 120);
+      const after = searchText.slice(idx, idx + 120);
       // Exclure un match de mot-clé si "redressement pour" précède dans les 80 chars avant.
       // Ce contexte décrit des ajustements historiques, pas la case 10 du T5007.
-      const before = ocrText.slice(Math.max(0, idx - 80), idx);
+      const before = searchText.slice(Math.max(0, idx - 80), idx);
       if (/redressement\s+pour/i.test(before)) continue;
       // Exclure contexte "account number" / "numéro de compte" (numeros de compte employé)
       if (/(?:account\s+number|numéro\s+de\s+compte)[:\s]*$/i.test(before)) continue;
       const m = after.match(MONEY_RE);
       if (m?.[1] && parseMontantOCR(m[1]) !== null) {
-        // Exclure les numéros civiques d'adresse (ex: "1547, RUE TREPANIER")
+        // Exclure les numéros civiques d’adresse (ex: "1547, RUE TREPANIER")
         const matchStart = idx + (m.index ?? 0);
-        const surroundAfter = ocrText.slice(matchStart, matchStart + 50);
+        const surroundAfter = searchText.slice(matchStart, matchStart + 50);
         if (/^\d+,?\s+(?:rue|avenue|boul|blvd|chemin|ch\.|place|pl\.|drive|dr\.|road|rd\.)\b/i.test(surroundAfter)) continue;
+        // Rejeter si entre le keyword et le montant il y a un code de case à 3 chiffres
+        // (différent de la case courante) suivi d’un newline — cela indique qu’on a traversé
+        // le code d’une autre case et que le montant ne nous appartient pas.
+        // Ex: keyword "Annuities" (box_024) → "024\n048\nHEDI\n275,00"
+        //     between contient "\n048\n" (code différent de 024) → bloquer.
+        // Ex: keyword "Income tax deducted" (box_022) → between contient "\n022\n" (même code)
+        //     mais aussi "\n024\n" (code différent) → bloquer aussi (275,00 est après 024).
+        // On cherche TOUT code 3-chiffres dans between, sauf le code de cette case:
+        const between = after.slice(0, m.index ?? 0);
+        const otherCodeInBetween = new RegExp("(?:^|\\n)0*(?!" + box.code + "\\b)\\d{3}(?:\\n|\\s*$)");
+        if (otherCodeInBetween.test(between)) continue;
         return m[1].trim();
       }
     }
