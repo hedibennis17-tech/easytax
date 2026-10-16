@@ -35,10 +35,7 @@ const isProtectedRoute = createRouteMatcher([
 
 // Routes admin avec token propre — pas de vérification Clerk
 const isAdminMigrateRoute = createRouteMatcher([
-  "/api/admin/migrate",
-  "/api/admin/user-cleanup",
-  "/api/admin/user-entries",
-  "/api/admin/purge-documents",
+  "/api/admin/(.*)",
 ]);
 
 function isPublicOcrReadinessRoute(request: NextRequest): boolean {
