@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 
     // Pages OCR (texte brut)
     const pages = await sql`
-      SELECT page_number, ocr_text, ocr_provider
+      SELECT page_number, ocr_text
       FROM document_pages
       WHERE document_id = ${dId}
       ORDER BY page_number
@@ -95,7 +95,6 @@ export async function GET(req: NextRequest) {
       uploadedAt: doc.uploaded_at,
       pages: (pages as Row[]).map(p => ({
         pageNumber: p.page_number,
-        ocrProvider: p.ocr_provider,
         // Tronquer à 3000 chars pour la lisibilité — assez pour voir la page 1 complète
         ocrTextPreview: (p.ocr_text as string)?.slice(0, 3000) ?? null,
         ocrTextLength: (p.ocr_text as string)?.length ?? 0,
