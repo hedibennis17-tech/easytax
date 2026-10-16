@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     LEFT JOIN fiscal_documents fd ON ie.source_document_id = fd.id
     LEFT JOIN document_types dt ON fd.document_type_id = dt.id
     WHERE ie.user_id = ${userId}
-    ORDER BY ie.created_at DESC
+    ORDER BY ie.created_at DESC NULLS LAST
   `;
 
   // Total validé vs total brut
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     FROM fiscal_documents fd
     LEFT JOIN document_types dt ON fd.document_type_id = dt.id
     WHERE fd.user_id = ${userId} AND fd.deleted_at IS NULL
-    ORDER BY fd.created_at DESC
+    ORDER BY fd.uploaded_at DESC
   `;
 
   return NextResponse.json({
