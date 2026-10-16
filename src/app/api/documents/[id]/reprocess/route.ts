@@ -22,12 +22,12 @@ import { syncOcrToEntries } from "@/lib/ocr-to-entries";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
 
-  const docId = params.id;
+  const { id: docId } = await params;
 
   // Vérifier que le document appartient à cet utilisateur
   const [doc] = await db.select({
