@@ -60,6 +60,19 @@ export async function GET(req: NextRequest) {
     await sql`DELETE FROM document_extractions WHERE fiscal_document_id = ${docId}`;
   }
 
+  // Supprimer les income_entries / deduction_entries / credit_entries liées
+  // pour éviter que les entrées erronées subsistent après retraitement
+  // (syncOcrToEntries ne met pas à jour par défaut si l'entrée existe déjà)
+  const deletedIncome = await sql`
+    DELETE FROM income_entries WHERE source_document_id = ${docId} RETURNING id
+  `;
+  const deletedDeductions = await sql`
+    DELETE FROM deduction_entries WHERE source_document_id = ${docId} RETURNING id
+  `;
+  const deletedCredits = await sql`
+    DELETE FROM credit_entries WHERE source_document_id = ${docId} RETURNING id
+  `;
+
   // Supprimer les document_pages pour forcer un re-OCR complet
   await sql`DELETE FROM document_pages WHERE document_id = ${docId}`;
 
@@ -79,5 +92,8 @@ export async function GET(req: NextRequest) {
     previousStatus: doc.status,
     pipelineResult: result,
     extractionsDeleted: extractionIds.length,
+    incomeEntriesDeleted: deletedIncome.length,
+    deductionEntriesDeleted: deletedDeductions.length,
+    creditEntriesDeleted: deletedCredits.length,
   });
 }
