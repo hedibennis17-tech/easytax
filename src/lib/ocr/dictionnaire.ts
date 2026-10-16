@@ -668,15 +668,20 @@ export function findBoxValueInText(
         const surroundAfter = searchText.slice(matchStart, matchStart + 50);
         if (/^\d+,?\s+(?:rue|avenue|boul|blvd|chemin|ch\.|place|pl\.|drive|dr\.|road|rd\.)\b/i.test(surroundAfter)) continue;
         // Rejeter si entre le keyword et le montant il y a un code de case à 3 chiffres
-        // (différent de la case courante) suivi d’un newline — cela indique qu’on a traversé
-        // le code d’une autre case et que le montant ne nous appartient pas.
-        // Ex: keyword "Annuities" (box_024) → "024\n048\nHEDI\n275,00"
+        // (différent de la case courante) — cela indique qu’on a traversé le code d’une
+        // autre case et que le montant ne nous appartient pas.
+        //
+        // Ex1 (multi-ligne): keyword "Annuities" (box_024) → "024\n048\nHEDI\n275,00"
         //     between contient "\n048\n" (code différent de 024) → bloquer.
-        // Ex: keyword "Income tax deducted" (box_022) → between contient "\n022\n" (même code)
-        //     mais aussi "\n024\n" (code différent) → bloquer aussi (275,00 est après 024).
-        // On cherche TOUT code 3-chiffres dans between, sauf le code de cette case:
+        // Ex2 (même ligne): T4A layout "024        048        410,76"
+        //     keyword "024" matche en début, between contient "   048   "  → doit bloquer.
+        //
+        // On cherche TOUT code 3-chiffres dans between, sauf le code de cette case,
+        // que ce soit en début de ligne OU séparé par des espaces (layout horizontal T4A).
         const between = after.slice(0, m.index ?? 0);
-        const otherCodeInBetween = new RegExp("(?:^|\\n)0*(?!" + box.code + "\\b)\\d{3}(?:\\n|\\s*$)");
+        const otherCodeInBetween = new RegExp(
+          "(?:^|[\\n\\s])0*(?!" + box.code + "\\b)\\d{3}(?:[\\n\\s]|$)"
+        );
         if (otherCodeInBetween.test(between)) continue;
         return m[1].trim();
       }
