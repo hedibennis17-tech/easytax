@@ -49,6 +49,7 @@ type Doc = {
   year: number;
   uploadedAt: string;
   archivedAt?: string | null;
+  payerName?: string | null;
 };
 
 async function getTaxYearId(): Promise<string | null> {
@@ -375,7 +376,11 @@ export default function DocumentsPage() {
                     {/* Infos principales */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontWeight: 600, color: "#111827", fontSize: 14 }}>
+                        <span style={{ fontWeight: 700, color: "#111827", fontSize: 14 }}>
+                          {doc.typeCode}
+                        </span>
+                        <span style={{ color: "#9ca3af", fontSize: 14 }}>·</span>
+                        <span style={{ fontWeight: 500, color: "#374151", fontSize: 14 }}>
                           {doc.typeLabelFr}
                         </span>
                         <span style={{
@@ -384,25 +389,26 @@ export default function DocumentsPage() {
                         }}>
                           {st.icon} {st.label}
                         </span>
-                        {isProcessing && (
-                          <span style={{ fontSize: 11, color: "#9ca3af" }}>en cours…</span>
-                        )}
                       </div>
-                      <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <span title={doc.originalFilename} style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {/* Payeur + Année fiscale */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8" }}>
+                          {doc.payerName ?? (isProcessing ? "⏳ Extraction en cours…" : "—")}
+                        </span>
+                        <span style={{
+                          fontSize: 12, fontWeight: 700, color: "#7c3aed",
+                          background: "#f5f3ff", borderRadius: 6, padding: "1px 7px",
+                        }}>
+                          {doc.year}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <span title={doc.originalFilename} style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {doc.originalFilename}
                         </span>
                         <span>{formatFileSize(doc.fileSizeBytes)}</span>
                         <span>Ajouté le {formatDate(doc.uploadedAt)}</span>
                       </div>
-                    </div>
-
-                    {/* Badge année */}
-                    <div style={{
-                      fontSize: 12, fontWeight: 600, color: "#6b7280",
-                      background: "#f3f4f6", borderRadius: 8, padding: "3px 8px", flexShrink: 0,
-                    }}>
-                      {doc.year}
                     </div>
                   </div>
 
@@ -504,8 +510,14 @@ export default function DocumentsPage() {
                           {emoji}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 500, color: "#6b7280", fontSize: 13 }}>{doc.typeLabelFr}</div>
-                          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{doc.originalFilename}</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <span style={{ fontWeight: 700, color: "#6b7280", fontSize: 13 }}>{doc.typeCode}</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: "#7c3aed", background: "#f5f3ff", borderRadius: 6, padding: "1px 6px" }}>{doc.year}</span>
+                          </div>
+                          {doc.payerName && (
+                            <div style={{ fontSize: 12, color: "#374151", fontWeight: 500, marginTop: 2 }}>{doc.payerName}</div>
+                          )}
+                          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 1 }}>{doc.originalFilename}</div>
                         </div>
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                           <button
