@@ -6,24 +6,32 @@ import { useState, useEffect, useCallback } from "react";
 
 type DocumentType = { id: string; code: string; labelFr: string; category: string };
 
-const STATUS_DISPLAY: Record<string, { icon: string; label: string; color: string; bg: string }> = {
-  stored:               { icon: "✅", label: "Ajouté",        color: "#15803d", bg: "#f0fdf4" },
-  verified:             { icon: "✅", label: "Vérifié",       color: "#15803d", bg: "#f0fdf4" },
-  needs_review:         { icon: "⚠️", label: "À vérifier",   color: "#b45309", bg: "#fffbeb" },
-  processing:           { icon: "⏳", label: "Traitement…",  color: "#1d4ed8", bg: "#eff6ff" },
-  ocr_completed:        { icon: "🔍", label: "OCR terminé",  color: "#1d4ed8", bg: "#eff6ff" },
-  extracted:            { icon: "📊", label: "Extrait",       color: "#7c3aed", bg: "#f5f3ff" },
-  ready_for_tax_return: { icon: "✅", label: "Validé",        color: "#15803d", bg: "#f0fdf4" },
-  rejected:             { icon: "⚠️", label: "Type rejeté",   color: "#b91c1c", bg: "#fef2f2" },
-  archived:             { icon: "📦", label: "Archivé",       color: "#6b7280", bg: "#f9fafb" },
-  processing_failed:    { icon: "❌", label: "Erreur",        color: "#b91c1c", bg: "#fef2f2" },
-  uploaded:             { icon: "⬆️", label: "Téléversé",    color: "#1d4ed8", bg: "#eff6ff" },
+const STATUS_DISPLAY: Record<string, { icon: string; label: string; color: string; bg: string; dot: string }> = {
+  stored:               { icon: "✓", label: "Ajouté",        color: "#15803d", bg: "#f0fdf4", dot: "#22c55e" },
+  verified:             { icon: "✓", label: "Vérifié",       color: "#15803d", bg: "#f0fdf4", dot: "#22c55e" },
+  needs_review:         { icon: "!", label: "À vérifier",    color: "#92400e", bg: "#fffbeb", dot: "#f59e0b" },
+  processing:           { icon: "…", label: "Traitement…",   color: "#1e40af", bg: "#eff6ff", dot: "#3b82f6" },
+  ocr_completed:        { icon: "✓", label: "OCR terminé",   color: "#1e40af", bg: "#eff6ff", dot: "#3b82f6" },
+  extracted:            { icon: "✓", label: "Extrait",        color: "#6d28d9", bg: "#f5f3ff", dot: "#8b5cf6" },
+  ready_for_tax_return: { icon: "✓", label: "Validé",         color: "#15803d", bg: "#f0fdf4", dot: "#22c55e" },
+  rejected:             { icon: "✗", label: "Type rejeté",    color: "#b91c1c", bg: "#fef2f2", dot: "#ef4444" },
+  archived:             { icon: "↓", label: "Archivé",        color: "#6b7280", bg: "#f9fafb", dot: "#9ca3af" },
+  processing_failed:    { icon: "✗", label: "Erreur",         color: "#b91c1c", bg: "#fef2f2", dot: "#ef4444" },
+  uploaded:             { icon: "↑", label: "Téléversé",      color: "#1e40af", bg: "#eff6ff", dot: "#3b82f6" },
 };
 
-const TYPE_EMOJI: Record<string, string> = {
-  T4: "🏢", T4A: "💰", "T4A-OAS": "👴", T4E: "📋",
-  RL1: "🏢", RL2: "💸", "T5013": "📊", T5: "📈",
-  T3: "📑", RRSP: "🏦", OTH: "📄",
+const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
+  T4: { bg: "#dbeafe", text: "#1e40af" },
+  T4A: { bg: "#fce7f3", text: "#9d174d" },
+  "T4A-OAS": { bg: "#e0e7ff", text: "#3730a3" },
+  T4E: { bg: "#dcfce7", text: "#166534" },
+  RL1: { bg: "#dbeafe", text: "#1e40af" },
+  RL2: { bg: "#fef3c7", text: "#92400e" },
+  T5013: { bg: "#f3e8ff", text: "#6b21a8" },
+  T5: { bg: "#d1fae5", text: "#065f46" },
+  T3: { bg: "#fce7f3", text: "#9d174d" },
+  RRSP: { bg: "#dbeafe", text: "#1e40af" },
+  OTH: { bg: "#f3f4f6", text: "#374151" },
 };
 
 function formatFileSize(bytes: number): string {
@@ -32,10 +40,23 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 }
 
-function formatDate(iso: string): string {
+function formatDateTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("fr-CA", { day: "numeric", month: "short", year: "numeric" });
+  const date = d.toLocaleDateString("fr-CA", { day: "numeric", month: "short", year: "numeric" });
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${date} · ${h}h${m}`;
 }
+
+type ExtractionField = {
+  id: string;
+  fieldCode: string;
+  fieldLabel: string | null;
+  rawOcrValue: string | null;
+  ocrConfidence: number | null;
+  validatedValue: string | null;
+  validationStatus: string | null;
+};
 
 type Doc = {
   id: string;
@@ -79,6 +100,11 @@ export default function DocumentsPage() {
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ text: string; kind: "success" | "error" } | null>(null);
   const [viewBusyId, setViewBusyId] = useState<string | null>(null);
+  // Accordion state: docId -> fields loaded
+  const [expandedDocId, setExpandedDocId] = useState<string | null>(null);
+  const [accordionFields, setAccordionFields] = useState<Record<string, ExtractionField[]>>({});
+  const [accordionLoading, setAccordionLoading] = useState<string | null>(null);
+  const [reprocessBusyId, setReprocessBusyId] = useState<string | null>(null);
 
   const loadDocs = useCallback(async () => {
     setLoading(true);
@@ -86,7 +112,11 @@ export default function DocumentsPage() {
       const res = await fetch("/api/documents", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
-        setDocs(data.documents ?? []);
+        // Sort newest first
+        const sorted = (data.documents ?? []).sort(
+          (a: Doc, b: Doc) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+        );
+        setDocs(sorted);
       }
     } catch { /* silencieux */ }
     setLoading(false);
@@ -95,8 +125,6 @@ export default function DocumentsPage() {
   useEffect(() => {
     const t = setTimeout(async () => {
       await loadDocs();
-      // Backfill silencieux des champs manquants (employer_name, tax_year) pour les docs existants.
-      // On recharge ensuite pour afficher les noms de payeur nouvellement trouvés.
       const bf = await fetch("/api/documents/backfill-meta", { method: "POST" }).catch(() => null);
       const bfData = bf?.ok ? await bf.json().catch(() => null) : null;
       if (bfData?.fieldsInserted > 0) void loadDocs();
@@ -113,6 +141,58 @@ export default function DocumentsPage() {
   const activeDocs = docs.filter(d => d.status !== "archived");
   const archivedDocs = docs.filter(d => d.status === "archived");
   const filteredDocs = filterType === "all" ? activeDocs : activeDocs.filter(d => d.typeCode === filterType);
+
+  async function toggleAccordion(doc: Doc) {
+    if (expandedDocId === doc.id) {
+      setExpandedDocId(null);
+      return;
+    }
+    setExpandedDocId(doc.id);
+    if (accordionFields[doc.id]) return; // already loaded
+    setAccordionLoading(doc.id);
+    try {
+      const res = await fetch(`/api/documents/${doc.id}/extraction`);
+      if (res.ok) {
+        const data = await res.json();
+        const fields: ExtractionField[] = (data.fields ?? []).filter(
+          (f: ExtractionField) => (f.validatedValue ?? f.rawOcrValue)?.trim()
+        ).sort((a: ExtractionField, b: ExtractionField) => a.fieldCode.localeCompare(b.fieldCode));
+        setAccordionFields(prev => ({ ...prev, [doc.id]: fields }));
+      } else {
+        setAccordionFields(prev => ({ ...prev, [doc.id]: [] }));
+      }
+    } catch {
+      setAccordionFields(prev => ({ ...prev, [doc.id]: [] }));
+    }
+    setAccordionLoading(null);
+  }
+
+  async function reprocessDocument(doc: Doc) {
+    const accepted = window.confirm(
+      `Relancer l'analyse OCR de « ${doc.originalFilename} » ?\n\nLes données extraites actuelles seront effacées et remplacées.`
+    );
+    if (!accepted) return;
+    setReprocessBusyId(doc.id);
+    setActionMessage(null);
+    try {
+      const res = await fetch(`/api/documents/${doc.id}/process`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taxYear: 2025, force: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Recalcul impossible");
+      setActionMessage({ text: "Analyse OCR relancée avec succès.", kind: "success" });
+      // Clear accordion cache for this doc
+      setAccordionFields(prev => { const n = { ...prev }; delete n[doc.id]; return n; });
+      setExpandedDocId(null);
+      await loadDocs();
+    } catch (e) {
+      setActionMessage({ text: (e as Error).message ?? "Erreur recalcul", kind: "error" });
+    } finally {
+      setReprocessBusyId(null);
+    }
+  }
 
   async function handleUpload() {
     if (!selectedFile || !selectedType) return;
@@ -254,214 +334,425 @@ export default function DocumentsPage() {
   const uniqueTypes = [...new Set(activeDocs.map(d => d.typeCode))];
 
   return (
-    <main style={{ background: "#f8f9fb", minHeight: "100vh" }}>
+    <main style={{ background: "linear-gradient(135deg, #0f0f13 0%, #16161f 100%)", minHeight: "100vh" }}>
       <NavClient />
 
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 20px" }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .doc-card { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+        .doc-card:hover { transform: translateY(-1px); box-shadow: 0 8px 32px rgba(0,0,0,0.35) !important; }
+        .action-btn { transition: background 0.12s, color 0.12s, opacity 0.12s; }
+        .action-btn:hover:not(:disabled) { background: rgba(255,255,255,0.06) !important; }
+        .filter-pill { transition: background 0.12s, color 0.12s, border-color 0.12s; }
+        .accordion-panel { animation: fadeIn 0.2s ease; }
+      `}</style>
 
-        {/* En-tête */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, gap: 16 }}>
+      <div style={{ maxWidth: 860, margin: "0 auto", padding: "36px 20px 60px" }}>
+
+        {/* En-tête premium */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32, gap: 16 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111827", margin: 0 }}>Mes documents</h1>
-            <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 4 }}>Coffre-fort fiscal · Saison 2025</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: "linear-gradient(135deg, #dc2626, #991b1b)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 16, boxShadow: "0 4px 12px rgba(220,38,38,0.4)",
+              }}>📁</div>
+              <h1 style={{ fontSize: 22, fontWeight: 700, color: "#f9fafb", margin: 0, letterSpacing: "-0.3px" }}>
+                Mes documents
+              </h1>
+            </div>
+            <p style={{ fontSize: 12, color: "#6b7280", marginTop: 0, paddingLeft: 46 }}>
+              Coffre-fort fiscal · Saison 2025 · {activeDocs.length} feuillet{activeDocs.length !== 1 ? "s" : ""}
+            </p>
           </div>
           <button
             onClick={openModal}
+            className="action-btn"
             style={{
-              background: "#dc2626", color: "#fff", border: "none", borderRadius: 12,
-              padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-              display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+              background: "linear-gradient(135deg, #dc2626, #b91c1c)",
+              color: "#fff", border: "none", borderRadius: 12,
+              padding: "11px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 7, flexShrink: 0,
+              boxShadow: "0 4px 14px rgba(220,38,38,0.35)",
+              letterSpacing: "0.01em",
             }}
           >
-            <span>+</span> Ajouter
+            <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Ajouter un feuillet
           </button>
         </div>
 
         {/* Message d'action */}
         {actionMessage && (
           <div style={{
-            marginBottom: 16, borderRadius: 12, padding: "12px 16px", fontSize: 13,
-            background: actionMessage.kind === "success" ? "#f0fdf4" : "#fef2f2",
-            color: actionMessage.kind === "success" ? "#15803d" : "#b91c1c",
-            border: `1px solid ${actionMessage.kind === "success" ? "#bbf7d0" : "#fecaca"}`,
+            marginBottom: 20, borderRadius: 12, padding: "12px 16px", fontSize: 13,
+            background: actionMessage.kind === "success"
+              ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+            color: actionMessage.kind === "success" ? "#4ade80" : "#f87171",
+            border: `1px solid ${actionMessage.kind === "success" ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`,
+            display: "flex", alignItems: "center", gap: 8,
           }}>
-            {actionMessage.kind === "success" ? "✓ " : "✗ "}{actionMessage.text}
+            <span style={{ fontSize: 15 }}>{actionMessage.kind === "success" ? "✓" : "✗"}</span>
+            {actionMessage.text}
           </div>
         )}
 
         {/* Filtres par type */}
         {uniqueTypes.length > 1 && (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 24 }}>
             <button
               onClick={() => setFilterType("all")}
+              className="filter-pill"
               style={{
-                fontSize: 12, padding: "5px 12px", borderRadius: 999, fontWeight: 500, cursor: "pointer", border: "1px solid",
-                background: filterType === "all" ? "#111827" : "#fff",
-                color: filterType === "all" ? "#fff" : "#6b7280",
-                borderColor: filterType === "all" ? "#111827" : "#e5e7eb",
+                fontSize: 12, padding: "5px 14px", borderRadius: 999, fontWeight: 600, cursor: "pointer",
+                border: "1px solid",
+                background: filterType === "all" ? "#f9fafb" : "transparent",
+                color: filterType === "all" ? "#111827" : "#6b7280",
+                borderColor: filterType === "all" ? "#f9fafb" : "rgba(255,255,255,0.08)",
               }}
             >
               Tous ({activeDocs.length})
             </button>
-            {uniqueTypes.map(code => (
-              <button
-                key={code}
-                onClick={() => setFilterType(code)}
-                style={{
-                  fontSize: 12, padding: "5px 12px", borderRadius: 999, fontWeight: 500, cursor: "pointer", border: "1px solid",
-                  background: filterType === code ? "#111827" : "#fff",
-                  color: filterType === code ? "#fff" : "#6b7280",
-                  borderColor: filterType === code ? "#111827" : "#e5e7eb",
-                }}
-              >
-                {code} ({activeDocs.filter(d => d.typeCode === code).length})
-              </button>
-            ))}
+            {uniqueTypes.map(code => {
+              const tc = TYPE_COLORS[code] ?? { bg: "#f3f4f6", text: "#374151" };
+              return (
+                <button
+                  key={code}
+                  onClick={() => setFilterType(code)}
+                  className="filter-pill"
+                  style={{
+                    fontSize: 12, padding: "5px 14px", borderRadius: 999, fontWeight: 600, cursor: "pointer",
+                    border: "1px solid",
+                    background: filterType === code ? tc.bg : "transparent",
+                    color: filterType === code ? tc.text : "#6b7280",
+                    borderColor: filterType === code ? tc.bg : "rgba(255,255,255,0.08)",
+                  }}
+                >
+                  {code} ({activeDocs.filter(d => d.typeCode === code).length})
+                </button>
+              );
+            })}
           </div>
         )}
 
         {/* Liste documents */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "60px 0", color: "#9ca3af" }}>
+          <div style={{ textAlign: "center", padding: "80px 0", color: "#4b5563" }}>
             <div style={{
-              width: 32, height: 32, border: "3px solid #e5e7eb", borderTopColor: "#dc2626",
-              borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px",
+              width: 36, height: 36, border: "3px solid rgba(255,255,255,0.06)", borderTopColor: "#dc2626",
+              borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px",
             }} />
-            Chargement…
+            <div style={{ fontSize: 13, color: "#6b7280" }}>Chargement…</div>
           </div>
         ) : filteredDocs.length === 0 && archivedDocs.length === 0 ? (
           <div style={{
-            background: "#fff", borderRadius: 16, border: "2px dashed #e5e7eb",
-            padding: "48px 24px", textAlign: "center",
+            background: "rgba(255,255,255,0.03)", borderRadius: 20,
+            border: "1px dashed rgba(255,255,255,0.08)",
+            padding: "64px 24px", textAlign: "center",
           }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>📂</div>
-            <div style={{ fontWeight: 600, color: "#111827", marginBottom: 6 }}>Aucun document</div>
-            <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 20 }}>
+            <div style={{ fontSize: 44, marginBottom: 14, opacity: 0.5 }}>📂</div>
+            <div style={{ fontWeight: 600, color: "#d1d5db", marginBottom: 6, fontSize: 15 }}>Aucun document</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>
               Ajoutez vos T4, T4A, RL-1 et autres feuillets fiscaux.
             </div>
             <button
               onClick={openModal}
               style={{
-                background: "#dc2626", color: "#fff", border: "none", borderRadius: 10,
-                padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                background: "linear-gradient(135deg, #dc2626, #b91c1c)", color: "#fff",
+                border: "none", borderRadius: 12, padding: "11px 24px",
+                fontSize: 13, fontWeight: 600, cursor: "pointer",
               }}
             >
               + Ajouter un document
             </button>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {filteredDocs.map(doc => {
               const st = STATUS_DISPLAY[doc.status] ?? STATUS_DISPLAY.stored;
-              const emoji = TYPE_EMOJI[doc.typeCode] ?? "📄";
+              const tc = TYPE_COLORS[doc.typeCode] ?? { bg: "#f3f4f6", text: "#374151" };
               const isBusy = actionBusyId === doc.id;
               const isProcessing = ["processing", "uploaded"].includes(doc.status);
-              const hasExtraction = ["extracted", "ready_for_tax_return", "ocr_completed"].includes(doc.status);
+              const hasExtraction = ["extracted", "ready_for_tax_return", "ocr_completed", "stored", "verified", "needs_review"].includes(doc.status);
+              const isExpanded = expandedDocId === doc.id;
+              const isAccordionLoading = accordionLoading === doc.id;
+              const fields = accordionFields[doc.id];
+              const isReprocessBusy = reprocessBusyId === doc.id;
 
               return (
                 <div
                   key={doc.id}
+                  className="doc-card"
                   style={{
-                    background: "#fff", borderRadius: 14, border: "1px solid #f0f0f0",
-                    overflow: "hidden", opacity: isBusy ? 0.6 : 1,
-                    transition: "box-shadow 0.15s",
+                    background: "rgba(255,255,255,0.04)",
+                    borderRadius: 16,
+                    border: isExpanded ? "1px solid rgba(139,92,246,0.3)" : "1px solid rgba(255,255,255,0.07)",
+                    overflow: "hidden",
+                    opacity: isBusy ? 0.6 : 1,
+                    boxShadow: isExpanded
+                      ? "0 0 0 1px rgba(139,92,246,0.15), 0 4px 24px rgba(0,0,0,0.3)"
+                      : "0 2px 12px rgba(0,0,0,0.2)",
                   }}
                 >
                   {/* Ligne principale */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px" }}>
-                    {/* Icône type */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px" }}>
+
+                    {/* Badge type */}
                     <div style={{
-                      width: 44, height: 44, borderRadius: 12, background: "#fef2f2",
+                      minWidth: 48, height: 48, borderRadius: 12,
+                      background: tc.bg,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 20, flexShrink: 0,
+                      flexShrink: 0, flexDirection: "column", gap: 1,
                     }}>
-                      {emoji}
+                      <span style={{ fontSize: 11, fontWeight: 800, color: tc.text, letterSpacing: "-0.5px" }}>
+                        {doc.typeCode}
+                      </span>
                     </div>
 
                     {/* Infos principales */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontWeight: 700, color: "#111827", fontSize: 14 }}>
-                          {doc.typeCode}
-                        </span>
-                        <span style={{ color: "#9ca3af", fontSize: 14 }}>·</span>
-                        <span style={{ fontWeight: 500, color: "#374151", fontSize: 14 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 3 }}>
+                        <span style={{ fontWeight: 700, color: "#f3f4f6", fontSize: 14, letterSpacing: "-0.2px" }}>
                           {doc.typeLabelFr}
                         </span>
+                        {/* Status pill */}
                         <span style={{
                           fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
-                          background: st.bg, color: st.color,
+                          background: "rgba(255,255,255,0.06)",
+                          color: st.color === "#15803d" ? "#4ade80"
+                            : st.color === "#b91c1c" ? "#f87171"
+                            : st.color === "#6d28d9" ? "#c4b5fd"
+                            : st.color === "#1e40af" ? "#93c5fd"
+                            : "#d1d5db",
+                          display: "flex", alignItems: "center", gap: 4,
                         }}>
-                          {st.icon} {st.label}
+                          <span style={{
+                            width: 5, height: 5, borderRadius: "50%",
+                            background: st.color === "#15803d" ? "#22c55e"
+                              : st.color === "#b91c1c" ? "#ef4444"
+                              : st.color === "#6d28d9" ? "#8b5cf6"
+                              : st.color === "#1e40af" ? "#3b82f6"
+                              : "#9ca3af",
+                            display: "inline-block",
+                            ...(isProcessing ? { animation: "pulse 1.5s infinite" } : {}),
+                          }} />
+                          {st.label}
                         </span>
-                      </div>
-                      {/* Payeur + Année fiscale */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8" }}>
-                          {doc.payerName ?? (isProcessing ? "⏳ Extraction en cours…" : "—")}
-                        </span>
+                        {/* Année */}
                         <span style={{
-                          fontSize: 12, fontWeight: 700, color: "#7c3aed",
-                          background: "#f5f3ff", borderRadius: 6, padding: "1px 7px",
+                          fontSize: 11, fontWeight: 700, color: "#a78bfa",
+                          background: "rgba(139,92,246,0.12)", borderRadius: 6, padding: "2px 7px",
                         }}>
                           {doc.year}
                         </span>
                       </div>
-                      <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <span title={doc.originalFilename} style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+
+                      {/* Payeur */}
+                      <div style={{ fontSize: 13, color: "#93c5fd", fontWeight: 600, marginBottom: 3 }}>
+                        {doc.payerName ?? (isProcessing ? "⏳ Extraction en cours…" : "—")}
+                      </div>
+
+                      {/* Meta: filename + size + date */}
+                      <div style={{ fontSize: 11, color: "#4b5563", display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <span
+                          title={doc.originalFilename}
+                          style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                        >
                           {doc.originalFilename}
                         </span>
+                        <span style={{ color: "#374151" }}>·</span>
                         <span>{formatFileSize(doc.fileSizeBytes)}</span>
-                        <span>Ajouté le {formatDate(doc.uploadedAt)}</span>
+                        <span style={{ color: "#374151" }}>·</span>
+                        <span>{formatDateTime(doc.uploadedAt)}</span>
                       </div>
                     </div>
+
+                    {/* Bouton accordéon (flèche) */}
+                    {hasExtraction && (
+                      <button
+                        onClick={() => toggleAccordion(doc)}
+                        className="action-btn"
+                        title={isExpanded ? "Fermer les données" : "Voir les données extraites"}
+                        style={{
+                          background: isExpanded ? "rgba(139,92,246,0.15)" : "rgba(255,255,255,0.05)",
+                          border: `1px solid ${isExpanded ? "rgba(139,92,246,0.3)" : "rgba(255,255,255,0.08)"}`,
+                          borderRadius: 10, padding: "8px 12px", cursor: "pointer",
+                          display: "flex", alignItems: "center", gap: 5,
+                          fontSize: 12, fontWeight: 600,
+                          color: isExpanded ? "#c4b5fd" : "#6b7280",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span style={{
+                          display: "inline-block",
+                          transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                          transition: "transform 0.2s",
+                          fontSize: 11,
+                        }}>▼</span>
+                        <span>Cases</span>
+                      </button>
+                    )}
                   </div>
+
+                  {/* Accordéon : cases extraites */}
+                  {isExpanded && (
+                    <div
+                      className="accordion-panel"
+                      style={{
+                        borderTop: "1px solid rgba(255,255,255,0.06)",
+                        background: "rgba(0,0,0,0.2)",
+                        padding: "16px 18px",
+                      }}
+                    >
+                      {isAccordionLoading ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#6b7280", fontSize: 13 }}>
+                          <div style={{
+                            width: 16, height: 16, border: "2px solid rgba(255,255,255,0.06)", borderTopColor: "#8b5cf6",
+                            borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0,
+                          }} />
+                          Chargement des données extraites…
+                        </div>
+                      ) : !fields || fields.length === 0 ? (
+                        <div style={{ fontSize: 13, color: "#6b7280", textAlign: "center", padding: "12px 0" }}>
+                          Aucune donnée extraite disponible.
+                          <br />
+                          <Link
+                            href={`/documents/${doc.id}/extraction`}
+                            style={{ color: "#8b5cf6", textDecoration: "none", fontSize: 12, marginTop: 6, display: "inline-block" }}
+                          >
+                            Voir la page complète →
+                          </Link>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>
+                            {fields.length} case{fields.length > 1 ? "s" : ""} extraite{fields.length > 1 ? "s" : ""}
+                          </div>
+                          <div style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                            gap: 8,
+                            marginBottom: 14,
+                          }}>
+                            {fields.map(f => {
+                              const val = f.validatedValue ?? f.rawOcrValue ?? "";
+                              const conf = f.ocrConfidence != null ? Math.round(f.ocrConfidence * 100) : null;
+                              const isCorrected = f.validationStatus === "corrected";
+                              return (
+                                <div
+                                  key={f.id}
+                                  style={{
+                                    background: "rgba(255,255,255,0.04)",
+                                    border: "1px solid rgba(255,255,255,0.07)",
+                                    borderRadius: 10,
+                                    padding: "10px 12px",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+                                    <span style={{
+                                      fontSize: 10, fontWeight: 800, color: "#8b5cf6",
+                                      background: "rgba(139,92,246,0.12)", borderRadius: 5,
+                                      padding: "1px 6px", letterSpacing: "0.05em",
+                                    }}>
+                                      {f.fieldCode}
+                                    </span>
+                                    {conf != null && (
+                                      <span style={{
+                                        fontSize: 10, fontWeight: 600,
+                                        color: conf >= 80 ? "#4ade80" : conf >= 60 ? "#fbbf24" : "#f87171",
+                                      }}>
+                                        {conf}%
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div style={{
+                                    fontSize: 13, fontWeight: 700, color: "#f3f4f6",
+                                    marginBottom: 2, wordBreak: "break-word",
+                                  }}>
+                                    {val}
+                                    {isCorrected && (
+                                      <span style={{ fontSize: 10, color: "#fbbf24", marginLeft: 5 }}>✎</span>
+                                    )}
+                                  </div>
+                                  {f.fieldLabel && (
+                                    <div style={{ fontSize: 10, color: "#6b7280", lineHeight: 1.3 }}>
+                                      {f.fieldLabel}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <Link
+                            href={`/documents/${doc.id}/extraction`}
+                            style={{
+                              fontSize: 12, color: "#8b5cf6", textDecoration: "none", fontWeight: 600,
+                              display: "inline-flex", alignItems: "center", gap: 4,
+                            }}
+                          >
+                            Modifier les données →
+                          </Link>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   {/* Barre d'actions */}
                   <div style={{
-                    display: "flex", alignItems: "center", gap: 0,
-                    borderTop: "1px solid #f9fafb", padding: "0 8px",
-                    background: "#fafafa",
+                    display: "flex", alignItems: "center",
+                    borderTop: "1px solid rgba(255,255,255,0.05)",
+                    padding: "0 8px",
+                    background: "rgba(0,0,0,0.15)",
                   }}>
-                    {/* Bouton Voir le fichier original */}
+                    {/* Voir le document */}
                     <button
                       onClick={() => viewDocument(doc)}
                       disabled={viewBusyId === doc.id}
+                      className="action-btn"
                       style={{
-                        background: "none", border: "none", padding: "8px 12px",
-                        fontSize: 12, color: "#1d4ed8", cursor: "pointer", fontWeight: 600,
-                        display: "flex", alignItems: "center", gap: 4,
+                        background: "none", border: "none", padding: "9px 12px",
+                        fontSize: 12, color: "#60a5fa", cursor: "pointer", fontWeight: 600,
+                        display: "flex", alignItems: "center", gap: 4, borderRadius: 8,
                         opacity: viewBusyId === doc.id ? 0.5 : 1,
                       }}
                     >
-                      {viewBusyId === doc.id ? "⏳" : "👁"} {viewBusyId === doc.id ? "Chargement…" : "Voir le document"}
+                      {viewBusyId === doc.id ? "⏳" : "👁"} {viewBusyId === doc.id ? "Chargement…" : "Voir"}
                     </button>
 
-                    {/* Séparateur */}
-                    <span style={{ color: "#e5e7eb", fontSize: 16 }}>|</span>
+                    {/* Bouton Recalculer */}
+                    <button
+                      onClick={() => reprocessDocument(doc)}
+                      disabled={isReprocessBusy || isProcessing}
+                      className="action-btn"
+                      title="Relancer l'analyse OCR"
+                      style={{
+                        background: "none", border: "none", padding: "9px 12px",
+                        fontSize: 12, color: isReprocessBusy ? "#6b7280" : "#a78bfa",
+                        cursor: (isReprocessBusy || isProcessing) ? "not-allowed" : "pointer",
+                        fontWeight: 600, display: "flex", alignItems: "center", gap: 4, borderRadius: 8,
+                        opacity: (isReprocessBusy || isProcessing) ? 0.5 : 1,
+                      }}
+                    >
+                      {isReprocessBusy
+                        ? <><span style={{ display: "inline-block", animation: "spin 0.8s linear infinite" }}>↻</span> En cours…</>
+                        : <>↻ Recalculer</>
+                      }
+                    </button>
 
+                    {/* Données extraites (si extraction disponible) */}
                     {hasExtraction && (
                       <Link
                         href={`/documents/${doc.id}/extraction`}
                         style={{
-                          display: "flex", alignItems: "center", gap: 5,
-                          padding: "8px 10px", fontSize: 12, color: "#7c3aed",
-                          textDecoration: "none", fontWeight: 500,
+                          display: "flex", alignItems: "center", gap: 4,
+                          padding: "9px 12px", fontSize: 12, color: "#c4b5fd",
+                          textDecoration: "none", fontWeight: 500, borderRadius: 8,
                         }}
                       >
-                        📊 Données extraites
-                      </Link>
-                    )}
-                    {!hasExtraction && !isProcessing && (
-                      <Link
-                        href={`/documents/${doc.id}/extraction`}
-                        style={{
-                          display: "flex", alignItems: "center", gap: 5,
-                          padding: "8px 10px", fontSize: 12, color: "#6b7280",
-                          textDecoration: "none",
-                        }}
-                      >
-                        🔍 Détails
+                        📊 Données
                       </Link>
                     )}
 
@@ -470,9 +761,10 @@ export default function DocumentsPage() {
                     <button
                       onClick={() => archiveDocument(doc)}
                       disabled={isBusy}
+                      className="action-btn"
                       style={{
-                        background: "none", border: "none", padding: "8px 10px",
-                        fontSize: 12, color: "#9ca3af", cursor: "pointer", fontWeight: 500,
+                        background: "none", border: "none", padding: "9px 10px",
+                        fontSize: 12, color: "#6b7280", cursor: "pointer", fontWeight: 500, borderRadius: 8,
                       }}
                     >
                       {doc.status === "archived" ? "↩ Restaurer" : "📦 Archiver"}
@@ -480,12 +772,13 @@ export default function DocumentsPage() {
                     <button
                       onClick={() => permanentlyDeleteDocument(doc)}
                       disabled={isBusy}
+                      className="action-btn"
                       style={{
-                        background: "none", border: "none", padding: "8px 10px",
-                        fontSize: 12, color: "#ef4444", cursor: "pointer", fontWeight: 500,
+                        background: "none", border: "none", padding: "9px 10px",
+                        fontSize: 12, color: "#f87171", cursor: "pointer", fontWeight: 500, borderRadius: 8,
                       }}
                     >
-                      🗑 Supprimer
+                      🗑
                     </button>
                   </div>
                 </div>
@@ -494,43 +787,46 @@ export default function DocumentsPage() {
 
             {/* Section archivés */}
             {archivedDocs.length > 0 && filterType === "all" && (
-              <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#4b5563", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10, paddingLeft: 4 }}>
                   📦 Archivés ({archivedDocs.length})
                 </div>
                 {archivedDocs.map(doc => {
                   const isBusy = actionBusyId === doc.id;
-                  const emoji = TYPE_EMOJI[doc.typeCode] ?? "📄";
+                  const tc = TYPE_COLORS[doc.typeCode] ?? { bg: "#f3f4f6", text: "#374151" };
                   return (
                     <div key={doc.id} style={{
-                      background: "#f9fafb", borderRadius: 14, border: "1px solid #f0f0f0",
-                      overflow: "hidden", opacity: isBusy ? 0.5 : 0.75, marginBottom: 8,
+                      background: "rgba(255,255,255,0.02)",
+                      borderRadius: 14,
+                      border: "1px solid rgba(255,255,255,0.05)",
+                      overflow: "hidden", opacity: isBusy ? 0.5 : 0.65, marginBottom: 8,
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px" }}>
                         <div style={{
-                          width: 40, height: 40, borderRadius: 10, background: "#e5e7eb",
+                          minWidth: 40, height: 40, borderRadius: 10,
+                          background: "rgba(255,255,255,0.05)",
                           display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 18, flexShrink: 0,
+                          flexShrink: 0,
                         }}>
-                          {emoji}
+                          <span style={{ fontSize: 11, fontWeight: 800, color: "#6b7280" }}>{doc.typeCode}</span>
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                            <span style={{ fontWeight: 700, color: "#6b7280", fontSize: 13 }}>{doc.typeCode}</span>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: "#7c3aed", background: "#f5f3ff", borderRadius: 6, padding: "1px 6px" }}>{doc.year}</span>
+                            <span style={{ fontWeight: 700, color: "#6b7280", fontSize: 13 }}>{doc.typeLabelFr}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", background: "rgba(124,58,237,0.1)", borderRadius: 6, padding: "1px 6px" }}>{doc.year}</span>
                           </div>
                           {doc.payerName && (
-                            <div style={{ fontSize: 12, color: "#374151", fontWeight: 500, marginTop: 2 }}>{doc.payerName}</div>
+                            <div style={{ fontSize: 12, color: "#4b5563", fontWeight: 500, marginTop: 2 }}>{doc.payerName}</div>
                           )}
-                          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 1 }}>{doc.originalFilename}</div>
+                          <div style={{ fontSize: 11, color: "#374151", marginTop: 1 }}>{formatDateTime(doc.uploadedAt)}</div>
                         </div>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                           <button
                             onClick={() => viewDocument(doc)}
                             disabled={viewBusyId === doc.id}
-                            style={{ background: "none", border: "none", fontSize: 12, color: "#1d4ed8", cursor: "pointer", fontWeight: 600 }}
+                            style={{ background: "none", border: "none", fontSize: 12, color: "#60a5fa", cursor: "pointer", fontWeight: 600 }}
                           >
-                            {viewBusyId === doc.id ? "⏳" : "👁"} Voir
+                            👁 Voir
                           </button>
                           <button
                             onClick={() => archiveDocument(doc)}
@@ -542,9 +838,9 @@ export default function DocumentsPage() {
                           <button
                             onClick={() => permanentlyDeleteDocument(doc)}
                             disabled={isBusy}
-                            style={{ background: "none", border: "none", fontSize: 12, color: "#ef4444", cursor: "pointer" }}
+                            style={{ background: "none", border: "none", fontSize: 12, color: "#f87171", cursor: "pointer" }}
                           >
-                            🗑 Supprimer
+                            🗑
                           </button>
                         </div>
                       </div>
@@ -556,17 +852,19 @@ export default function DocumentsPage() {
           </div>
         )}
 
-        {/* Info sécurité */}
+        {/* Footer sécurité */}
         <div style={{
-          marginTop: 24, background: "#eff6ff", border: "1px solid #bfdbfe",
-          borderRadius: 12, padding: "12px 16px", display: "flex", gap: 10, alignItems: "flex-start",
+          marginTop: 32,
+          background: "rgba(59,130,246,0.06)",
+          border: "1px solid rgba(59,130,246,0.12)",
+          borderRadius: 12, padding: "12px 16px", display: "flex", gap: 10, alignItems: "center",
         }}>
-          <span style={{ fontSize: 18 }}>🔒</span>
+          <span style={{ fontSize: 16, opacity: 0.8 }}>🔒</span>
           <div>
-            <div style={{ fontWeight: 600, color: "#1e40af", fontSize: 13 }}>Coffre-fort sécurisé</div>
-            <div style={{ fontSize: 12, color: "#3b82f6", marginTop: 2 }}>
-              Vos documents sont chiffrés. Les liens de téléchargement expirent après 15 minutes.
-            </div>
+            <span style={{ fontWeight: 600, color: "#60a5fa", fontSize: 12 }}>Coffre-fort chiffré</span>
+            <span style={{ fontSize: 12, color: "#374151", marginLeft: 8 }}>
+              Les liens de téléchargement expirent après 15 minutes.
+            </span>
           </div>
         </div>
       </div>
@@ -574,24 +872,35 @@ export default function DocumentsPage() {
       {/* Modal Upload */}
       {showModal && (
         <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.7)",
           display: "flex", alignItems: "flex-end", justifyContent: "center",
           zIndex: 50, padding: 16,
+          backdropFilter: "blur(4px)",
         }}>
           <div style={{
-            background: "#fff", borderRadius: 20, width: "100%", maxWidth: 420,
-            padding: 24, boxShadow: "0 25px 50px rgba(0,0,0,0.25)",
+            background: "#1a1a24",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 20, width: "100%", maxWidth: 440,
+            padding: 24, boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <span style={{ fontWeight: 700, fontSize: 16, color: "#111827" }}>Ajouter un document</span>
-              <button onClick={() => setShowModal(false)} style={{ background: "none", border: "none", fontSize: 24, color: "#9ca3af", cursor: "pointer", lineHeight: 1 }}>×</button>
+              <span style={{ fontWeight: 700, fontSize: 16, color: "#f9fafb" }}>Ajouter un document</span>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 8, width: 32, height: 32, fontSize: 18, color: "#9ca3af",
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >×</button>
             </div>
 
             {uploadDone ? (
-              <div style={{ textAlign: "center", padding: "24px 0" }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-                <div style={{ fontWeight: 600, color: "#111827" }}>Document ajouté</div>
-                <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 4 }}>Enregistré et analyse OCR lancée.</div>
+              <div style={{ textAlign: "center", padding: "28px 0" }}>
+                <div style={{ fontSize: 44, marginBottom: 14 }}>✅</div>
+                <div style={{ fontWeight: 700, color: "#f9fafb", fontSize: 15 }}>Document ajouté</div>
+                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 6 }}>Enregistré et analyse OCR lancée.</div>
               </div>
             ) : (
               <>
@@ -601,69 +910,83 @@ export default function DocumentsPage() {
                   onDragLeave={() => setDragOver(false)}
                   onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) setSelectedFile(f); }}
                   style={{
-                    border: `2px dashed ${dragOver ? "#dc2626" : "#e5e7eb"}`,
-                    borderRadius: 12, padding: 20, textAlign: "center", marginBottom: 14,
-                    background: dragOver ? "#fef2f2" : "#fafafa", transition: "all 0.15s",
+                    border: `2px dashed ${dragOver ? "#dc2626" : "rgba(255,255,255,0.1)"}`,
+                    borderRadius: 14, padding: 22, textAlign: "center", marginBottom: 14,
+                    background: dragOver ? "rgba(220,38,38,0.06)" : "rgba(255,255,255,0.02)",
+                    transition: "all 0.15s",
                   }}
                 >
                   {selectedFile ? (
                     <div>
                       <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
-                      <div style={{ fontWeight: 500, color: "#111827", fontSize: 13, wordBreak: "break-all" }}>{selectedFile.name}</div>
-                      <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>{formatFileSize(selectedFile.size)}</div>
-                      <button onClick={() => setSelectedFile(null)} style={{ fontSize: 12, color: "#ef4444", background: "none", border: "none", cursor: "pointer", marginTop: 8 }}>Changer de fichier</button>
+                      <div style={{ fontWeight: 600, color: "#f3f4f6", fontSize: 13, wordBreak: "break-all" }}>{selectedFile.name}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>{formatFileSize(selectedFile.size)}</div>
+                      <button onClick={() => setSelectedFile(null)} style={{ fontSize: 12, color: "#f87171", background: "none", border: "none", cursor: "pointer", marginTop: 8 }}>Changer de fichier</button>
                     </div>
                   ) : (
                     <label style={{ cursor: "pointer", display: "block" }}>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>📁</div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 4 }}>Glisser un fichier ici</div>
-                      <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 12 }}>PDF · JPG · PNG · Max 20 Mo</div>
-                      <span style={{ fontSize: 12, background: "#f3f4f6", color: "#4b5563", padding: "6px 14px", borderRadius: 8 }}>Parcourir</span>
+                      <div style={{ fontSize: 30, marginBottom: 8, opacity: 0.5 }}>📁</div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: "#d1d5db", marginBottom: 4 }}>Glisser un fichier ici</div>
+                      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 14 }}>PDF · JPG · PNG · Max 20 Mo</div>
+                      <span style={{
+                        fontSize: 12, background: "rgba(255,255,255,0.08)",
+                        color: "#d1d5db", padding: "7px 16px", borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.1)",
+                      }}>Parcourir</span>
                       <input type="file" style={{ display: "none" }} accept=".pdf,.jpg,.jpeg,.png" onChange={e => { const f = e.target.files?.[0]; if (f) setSelectedFile(f); }} />
                     </label>
                   )}
                 </div>
 
-                {/* Photo (mobile) */}
+                {/* Photo mobile */}
                 <label style={{
                   display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-                  border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px",
-                  marginBottom: 14, background: "#fafafa",
+                  border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "10px 14px",
+                  marginBottom: 14, background: "rgba(255,255,255,0.02)",
                 }}>
-                  <span style={{ fontSize: 20 }}>📷</span>
-                  <span style={{ fontSize: 13, color: "#374151" }}>Photographier un document</span>
+                  <span style={{ fontSize: 18 }}>📷</span>
+                  <span style={{ fontSize: 13, color: "#9ca3af" }}>Photographier un document</span>
                   <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) setSelectedFile(f); }} />
                 </label>
 
                 {/* Type de document */}
                 <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 13, fontWeight: 500, color: "#374151", display: "block", marginBottom: 6 }}>Type de document</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "#9ca3af", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    Type de document
+                  </label>
                   <select
                     value={selectedType}
                     onChange={e => setSelectedType(e.target.value)}
                     style={{
-                      width: "100%", border: "1px solid #e5e7eb", borderRadius: 8,
-                      padding: "9px 12px", fontSize: 13, background: "#fff",
+                      width: "100%",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 10, padding: "10px 12px", fontSize: 13,
+                      background: "rgba(255,255,255,0.05)",
+                      color: "#f3f4f6",
                       outline: "none", boxSizing: "border-box",
                     }}
                   >
-                    <option value="">Sélectionner le type…</option>
-                    {documentTypes.map(t => <option key={t.code} value={t.code}>{t.code} — {t.labelFr}</option>)}
+                    <option value="" style={{ background: "#1a1a24" }}>Sélectionner le type…</option>
+                    {documentTypes.map(t => (
+                      <option key={t.code} value={t.code} style={{ background: "#1a1a24" }}>
+                        {t.code} — {t.labelFr}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 {/* Checkbox doublon */}
                 <label style={{
                   display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer",
-                  border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px",
-                  marginBottom: 14, background: "#fffbeb", fontSize: 12, color: "#92400e",
+                  border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "10px 12px",
+                  marginBottom: 14, background: "rgba(245,158,11,0.05)", fontSize: 12, color: "#d97706",
                 }}>
                   <input type="checkbox" checked={allowDuplicate} onChange={e => setAllowDuplicate(e.target.checked)} style={{ marginTop: 2 }} />
-                  <span><strong>Conserver un doublon</strong><br />À activer uniquement si vous souhaitez intentionnellement deux exemplaires identiques.</span>
+                  <span><strong>Conserver un doublon</strong><br /><span style={{ color: "#92400e", opacity: 0.8 }}>Activer uniquement si vous voulez deux exemplaires identiques.</span></span>
                 </label>
 
                 {uploadError && (
-                  <div style={{ marginBottom: 12, fontSize: 12, color: "#b91c1c", background: "#fef2f2", borderRadius: 8, padding: "8px 12px" }}>
+                  <div style={{ marginBottom: 12, fontSize: 12, color: "#f87171", background: "rgba(239,68,68,0.08)", borderRadius: 8, padding: "8px 12px", border: "1px solid rgba(239,68,68,0.15)" }}>
                     {uploadError}
                   </div>
                 )}
@@ -672,10 +995,15 @@ export default function DocumentsPage() {
                   onClick={handleUpload}
                   disabled={!selectedFile || !selectedType || uploading}
                   style={{
-                    width: "100%", background: "#dc2626", color: "#fff", border: "none",
-                    borderRadius: 12, padding: "13px 0", fontSize: 14, fontWeight: 600,
+                    width: "100%",
+                    background: (!selectedFile || !selectedType || uploading)
+                      ? "rgba(220,38,38,0.3)"
+                      : "linear-gradient(135deg, #dc2626, #b91c1c)",
+                    color: "#fff", border: "none",
+                    borderRadius: 12, padding: "13px 0", fontSize: 14, fontWeight: 700,
                     cursor: (!selectedFile || !selectedType || uploading) ? "not-allowed" : "pointer",
-                    opacity: (!selectedFile || !selectedType || uploading) ? 0.5 : 1,
+                    letterSpacing: "0.01em",
+                    boxShadow: (!selectedFile || !selectedType || uploading) ? "none" : "0 4px 14px rgba(220,38,38,0.3)",
                   }}
                 >
                   {uploading ? "Téléversement en cours…" : "Ajouter ce document"}
@@ -685,8 +1013,6 @@ export default function DocumentsPage() {
           </div>
         </div>
       )}
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </main>
   );
 }
