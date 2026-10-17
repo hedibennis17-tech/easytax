@@ -278,6 +278,22 @@ function asMoney(raw: string | undefined): string | null {
   return parseMontantOCR(value) !== null ? value : null;
 }
 
+// Dans un T4A à deux colonnes, « 024\n048\n410,76 » signifie que 024 est
+// vide et que 048 vaut 410,76. Le code adjacent ne doit jamais être absorbé
+// dans le montant de la case courante.
+function asMoneyForBox(raw: string | undefined, expectedCode: string): string | null {
+  const value = raw?.trim() ?? "";
+  const adjacentCode = value.match(/^0*(\d{3})[ \t\r\n]+(?=\d)/)?.[1];
+  if (adjacentCode && adjacentCode !== expectedCode.replace(/^0+/, "")) return null;
+  const parsed = asMoney(value);
+  if (parsed !== null) return parsed;
+  // parseMontantOCR rejette volontairement les petits entiers isolés car ils
+  // ressemblent à des codes. Dans une ligne explicitement liée à la case 015,
+  // la valeur « 1 » du T4A HCO Inc. est toutefois un montant valide.
+  if (expectedCode === "015" && /^\d{1,2}$/.test(value)) return value;
+  return null;
+}
+
 function relaxedLabelPattern(label: string): string {
   // Les apostrophes droites et typographiques sont fréquemment perdues par l’OCR.
   return escapeRegex(label).replace(/[’']/g, "[’']?");
@@ -603,9 +619,17 @@ export function findBoxValueInText(
       ...(box.ocrAliases ?? []),
     ])];
     for (const key of candidates) {
-      const pat = new RegExp(`${escapeRegex(key)}[:\\s]+${MONEY_CAPTURE}`, "i");
+      // Ne pas utiliser \\s+ : cela traverserait les codes des cases voisines
+      // dans les exports JSON/OCR à deux colonnes.
+      const structuredMoney = box.code === "015"
+        ? "([0-9]{1,2}(?:[.,][0-9]{2})?)"
+        : MONEY_CAPTURE;
+      const pat = new RegExp(
+        `(?:^|\\n)${escapeRegex(key)}(?:[ \\t]*:[ \\t]*|[ \\t]*\\n[ \\t]*)${structuredMoney}`,
+        "im"
+      );
       const m = structText.match(pat);
-      if (m?.[1] && parseMontantOCR(m[1]) !== null) {
+      if (m?.[1] && asMoneyForBox(m[1], box.code) !== null) {
         // Reject if this structured field is labeled as an account/reference number in OCR
         const matchPos = m.index ?? 0;
         const ctxBefore = structText.slice(Math.max(0, matchPos - 120), matchPos);
@@ -623,18 +647,18 @@ export function findBoxValueInText(
   // 3. Code de case explicite dans le texte brut
   // Inclut le format CRA Mon Dossier: "Case 14\n<label>\n<montant>"
   const codePatterns = [
-    new RegExp(`box[_\\s]?${box.code}[:\\s]+([\\d\\s,.']+)`, "i"),
-    new RegExp(`case[_\\s]?${box.code}[:\\s]+([\\d\\s,.']+)`, "i"),
+    new RegExp(`box[_ \\t]?${box.code}:[ \\t]*([\\d\\s,.']+)`, "i"),
+    new RegExp(`case[_ \\t]?${box.code}:[ \\t]*([\\d\\s,.']+)`, "i"),
     new RegExp(`\\b${box.code}\\s*[:\\-]\\s*([\\d][\\d\\s,.']{2,})`, "im"),
     // "Case 14\n<libellé quelconque>\n<montant>" — CRA Mon Dossier
-    new RegExp(`(?:Case|Box)\\s+0*${box.code}\\b[^\\n]*\\n[^\\n]{0,80}\\n\\s*([0-9][\\d\\s,.']+)`, "im"),
+    new RegExp(`(?:Case|Box)\\s+0*${box.code}\\b[^\\n]*\\n[^\\n]{0,80}\\n[ \\t]*(?!0*\\d{3}[ \\t]*\\r?\\n)([0-9][\\d\\s,.']+)`, "im"),
     // "Case 14\n<montant>" — variante sans libellé intermédiaire
-    new RegExp(`(?:Case|Box)\\s+0*${box.code}\\b[^\\n]*\\n\\s*([0-9][\\d\\s,.']+)`, "im"),
+    new RegExp(`(?:Case|Box)\\s+0*${box.code}\\b[^\\n]*\\n[ \\t]*(?!0*\\d{3}[ \\t]*\\r?\\n)([0-9][\\d\\s,.']+)`, "im"),
     // Format OCR.space T4A/T4/T5: numéro de case seul sur une ligne, montant sur la suivante
     // ex: "048\n7,212 90" ou "048\n7 212,90"
-    new RegExp(`^0*${box.code}\\s*\\r?\\n\\s*([0-9][\\d\\s,.']+)`, "im"),
+    new RegExp(`^0*${box.code}[ \\t]*\\r?\\n[ \\t]*(?!0*\\d{3}[ \\t]*\\r?\\n)([0-9][\\d\\s,.']+)`, "im"),
     // Variante avec espace après le numéro avant le saut de ligne
-    new RegExp(`(?:^|\\n)0*${box.code}[ \\t]*\\r?\\n[ \\t]*([0-9][\\d\\s,.']+)`, "im"),
+    new RegExp(`(?:^|\\n)0*${box.code}[ \\t]*\\r?\\n[ \\t]*(?!0*\\d{3}[ \\t]*\\r?\\n)([0-9][\\d\\s,.']+)`, "im"),
   ];
   for (const pat of codePatterns) {
     const m = ocrText.match(pat);
@@ -642,7 +666,7 @@ export function findBoxValueInText(
       // Tronquer au premier newline : un montant ne s'étale jamais sur plusieurs lignes.
       // Ex: "018\n020\n012" capture "020\n012" ; firstLine = "020" → parseMontantOCR null → skip.
       const firstLine = m[1].split(/\r?\n/)[0].trim();
-      if (firstLine && parseMontantOCR(firstLine) !== null) return firstLine;
+      if (firstLine && asMoneyForBox(firstLine, box.code) !== null) return firstLine;
     }
   }
 
@@ -919,7 +943,11 @@ export function extractAllBoxes(
         rawValue = findBoxValueInText(cleanText, box);
       }
     }
-    const amountCents = rawValue ? parseMontantOCR(rawValue) : null;
+    const amountCents = rawValue ? (asMoneyForBox(rawValue, box.code) !== null
+      ? (box.code === "015" && /^\d{1,2}$/.test(rawValue.trim())
+        ? Number(rawValue.trim()) * 100
+        : parseMontantOCR(rawValue))
+      : null) : null;
 
     // Confiance: RL-1 table = 85%, structured fields = 92%, keywords = 75%, non trouvé = 0%
     let confidence = 0;

@@ -3112,6 +3112,18 @@
           "notes": "Code « Autres renseignements » — usage ARC"
         },
         {
+          "code": "015",
+          "label_fr": "Prestations dentaires offertes par le payeur",
+          "label_en": "Payer-offered dental benefits",
+          "t1_line": null,
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": ["015", "prestations dentaires", "dentaire"],
+          "keywords_en": ["015", "dental benefits", "payer-offered dental"],
+          "label_source": "arc_fr",
+          "notes": "Renseignement du feuillet; valeur conservée pour validation, sans addition automatique au revenu."
+        },
+        {
           "code": "016",
           "label_fr": "Prestations de retraite ou autres pensions",
           "label_en": "Pension or superannuation",
