@@ -417,7 +417,11 @@ export default function ExtractionPage() {
             {fields.length > 0 && (
               <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="divide-y divide-slate-100">
-                  {fields.map(field => {
+                  {[...fields].sort((a, b) => {
+                    const aHas = Boolean((a.validatedValue ?? a.rawOcrValue)?.trim()) ? 0 : 1;
+                    const bHas = Boolean((b.validatedValue ?? b.rawOcrValue)?.trim()) ? 0 : 1;
+                    return aHas - bHas;
+                  }).map(field => {
                     const hasValue = Boolean((field.validatedValue ?? field.rawOcrValue)?.trim());
                     const isValidated = field.validationStatus !== "unreviewed";
                     const isEditing = field.edit !== undefined;
