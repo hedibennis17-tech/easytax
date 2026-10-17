@@ -509,8 +509,11 @@ function findLayoutBoundValue(ocrText: string, box: BoxDef): string | null {
     );
     const m = multilinePattern.exec(ocrText);
     if (m?.[1]) {
-      const value = asMoney(m[1]);
-      if (value) return value;
+      // Tronquer au premier newline : [\d\s,.']+  inclut \n via \s, donc
+      // "018\n020\n012" capture "020\n012" → parseMontantOCR stripperait le \n
+      // et lirait "020012" = 20 012 $. On ne garde que la première ligne.
+      const firstLine = m[1].split(/\r?\n/)[0].trim();
+      if (firstLine && parseMontantOCR(firstLine) !== null) return firstLine;
     }
   }
 
@@ -569,16 +572,23 @@ export function findBoxValueInText(
     }
   }
 
-  // 0c. Layout T4A 2-colonnes pour box_048 (honoraires):
-  // OCR.space sort "024\n048\nPRÉNOM\nMONTANT" — le montant de box_048 est APRÈS le prénom.
-  // Pattern: "024\n048\n" puis une ligne de texte (prénom/nom) puis le montant.
+  // 0c. Layout T4A pour box_048 (honoraires / fees for services):
+  // OCR.space sort le label "Fees for services\nHonoraires ou autres sommes\n
+  // pour services rendus\nOther information (see page 2)\n410,76".
+  // Le montant apparaît quelques lignes APRÈS le label, parfois après le header
+  // "Other information". On scanne les 10 lignes après le label et on prend
+  // la première qui parse comme montant valide.
   if (box.code === "048") {
-    const t4aHono = ocrText.match(
-      /\b024\b[^\n]*\n[^\n]*\b048\b[^\n]*\n[^\n]{0,60}\n([0-9][\d\s,.']+)/i
-    );
-    if (t4aHono?.[1]) {
-      const rawVal = t4aHono[1].split(/\r?\n/)[0].trim();
-      if (parseMontantOCR(rawVal) !== null) return rawVal;
+    const feesRe = /(?:Fees\s+for\s+services|Honoraires\s+ou\s+autres\s+sommes)/i;
+    const feesIdx = ocrText.search(feesRe);
+    if (feesIdx >= 0) {
+      const lines = ocrText.slice(feesIdx, feesIdx + 400).split(/\r?\n/);
+      for (let i = 1; i < lines.length && i < 10; i++) {
+        const line = lines[i].trim();
+        if (/^[0-9]/.test(line) && parseMontantOCR(line) !== null) {
+          return line;
+        }
+      }
     }
   }
 
