@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     SELECT fd.id, fd.user_id, fd.original_filename, fd.status, dt.code as type_code
     FROM fiscal_documents fd
     LEFT JOIN document_types dt ON fd.document_type_id = dt.id
-    WHERE fd.id = ${docId} AND fd.deleted_at IS NULL
+    WHERE fd.id = ${docId}
   `;
 
   const doc = docRows[0] as Row | undefined;
@@ -42,10 +42,10 @@ export async function GET(req: NextRequest) {
 
   const userId = doc.user_id as string;
 
-  // Remettre le status en "uploaded" pour permettre le retraitement
+  // Remettre le status en "uploaded" et restaurer si soft-deleted
   await sql`
     UPDATE fiscal_documents
-    SET status = 'uploaded', updated_at = NOW()
+    SET status = 'uploaded', deleted_at = NULL, updated_at = NOW()
     WHERE id = ${docId}
   `;
 
