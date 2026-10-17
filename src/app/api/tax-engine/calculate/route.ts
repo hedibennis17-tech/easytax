@@ -162,29 +162,132 @@ export async function POST(req: NextRequest) {
   let cwbCents = 0;
   if (cwbEligible) {
     if (province === "QC") {
-      // ─── 5005-S6 Québec 2025 ──────────────────────────────────────────────
-      // Seuils 2025 pour les résidents du Québec (Schedule 6 QC)
-      // Célibataire : phase-in à 27% au-delà de 3 000 $, max 1 590 $
-      //               réduction à 15% au-delà de 26 149 $
-      // Avec conjoint/famille : phase-in à 27% au-delà de 3 000 $, max 2 739 $
-      //               réduction à 15% au-delà de 32 227 $
-      const isCouple = dependentCount > 0 || answers.maritalStatus === "married" || answers.maritalStatus === "common_law" || answers.maritalStatus === "marie" || answers.maritalStatus === "union_de_fait";
-      const cwbMaxQC = isCouple ? 273900 : 159000;               // max en cents
-      const cwbPhaseInThresholdQC = 300000;                       // 3 000 $
-      const cwbReductionThresholdQC = isCouple ? 3222700 : 2614900; // 32 227 $ ou 26 149 $
-      const cwbPhaseIn = Math.min(
-        cwbMaxQC,
-        Math.max(0, earnedIncomeCents - cwbPhaseInThresholdQC) * 27 / 100
+      // ─── 5005-S6 Québec 2025 (ARC Schedule 6 — résidents QC) ───────────────
+      // Source officielle : Annexe 6 pour les résidents du Québec, 2025
+      // https://www.canada.ca/en/revenue-agency/services/forms-publications/forms/5005-s6.html
+      //
+      // Situation familiale au 31 décembre 2025 :
+      //   A) Célibataire sans personne à charge admissible
+      //      phase-in : 37,3 % × max(revenu travail − 2 400 $, 0)
+      //      max ACT de base : 3 812,06 $
+      //      réduction : 20 % × max(revenu net ajusté − 14 170,05 $, 0)
+      //      revenu max (ACT = 0) : 33 230,35 $
+      //
+      //   B) Célibataire avec personne à charge admissible
+      //      phase-in : 20 % × max(revenu travail − 2 400 $, 0)
+      //      max ACT de base : 2 044,00 $
+      //      réduction : 20 % × max(revenu net ajusté − 14 170,05 $, 0)
+      //      revenu max (ACT = 0) : 24 390,05 $
+      //
+      //   C) Couple sans personne à charge admissible
+      //      phase-in : 37,3 % × max(revenu travail conjoint − 3 600 $, 0) [revenu le plus élevé]
+      //      max ACT de base : 5 943,38 $
+      //      réduction : 20 % × max(revenu net familial ajusté − 29 645,00 $, 0)
+      //      revenu max (ACT = 0) : 59 361,90 $
+      //
+      //   D) Couple avec personne à charge admissible
+      //      phase-in : 23,9 % × max(revenu travail − 3 600 $, 0)
+      //      max ACT de base : 3 808,23 $
+      //      réduction : 20 % × max(revenu net familial ajusté − 29 645,00 $, 0)
+      //      revenu max (ACT = 0) : 48 686,15 $
+      //
+      // RÈGLES :
+      //   - Revenu de travail admissible = salaires + travail autonome (pas ligne 15000 globale)
+      //   - Revenu net ajusté = ligne 23600 (simplifié ici : netIncome du moteur)
+      //   - Supplément d'invalidité (jusqu'à 851,31 $) non inclus ici — nécessite CIPH
+      //   - Avances RC210 (ligne 41500) non déduites ici (traitées séparément)
+
+      const isCouple = answers.maritalStatus === "married" || answers.maritalStatus === "common_law"
+        || answers.maritalStatus === "marie" || answers.maritalStatus === "union_de_fait"
+        || answers.hasSpouse === true || answers.hasSpouse === "true";
+      const hasDependent = dependentCount > 0;
+
+      // Seuil revenu de travail minimal (cents)
+      const phaseInThresholdCents = isCouple ? 360000 : 240000; // 3 600 $ couple / 2 400 $ solo
+
+      // Paramètres selon situation familiale (en cents)
+      let phaseInRateNumerator: number;   // numérateur pour éviter les floats
+      let phaseInRateDenominator: number;
+      let maxBasicBenefitCents: number;
+      let reductionThresholdCents: number;
+      const reductionRateNumerator = 20;   // 20 %
+      const reductionRateDenominator = 100;
+
+      if (!isCouple && !hasDependent) {
+        // Cas A : célibataire sans personne à charge
+        phaseInRateNumerator = 373; phaseInRateDenominator = 1000; // 37,3 %
+        maxBasicBenefitCents = 381206; // 3 812,06 $
+        reductionThresholdCents = 1417005; // 14 170,05 $
+      } else if (!isCouple && hasDependent) {
+        // Cas B : célibataire avec personne à charge
+        phaseInRateNumerator = 20; phaseInRateDenominator = 100; // 20 %
+        maxBasicBenefitCents = 204400; // 2 044,00 $
+        reductionThresholdCents = 1417005; // 14 170,05 $
+      } else if (isCouple && !hasDependent) {
+        // Cas C : couple sans personne à charge
+        phaseInRateNumerator = 373; phaseInRateDenominator = 1000; // 37,3 %
+        maxBasicBenefitCents = 594338; // 5 943,38 $
+        reductionThresholdCents = 2964500; // 29 645,00 $
+      } else {
+        // Cas D : couple avec personne à charge
+        phaseInRateNumerator = 239; phaseInRateDenominator = 1000; // 23,9 %
+        maxBasicBenefitCents = 380823; // 3 808,23 $
+        reductionThresholdCents = 2964500; // 29 645,00 $
+      }
+
+      // Phase-in : min(max(revenuTravail − seuil, 0) × taux, maxBénéfice)
+      const excessIncomeCents = Math.max(0, earnedIncomeCents - phaseInThresholdCents);
+      const phaseInCents = Math.min(
+        maxBasicBenefitCents,
+        Math.floor(excessIncomeCents * phaseInRateNumerator / phaseInRateDenominator)
       );
-      const cwbReduction = Math.max(0, earnedIncomeCents - cwbReductionThresholdQC) * 15 / 100;
-      cwbCents = Math.max(0, Math.round(cwbPhaseIn - cwbReduction));
+
+      // Réduction : max(revenuNetAjusté − seuil, 0) × 20 %
+      // On utilise earnedIncomeCents comme approximation du revenu net ajusté
+      // (la couche appelante peut affiner avec netIncomeCents si disponible)
+      const adjustedNetIncomeCents = earnedIncomeCents; // conservateur — même source que phase-in
+      const reductionCents = Math.floor(
+        Math.max(0, adjustedNetIncomeCents - reductionThresholdCents)
+          * reductionRateNumerator / reductionRateDenominator
+      );
+
+      cwbCents = Math.max(0, phaseInCents - reductionCents);
     } else {
-      // ─── Formule fédérale générique (hors QC) ───────────────────────────
+      // ─── Formule fédérale générique (hors QC) — Schedule 6 fédéral 2025 ──
+      // Source : ARC T1-2025, Schedule 6 (résidents hors QC)
+      // Célibataire sans personne : phase-in 26,7% au-delà de 3 000 $, max 1 590 $
+      //   réduction 12% au-delà de 26 149 $
+      // Couple / personne à charge : paramètres distincts ci-dessous
       const isCouple = dependentCount > 0 || answers.maritalStatus === "married" || answers.maritalStatus === "common_law";
-      const cwbMax = isCouple ? 281300 : 163300;
-      const cwbReductionThreshold = isCouple ? 3063900 : 2685500;
-      const cwbPhaseIn = Math.min(cwbMax, Math.max(0, earnedIncomeCents - 300000) * 27 / 100);
-      cwbCents = Math.max(0, Math.round(cwbPhaseIn - Math.max(0, earnedIncomeCents - cwbReductionThreshold) * 15 / 100));
+      const hasDependent = dependentCount > 0;
+
+      let phaseInRateNum: number, phaseInRateDen: number;
+      let maxBenefitCents: number;
+      let reductionThresholdCents: number;
+      const reductionRateNum = 12, reductionRateDen = 100; // 12 % hors QC
+
+      if (!isCouple && !hasDependent) {
+        phaseInRateNum = 267; phaseInRateDen = 1000; // 26,7 %
+        maxBenefitCents = 159000;       // 1 590 $
+        reductionThresholdCents = 2614900; // 26 149 $
+      } else if (!isCouple && hasDependent) {
+        phaseInRateNum = 267; phaseInRateDen = 1000; // 26,7 %
+        maxBenefitCents = 275600;       // 2 756 $
+        reductionThresholdCents = 2614900; // 26 149 $
+      } else if (isCouple && !hasDependent) {
+        phaseInRateNum = 267; phaseInRateDen = 1000; // 26,7 %
+        maxBenefitCents = 275600;       // 2 756 $
+        reductionThresholdCents = 3222700; // 32 227 $
+      } else {
+        phaseInRateNum = 267; phaseInRateDen = 1000; // 26,7 %
+        maxBenefitCents = 275600;       // 2 756 $
+        reductionThresholdCents = 3222700; // 32 227 $
+      }
+
+      const excessNonQC = Math.max(0, earnedIncomeCents - 300000); // seuil 3 000 $
+      const phaseInNonQC = Math.min(maxBenefitCents, Math.floor(excessNonQC * phaseInRateNum / phaseInRateDen));
+      const reductionNonQC = Math.floor(Math.max(0, earnedIncomeCents - reductionThresholdCents) * reductionRateNum / reductionRateDen);
+      cwbCents = Math.max(0, phaseInNonQC - reductionNonQC);
     }
   }
 
