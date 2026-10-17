@@ -569,6 +569,19 @@ export function findBoxValueInText(
     }
   }
 
+  // 0c. Layout T4A 2-colonnes pour box_048 (honoraires):
+  // OCR.space sort "024\n048\nPRÉNOM\nMONTANT" — le montant de box_048 est APRÈS le prénom.
+  // Pattern: "024\n048\n" puis une ligne de texte (prénom/nom) puis le montant.
+  if (box.code === "048") {
+    const t4aHono = ocrText.match(
+      /\b024\b[^\n]*\n[^\n]*\b048\b[^\n]*\n[^\n]{0,60}\n([0-9][\d\s,.']+)/i
+    );
+    if (t4aHono?.[1]) {
+      const rawVal = t4aHono[1].split(/\r?\n/)[0].trim();
+      if (parseMontantOCR(rawVal) !== null) return rawVal;
+    }
+  }
+
   // 1. Structured fields (haute confiance — Google Document AI)
   const structStart = ocrText.indexOf("--- STRUCTURED FIELDS ---");
   if (structStart >= 0) {
