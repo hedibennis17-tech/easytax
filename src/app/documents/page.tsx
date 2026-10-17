@@ -334,17 +334,80 @@ export default function DocumentsPage() {
   const uniqueTypes = [...new Set(activeDocs.map(d => d.typeCode))];
 
   return (
-    <main style={{ background: "linear-gradient(135deg, #0f0f13 0%, #16161f 100%)", minHeight: "100vh" }}>
+    <main style={{ background: "var(--bg-page)", minHeight: "100vh" }}>
       <NavClient />
 
       <style>{`
+        :root {
+          --bg-page: #f4f6f9;
+          --bg-card: #ffffff;
+          --bg-card-hover: #ffffff;
+          --bg-actions: #f9fafb;
+          --bg-accordion: #f8f9fc;
+          --bg-field: #f3f4f6;
+          --border-card: #e8eaed;
+          --border-card-expanded: rgba(139,92,246,0.35);
+          --border-field: #e5e7eb;
+          --text-primary: #111827;
+          --text-secondary: #374151;
+          --text-muted: #6b7280;
+          --text-faint: #9ca3af;
+          --text-link: #2563eb;
+          --text-purple: #7c3aed;
+          --text-purple-light: #8b5cf6;
+          --bg-status: rgba(0,0,0,0.05);
+          --shadow-card: 0 1px 6px rgba(0,0,0,0.07), 0 2px 12px rgba(0,0,0,0.05);
+          --shadow-card-hover: 0 6px 28px rgba(0,0,0,0.11);
+          --shadow-card-expanded: 0 0 0 1px rgba(139,92,246,0.15), 0 4px 20px rgba(0,0,0,0.09);
+          --bg-modal: #ffffff;
+          --border-modal: rgba(0,0,0,0.08);
+          --bg-upload-zone: #fafafa;
+          --border-upload: #e5e7eb;
+          --bg-btn-secondary: #f3f4f6;
+          --text-btn-secondary: #374151;
+          --border-btn-secondary: #e5e7eb;
+        }
+        @media (prefers-color-scheme: dark) {
+          :root {
+            --bg-page: #0f0f13;
+            --bg-card: rgba(255,255,255,0.04);
+            --bg-card-hover: rgba(255,255,255,0.06);
+            --bg-actions: rgba(0,0,0,0.15);
+            --bg-accordion: rgba(0,0,0,0.2);
+            --bg-field: rgba(255,255,255,0.04);
+            --border-card: rgba(255,255,255,0.07);
+            --border-card-expanded: rgba(139,92,246,0.3);
+            --border-field: rgba(255,255,255,0.07);
+            --text-primary: #f3f4f6;
+            --text-secondary: #d1d5db;
+            --text-muted: #9ca3af;
+            --text-faint: #6b7280;
+            --text-link: #60a5fa;
+            --text-purple: #c4b5fd;
+            --text-purple-light: #a78bfa;
+            --bg-status: rgba(255,255,255,0.06);
+            --shadow-card: 0 2px 12px rgba(0,0,0,0.25);
+            --shadow-card-hover: 0 8px 32px rgba(0,0,0,0.4);
+            --shadow-card-expanded: 0 0 0 1px rgba(139,92,246,0.2), 0 4px 24px rgba(0,0,0,0.35);
+            --bg-modal: #1a1a24;
+            --border-modal: rgba(255,255,255,0.1);
+            --bg-upload-zone: rgba(255,255,255,0.02);
+            --border-upload: rgba(255,255,255,0.1);
+            --bg-btn-secondary: rgba(255,255,255,0.08);
+            --text-btn-secondary: #d1d5db;
+            --border-btn-secondary: rgba(255,255,255,0.1);
+          }
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
         .doc-card { transition: transform 0.18s ease, box-shadow 0.18s ease; }
-        .doc-card:hover { transform: translateY(-1px); box-shadow: 0 8px 32px rgba(0,0,0,0.35) !important; }
+        .doc-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-card-hover) !important; }
         .action-btn { transition: background 0.12s, color 0.12s, opacity 0.12s; }
-        .action-btn:hover:not(:disabled) { background: rgba(255,255,255,0.06) !important; }
+        .action-btn:hover:not(:disabled) { background: rgba(0,0,0,0.04) !important; }
+        @media (prefers-color-scheme: dark) {
+          .action-btn:hover:not(:disabled) { background: rgba(255,255,255,0.06) !important; }
+        }
         .filter-pill { transition: background 0.12s, color 0.12s, border-color 0.12s; }
         .accordion-panel { animation: fadeIn 0.2s ease; }
       `}</style>
@@ -361,11 +424,11 @@ export default function DocumentsPage() {
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 16, boxShadow: "0 4px 12px rgba(220,38,38,0.4)",
               }}>📁</div>
-              <h1 style={{ fontSize: 22, fontWeight: 700, color: "#f9fafb", margin: 0, letterSpacing: "-0.3px" }}>
+              <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.3px" }}>
                 Mes documents
               </h1>
             </div>
-            <p style={{ fontSize: 12, color: "#6b7280", marginTop: 0, paddingLeft: 46 }}>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 0, paddingLeft: 46 }}>
               Coffre-fort fiscal · Saison 2025 · {activeDocs.length} feuillet{activeDocs.length !== 1 ? "s" : ""}
             </p>
           </div>
@@ -409,9 +472,9 @@ export default function DocumentsPage() {
               style={{
                 fontSize: 12, padding: "5px 14px", borderRadius: 999, fontWeight: 600, cursor: "pointer",
                 border: "1px solid",
-                background: filterType === "all" ? "#f9fafb" : "transparent",
-                color: filterType === "all" ? "#111827" : "#6b7280",
-                borderColor: filterType === "all" ? "#f9fafb" : "rgba(255,255,255,0.08)",
+                background: filterType === "all" ? "var(--text-primary)" : "transparent",
+                color: filterType === "all" ? "var(--bg-page)" : "var(--text-muted)",
+                borderColor: filterType === "all" ? "var(--text-primary)" : "var(--border-card)",
               }}
             >
               Tous ({activeDocs.length})
@@ -427,8 +490,8 @@ export default function DocumentsPage() {
                     fontSize: 12, padding: "5px 14px", borderRadius: 999, fontWeight: 600, cursor: "pointer",
                     border: "1px solid",
                     background: filterType === code ? tc.bg : "transparent",
-                    color: filterType === code ? tc.text : "#6b7280",
-                    borderColor: filterType === code ? tc.bg : "rgba(255,255,255,0.08)",
+                    color: filterType === code ? tc.text : "var(--text-muted)",
+                    borderColor: filterType === code ? tc.bg : "var(--border-card)",
                   }}
                 >
                   {code} ({activeDocs.filter(d => d.typeCode === code).length})
@@ -449,13 +512,13 @@ export default function DocumentsPage() {
           </div>
         ) : filteredDocs.length === 0 && archivedDocs.length === 0 ? (
           <div style={{
-            background: "rgba(255,255,255,0.03)", borderRadius: 20,
-            border: "1px dashed rgba(255,255,255,0.08)",
+            background: "var(--bg-card)", borderRadius: 20,
+            border: "1px dashed var(--border-card)",
             padding: "64px 24px", textAlign: "center",
           }}>
             <div style={{ fontSize: 44, marginBottom: 14, opacity: 0.5 }}>📂</div>
-            <div style={{ fontWeight: 600, color: "#d1d5db", marginBottom: 6, fontSize: 15 }}>Aucun document</div>
-            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>
+            <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: 6, fontSize: 15 }}>Aucun document</div>
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 24 }}>
               Ajoutez vos T4, T4A, RL-1 et autres feuillets fiscaux.
             </div>
             <button
@@ -487,14 +550,12 @@ export default function DocumentsPage() {
                   key={doc.id}
                   className="doc-card"
                   style={{
-                    background: "rgba(255,255,255,0.04)",
+                    background: "var(--bg-card)",
                     borderRadius: 16,
-                    border: isExpanded ? "1px solid rgba(139,92,246,0.3)" : "1px solid rgba(255,255,255,0.07)",
+                    border: isExpanded ? "1px solid var(--border-card-expanded)" : "1px solid var(--border-card)",
                     overflow: "hidden",
                     opacity: isBusy ? 0.6 : 1,
-                    boxShadow: isExpanded
-                      ? "0 0 0 1px rgba(139,92,246,0.15), 0 4px 24px rgba(0,0,0,0.3)"
-                      : "0 2px 12px rgba(0,0,0,0.2)",
+                    boxShadow: isExpanded ? "var(--shadow-card-expanded)" : "var(--shadow-card)",
                   }}
                 >
                   {/* Ligne principale */}
@@ -515,27 +576,19 @@ export default function DocumentsPage() {
                     {/* Infos principales */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 3 }}>
-                        <span style={{ fontWeight: 700, color: "#f3f4f6", fontSize: 14, letterSpacing: "-0.2px" }}>
+                        <span style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14, letterSpacing: "-0.2px" }}>
                           {doc.typeLabelFr}
                         </span>
                         {/* Status pill */}
                         <span style={{
                           fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
-                          background: "rgba(255,255,255,0.06)",
-                          color: st.color === "#15803d" ? "#4ade80"
-                            : st.color === "#b91c1c" ? "#f87171"
-                            : st.color === "#6d28d9" ? "#c4b5fd"
-                            : st.color === "#1e40af" ? "#93c5fd"
-                            : "#d1d5db",
+                          background: "var(--bg-status)",
+                          color: st.color,
                           display: "flex", alignItems: "center", gap: 4,
                         }}>
                           <span style={{
                             width: 5, height: 5, borderRadius: "50%",
-                            background: st.color === "#15803d" ? "#22c55e"
-                              : st.color === "#b91c1c" ? "#ef4444"
-                              : st.color === "#6d28d9" ? "#8b5cf6"
-                              : st.color === "#1e40af" ? "#3b82f6"
-                              : "#9ca3af",
+                            background: st.dot,
                             display: "inline-block",
                             ...(isProcessing ? { animation: "pulse 1.5s infinite" } : {}),
                           }} />
@@ -543,29 +596,29 @@ export default function DocumentsPage() {
                         </span>
                         {/* Année */}
                         <span style={{
-                          fontSize: 11, fontWeight: 700, color: "#a78bfa",
-                          background: "rgba(139,92,246,0.12)", borderRadius: 6, padding: "2px 7px",
+                          fontSize: 11, fontWeight: 700, color: "var(--text-purple)",
+                          background: "rgba(139,92,246,0.1)", borderRadius: 6, padding: "2px 7px",
                         }}>
                           {doc.year}
                         </span>
                       </div>
 
                       {/* Payeur */}
-                      <div style={{ fontSize: 13, color: "#93c5fd", fontWeight: 600, marginBottom: 3 }}>
+                      <div style={{ fontSize: 13, color: "var(--text-link)", fontWeight: 600, marginBottom: 3 }}>
                         {doc.payerName ?? (isProcessing ? "⏳ Extraction en cours…" : "—")}
                       </div>
 
                       {/* Meta: filename + size + date */}
-                      <div style={{ fontSize: 11, color: "#4b5563", display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", gap: 10, flexWrap: "wrap" }}>
                         <span
                           title={doc.originalFilename}
                           style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                         >
                           {doc.originalFilename}
                         </span>
-                        <span style={{ color: "#374151" }}>·</span>
+                        <span style={{ color: "var(--text-faint)" }}>·</span>
                         <span>{formatFileSize(doc.fileSizeBytes)}</span>
-                        <span style={{ color: "#374151" }}>·</span>
+                        <span style={{ color: "var(--text-faint)" }}>·</span>
                         <span>{formatDateTime(doc.uploadedAt)}</span>
                       </div>
                     </div>
@@ -577,12 +630,12 @@ export default function DocumentsPage() {
                         className="action-btn"
                         title={isExpanded ? "Fermer les données" : "Voir les données extraites"}
                         style={{
-                          background: isExpanded ? "rgba(139,92,246,0.15)" : "rgba(255,255,255,0.05)",
-                          border: `1px solid ${isExpanded ? "rgba(139,92,246,0.3)" : "rgba(255,255,255,0.08)"}`,
+                          background: isExpanded ? "rgba(139,92,246,0.1)" : "var(--bg-field)",
+                          border: `1px solid ${isExpanded ? "rgba(139,92,246,0.3)" : "var(--border-card)"}`,
                           borderRadius: 10, padding: "8px 12px", cursor: "pointer",
                           display: "flex", alignItems: "center", gap: 5,
                           fontSize: 12, fontWeight: 600,
-                          color: isExpanded ? "#c4b5fd" : "#6b7280",
+                          color: isExpanded ? "var(--text-purple)" : "var(--text-muted)",
                           flexShrink: 0,
                         }}
                       >
@@ -602,13 +655,13 @@ export default function DocumentsPage() {
                     <div
                       className="accordion-panel"
                       style={{
-                        borderTop: "1px solid rgba(255,255,255,0.06)",
-                        background: "rgba(0,0,0,0.2)",
+                        borderTop: "1px solid var(--border-card)",
+                        background: "var(--bg-accordion)",
                         padding: "16px 18px",
                       }}
                     >
                       {isAccordionLoading ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#6b7280", fontSize: 13 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--text-muted)", fontSize: 13 }}>
                           <div style={{
                             width: 16, height: 16, border: "2px solid rgba(255,255,255,0.06)", borderTopColor: "#8b5cf6",
                             borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0,
@@ -616,19 +669,19 @@ export default function DocumentsPage() {
                           Chargement des données extraites…
                         </div>
                       ) : !fields || fields.length === 0 ? (
-                        <div style={{ fontSize: 13, color: "#6b7280", textAlign: "center", padding: "12px 0" }}>
+                        <div style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center", padding: "12px 0" }}>
                           Aucune donnée extraite disponible.
                           <br />
                           <Link
                             href={`/documents/${doc.id}/extraction`}
-                            style={{ color: "#8b5cf6", textDecoration: "none", fontSize: 12, marginTop: 6, display: "inline-block" }}
+                            style={{ color: "var(--text-purple-light)", textDecoration: "none", fontSize: 12, marginTop: 6, display: "inline-block" }}
                           >
                             Voir la page complète →
                           </Link>
                         </div>
                       ) : (
                         <>
-                          <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>
+                          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>
                             {fields.length} case{fields.length > 1 ? "s" : ""} extraite{fields.length > 1 ? "s" : ""}
                           </div>
                           <div style={{
@@ -645,8 +698,8 @@ export default function DocumentsPage() {
                                 <div
                                   key={f.id}
                                   style={{
-                                    background: "rgba(255,255,255,0.04)",
-                                    border: "1px solid rgba(255,255,255,0.07)",
+                                    background: "var(--bg-field)",
+                                    border: "1px solid var(--border-field)",
                                     borderRadius: 10,
                                     padding: "10px 12px",
                                   }}
@@ -669,7 +722,7 @@ export default function DocumentsPage() {
                                     )}
                                   </div>
                                   <div style={{
-                                    fontSize: 13, fontWeight: 700, color: "#f3f4f6",
+                                    fontSize: 13, fontWeight: 700, color: "var(--text-primary)",
                                     marginBottom: 2, wordBreak: "break-word",
                                   }}>
                                     {val}
@@ -678,7 +731,7 @@ export default function DocumentsPage() {
                                     )}
                                   </div>
                                   {f.fieldLabel && (
-                                    <div style={{ fontSize: 10, color: "#6b7280", lineHeight: 1.3 }}>
+                                    <div style={{ fontSize: 10, color: "var(--text-muted)", lineHeight: 1.3 }}>
                                       {f.fieldLabel}
                                     </div>
                                   )}
@@ -689,7 +742,7 @@ export default function DocumentsPage() {
                           <Link
                             href={`/documents/${doc.id}/extraction`}
                             style={{
-                              fontSize: 12, color: "#8b5cf6", textDecoration: "none", fontWeight: 600,
+                              fontSize: 12, color: "var(--text-purple-light)", textDecoration: "none", fontWeight: 600,
                               display: "inline-flex", alignItems: "center", gap: 4,
                             }}
                           >
@@ -703,9 +756,9 @@ export default function DocumentsPage() {
                   {/* Barre d'actions */}
                   <div style={{
                     display: "flex", alignItems: "center",
-                    borderTop: "1px solid rgba(255,255,255,0.05)",
+                    borderTop: "1px solid var(--border-card)",
                     padding: "0 8px",
-                    background: "rgba(0,0,0,0.15)",
+                    background: "var(--bg-actions)",
                   }}>
                     {/* Voir le document */}
                     <button
@@ -714,7 +767,7 @@ export default function DocumentsPage() {
                       className="action-btn"
                       style={{
                         background: "none", border: "none", padding: "9px 12px",
-                        fontSize: 12, color: "#60a5fa", cursor: "pointer", fontWeight: 600,
+                        fontSize: 12, color: "var(--text-link)", cursor: "pointer", fontWeight: 600,
                         display: "flex", alignItems: "center", gap: 4, borderRadius: 8,
                         opacity: viewBusyId === doc.id ? 0.5 : 1,
                       }}
@@ -730,7 +783,7 @@ export default function DocumentsPage() {
                       title="Relancer l'analyse OCR"
                       style={{
                         background: "none", border: "none", padding: "9px 12px",
-                        fontSize: 12, color: isReprocessBusy ? "#6b7280" : "#a78bfa",
+                        fontSize: 12, color: isReprocessBusy ? "var(--text-muted)" : "var(--text-purple-light)",
                         cursor: (isReprocessBusy || isProcessing) ? "not-allowed" : "pointer",
                         fontWeight: 600, display: "flex", alignItems: "center", gap: 4, borderRadius: 8,
                         opacity: (isReprocessBusy || isProcessing) ? 0.5 : 1,
@@ -748,7 +801,7 @@ export default function DocumentsPage() {
                         href={`/documents/${doc.id}/extraction`}
                         style={{
                           display: "flex", alignItems: "center", gap: 4,
-                          padding: "9px 12px", fontSize: 12, color: "#c4b5fd",
+                          padding: "9px 12px", fontSize: 12, color: "var(--text-purple)",
                           textDecoration: "none", fontWeight: 500, borderRadius: 8,
                         }}
                       >
@@ -764,7 +817,7 @@ export default function DocumentsPage() {
                       className="action-btn"
                       style={{
                         background: "none", border: "none", padding: "9px 10px",
-                        fontSize: 12, color: "#6b7280", cursor: "pointer", fontWeight: 500, borderRadius: 8,
+                        fontSize: 12, color: "var(--text-muted)", cursor: "pointer", fontWeight: 500, borderRadius: 8,
                       }}
                     >
                       {doc.status === "archived" ? "↩ Restaurer" : "📦 Archiver"}
@@ -788,7 +841,7 @@ export default function DocumentsPage() {
             {/* Section archivés */}
             {archivedDocs.length > 0 && filterType === "all" && (
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#4b5563", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10, paddingLeft: 4 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10, paddingLeft: 4 }}>
                   📦 Archivés ({archivedDocs.length})
                 </div>
                 {archivedDocs.map(doc => {
@@ -796,9 +849,9 @@ export default function DocumentsPage() {
                   const tc = TYPE_COLORS[doc.typeCode] ?? { bg: "#f3f4f6", text: "#374151" };
                   return (
                     <div key={doc.id} style={{
-                      background: "rgba(255,255,255,0.02)",
+                      background: "var(--bg-card)",
                       borderRadius: 14,
-                      border: "1px solid rgba(255,255,255,0.05)",
+                      border: "1px solid var(--border-card)",
                       overflow: "hidden", opacity: isBusy ? 0.5 : 0.65, marginBottom: 8,
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px" }}>
@@ -812,33 +865,33 @@ export default function DocumentsPage() {
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                            <span style={{ fontWeight: 700, color: "#6b7280", fontSize: 13 }}>{doc.typeLabelFr}</span>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", background: "rgba(124,58,237,0.1)", borderRadius: 6, padding: "1px 6px" }}>{doc.year}</span>
+                            <span style={{ fontWeight: 700, color: "var(--text-muted)", fontSize: 13 }}>{doc.typeLabelFr}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-purple)", background: "rgba(124,58,237,0.1)", borderRadius: 6, padding: "1px 6px" }}>{doc.year}</span>
                           </div>
                           {doc.payerName && (
-                            <div style={{ fontSize: 12, color: "#4b5563", fontWeight: 500, marginTop: 2 }}>{doc.payerName}</div>
+                            <div style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 500, marginTop: 2 }}>{doc.payerName}</div>
                           )}
-                          <div style={{ fontSize: 11, color: "#374151", marginTop: 1 }}>{formatDateTime(doc.uploadedAt)}</div>
+                          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{formatDateTime(doc.uploadedAt)}</div>
                         </div>
                         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                           <button
                             onClick={() => viewDocument(doc)}
                             disabled={viewBusyId === doc.id}
-                            style={{ background: "none", border: "none", fontSize: 12, color: "#60a5fa", cursor: "pointer", fontWeight: 600 }}
+                            style={{ background: "none", border: "none", fontSize: 12, color: "var(--text-link)", cursor: "pointer", fontWeight: 600 }}
                           >
                             👁 Voir
                           </button>
                           <button
                             onClick={() => archiveDocument(doc)}
                             disabled={isBusy}
-                            style={{ background: "none", border: "none", fontSize: 12, color: "#6b7280", cursor: "pointer" }}
+                            style={{ background: "none", border: "none", fontSize: 12, color: "var(--text-muted)", cursor: "pointer" }}
                           >
                             ↩ Restaurer
                           </button>
                           <button
                             onClick={() => permanentlyDeleteDocument(doc)}
                             disabled={isBusy}
-                            style={{ background: "none", border: "none", fontSize: 12, color: "#f87171", cursor: "pointer" }}
+                            style={{ background: "none", border: "none", fontSize: 12, color: "#ef4444", cursor: "pointer" }}
                           >
                             🗑
                           </button>
@@ -855,14 +908,14 @@ export default function DocumentsPage() {
         {/* Footer sécurité */}
         <div style={{
           marginTop: 32,
-          background: "rgba(59,130,246,0.06)",
-          border: "1px solid rgba(59,130,246,0.12)",
+          background: "#eff6ff",
+          border: "1px solid #bfdbfe",
           borderRadius: 12, padding: "12px 16px", display: "flex", gap: 10, alignItems: "center",
         }}>
           <span style={{ fontSize: 16, opacity: 0.8 }}>🔒</span>
           <div>
-            <span style={{ fontWeight: 600, color: "#60a5fa", fontSize: 12 }}>Coffre-fort chiffré</span>
-            <span style={{ fontSize: 12, color: "#374151", marginLeft: 8 }}>
+            <span style={{ fontWeight: 600, color: "#1e40af", fontSize: 12 }}>Coffre-fort chiffré</span>
+            <span style={{ fontSize: 12, color: "#3b82f6", marginLeft: 8 }}>
               Les liens de téléchargement expirent après 15 minutes.
             </span>
           </div>
@@ -879,17 +932,17 @@ export default function DocumentsPage() {
           backdropFilter: "blur(4px)",
         }}>
           <div style={{
-            background: "#1a1a24",
-            border: "1px solid rgba(255,255,255,0.1)",
+            background: "var(--bg-modal)",
+            border: "1px solid var(--border-modal)",
             borderRadius: 20, width: "100%", maxWidth: 440,
             padding: 24, boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <span style={{ fontWeight: 700, fontSize: 16, color: "#f9fafb" }}>Ajouter un document</span>
+              <span style={{ fontWeight: 700, fontSize: 16, color: "var(--text-primary)" }}>Ajouter un document</span>
               <button
                 onClick={() => setShowModal(false)}
                 style={{
-                  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)",
+                  background: "var(--bg-field)", border: "1px solid var(--border-card)",
                   borderRadius: 8, width: 32, height: 32, fontSize: 18, color: "#9ca3af",
                   cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                 }}
@@ -899,8 +952,8 @@ export default function DocumentsPage() {
             {uploadDone ? (
               <div style={{ textAlign: "center", padding: "28px 0" }}>
                 <div style={{ fontSize: 44, marginBottom: 14 }}>✅</div>
-                <div style={{ fontWeight: 700, color: "#f9fafb", fontSize: 15 }}>Document ajouté</div>
-                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 6 }}>Enregistré et analyse OCR lancée.</div>
+                <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 15 }}>Document ajouté</div>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 6 }}>Enregistré et analyse OCR lancée.</div>
               </div>
             ) : (
               <>
@@ -910,28 +963,28 @@ export default function DocumentsPage() {
                   onDragLeave={() => setDragOver(false)}
                   onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) setSelectedFile(f); }}
                   style={{
-                    border: `2px dashed ${dragOver ? "#dc2626" : "rgba(255,255,255,0.1)"}`,
+                    border: `2px dashed ${dragOver ? "#dc2626" : "var(--border-upload)"}`,
                     borderRadius: 14, padding: 22, textAlign: "center", marginBottom: 14,
-                    background: dragOver ? "rgba(220,38,38,0.06)" : "rgba(255,255,255,0.02)",
+                    background: dragOver ? "rgba(220,38,38,0.04)" : "var(--bg-upload-zone)",
                     transition: "all 0.15s",
                   }}
                 >
                   {selectedFile ? (
                     <div>
                       <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
-                      <div style={{ fontWeight: 600, color: "#f3f4f6", fontSize: 13, wordBreak: "break-all" }}>{selectedFile.name}</div>
-                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>{formatFileSize(selectedFile.size)}</div>
+                      <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 13, wordBreak: "break-all" }}>{selectedFile.name}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>{formatFileSize(selectedFile.size)}</div>
                       <button onClick={() => setSelectedFile(null)} style={{ fontSize: 12, color: "#f87171", background: "none", border: "none", cursor: "pointer", marginTop: 8 }}>Changer de fichier</button>
                     </div>
                   ) : (
                     <label style={{ cursor: "pointer", display: "block" }}>
                       <div style={{ fontSize: 30, marginBottom: 8, opacity: 0.5 }}>📁</div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: "#d1d5db", marginBottom: 4 }}>Glisser un fichier ici</div>
-                      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 14 }}>PDF · JPG · PNG · Max 20 Mo</div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 4 }}>Glisser un fichier ici</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14 }}>PDF · JPG · PNG · Max 20 Mo</div>
                       <span style={{
-                        fontSize: 12, background: "rgba(255,255,255,0.08)",
-                        color: "#d1d5db", padding: "7px 16px", borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.1)",
+                        fontSize: 12, background: "var(--bg-btn-secondary)",
+                        color: "var(--text-btn-secondary)", padding: "7px 16px", borderRadius: 8,
+                        border: "1px solid var(--border-btn-secondary)",
                       }}>Parcourir</span>
                       <input type="file" style={{ display: "none" }} accept=".pdf,.jpg,.jpeg,.png" onChange={e => { const f = e.target.files?.[0]; if (f) setSelectedFile(f); }} />
                     </label>
@@ -941,17 +994,17 @@ export default function DocumentsPage() {
                 {/* Photo mobile */}
                 <label style={{
                   display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-                  border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "10px 14px",
-                  marginBottom: 14, background: "rgba(255,255,255,0.02)",
+                  border: "1px solid var(--border-card)", borderRadius: 10, padding: "10px 14px",
+                  marginBottom: 14, background: "var(--bg-upload-zone)",
                 }}>
                   <span style={{ fontSize: 18 }}>📷</span>
-                  <span style={{ fontSize: 13, color: "#9ca3af" }}>Photographier un document</span>
+                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Photographier un document</span>
                   <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) setSelectedFile(f); }} />
                 </label>
 
                 {/* Type de document */}
                 <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#9ca3af", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                     Type de document
                   </label>
                   <select
@@ -959,16 +1012,16 @@ export default function DocumentsPage() {
                     onChange={e => setSelectedType(e.target.value)}
                     style={{
                       width: "100%",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      border: "1px solid var(--border-card)",
                       borderRadius: 10, padding: "10px 12px", fontSize: 13,
-                      background: "rgba(255,255,255,0.05)",
-                      color: "#f3f4f6",
+                      background: "var(--bg-field)",
+                      color: "var(--text-primary)",
                       outline: "none", boxSizing: "border-box",
                     }}
                   >
-                    <option value="" style={{ background: "#1a1a24" }}>Sélectionner le type…</option>
+                    <option value="">Sélectionner le type…</option>
                     {documentTypes.map(t => (
-                      <option key={t.code} value={t.code} style={{ background: "#1a1a24" }}>
+                      <option key={t.code} value={t.code}>
                         {t.code} — {t.labelFr}
                       </option>
                     ))}
