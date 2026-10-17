@@ -295,11 +295,17 @@ export async function syncOcrToEntries(params: {
 
     if (!mapping) { skipped++; continue; }
 
+    // Une condition attachée au routage fédéral ne doit pas bloquer une case
+    // dont la ligne TP-1 est directe et non ambiguë. C'est le cas du T4A 048:
+    // la case est conditionnelle pour le choix fédéral 13500/13000, mais son
+    // mapping Québec vers la ligne 164 est explicite et doit être calculé.
+    const requiresReview = box.hasCondition && !(box.tp1_line && !box.t1_line);
+
     const fieldCodeNorm = `box_${box.code}`;
 
     try {
       if (mapping.entryType === "income") {
-        const existing = await db.select({ id: incomeEntries.id })
+        const existing = await db.select({ id: incomeEntries.id, isValidated: incomeEntries.isValidated })
           .from(incomeEntries)
           .where(and(
             eq(incomeEntries.userId, userId),
@@ -308,11 +314,23 @@ export async function syncOcrToEntries(params: {
             eq(incomeEntries.category, mapping.category as IncomeCategory),
           )).limit(1);
         if (existing.length > 0) {
-          if (!replaceExisting) { skipped++; continue; }
+          if (!replaceExisting) {
+            // Réparer une entrée créée par une ancienne version du mapping:
+            // elle peut être présente mais non validée alors que son routage
+            // courant est désormais déterministe (ex. T4A case 048 → TP-1 164).
+            if (requiresReview || existing[0].isValidated) { skipped++; continue; }
+            await db.update(incomeEntries).set({
+              amountCents: box.amountCents,
+              isValidated: true,
+              updatedAt: now,
+            }).where(eq(incomeEntries.id, existing[0].id));
+            created++;
+            continue;
+          }
           await db.update(incomeEntries).set({
             amountCents: box.amountCents,
             description: `${box.label_fr} (${documentTypeCode} case ${box.code})`,
-            isValidated: !box.hasCondition,
+            isValidated: !requiresReview,
             updatedAt: now,
           }).where(eq(incomeEntries.id, existing[0].id));
           created++;
@@ -324,7 +342,7 @@ export async function syncOcrToEntries(params: {
             sourceType: "validated_ocr",
             amountCents: box.amountCents,
             description: `${box.label_fr} (${documentTypeCode} case ${box.code})`,
-            isValidated: !box.hasCondition, // conditionnel = demande revue
+            isValidated: !requiresReview, // conditionnel seulement si le routage reste ambigu
             updatedAt: now,
           });
           created++;
