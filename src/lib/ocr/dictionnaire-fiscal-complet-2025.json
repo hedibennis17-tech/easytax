@@ -4707,9 +4707,9 @@
           "code": "202",
           "label_fr": "Prestation canadienne de la relance économique (PCRE)",
           "label_en": "Canada Recovery Benefit (CRB)",
-          "t1_line": null,
+          "t1_line": "13000",
           "tp1_line": null,
-          "data_type": "amount",
+          "data_type": "money",
           "keywords_fr": [
             "prestation",
             "canadienne",
@@ -4726,15 +4726,15 @@
             "box 202"
           ],
           "label_source": "arc_fr",
-          "notes": "Case ajoutée — absente du dictionnaire, tirée du guide officiel 2025. Historique COVID-19."
+          "notes": "Prestation COVID historique. À déclarer à la ligne 13000; le remboursement éventuel est traité séparément selon l'année fiscale."
         },
         {
           "code": "203",
           "label_fr": "Prestation canadienne de maladie pour la relance économique (PCMRE)",
           "label_en": "Canada Recovery Sickness Benefit (CRSB)",
-          "t1_line": null,
+          "t1_line": "13000",
           "tp1_line": null,
-          "data_type": "amount",
+          "data_type": "money",
           "keywords_fr": [
             "prestation",
             "canadienne",
@@ -4754,7 +4754,7 @@
             "box 203"
           ],
           "label_source": "arc_fr",
-          "notes": "Case ajoutée — absente du dictionnaire, tirée du guide officiel 2025. Historique COVID-19."
+          "notes": "Prestation COVID historique. À déclarer à la ligne 13000 selon les instructions de l'ARC."
         },
         {
           "code": "204",

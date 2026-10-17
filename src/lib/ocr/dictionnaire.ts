@@ -563,7 +563,7 @@ export function findBoxValueInText(
     // et parfois "Box - Case\nAmount - Montant\n202\n3 000,00" (ordre variable).
     // On tolère une ligne optionnelle entre le code et le montant.
     const patOther = new RegExp(
-      "(?:^|\\n)0*" + box.code + "\\s*\\n(?:[^\\n]{0,40}\\n)?\\s*([0-9][\\d\\s,.']+)",
+      "(?:^|\\n)0*" + box.code + "\\s*\\n(?:[^0-9\\n][^\\n]{0,39}\\n)?\\s*([0-9][\\d\\s,.']+)",
       "im"
     );
     const mOther = otherInfoSection.match(patOther);
@@ -601,11 +601,23 @@ export function findBoxValueInText(
       const lines = ocrText.slice(feesIdx, feesIdx + 400).split(/\r?\n/);
       for (let i = 1; i < lines.length && i < 10; i++) {
         const line = lines[i].trim();
+        if (/^(?:Other information|Autres renseignements)\b/i.test(line)) break;
         if (/^[0-9]/.test(line) && parseMontantOCR(line) !== null) {
+          // Si la case 048 est vide, OCR.space peut remonter le numéro civique
+          // du bénéficiaire (ex. « 1547 rue Trépanier ») dans la zone voisine.
+          // Un montant entier suivi d'une adresse n'est pas un honoraire.
+          const localContext = lines.slice(Math.max(0, i - 2), i + 3).join(" ");
+          if (/^\d{3,5}$/.test(line.replace(/\s/g, "")) && /\b(?:rue|street|avenue|av\.?|boulevard|blvd\.?|chemin|road)\b/i.test(localContext)) {
+            continue;
+          }
           return line;
         }
       }
     }
+    // Une fois le bloc « Autres renseignements » atteint sans valeur valide,
+    // ne pas laisser les recherches par mots-clés récupérer 3 000 $, 2 500 $
+    // ou un numéro civique comme honoraires 048.
+    if (otherInfoStart >= 0) return null;
   }
 
   // 1. Structured fields (haute confiance — Google Document AI)

@@ -140,6 +140,8 @@ const T4A_FIELD_MAP: Record<string, FieldMapping> = {
   box_018: { type: "income", category: "other_income",     labelFr: "Paiement forfaitaire (T4A case 18)",                labelEn: "Lump-sum payment (T4A box 18)" },
   box_020: { type: "income", category: "self_employment",  labelFr: "Commissions de travail indépendant (T4A case 20)", labelEn: "Self-employed commissions (T4A box 20)" },
   box_022: { type: "withheld_federal",                       labelFr: "Impôt fédéral retenu (T4A case 22)",               labelEn: "Federal income tax withheld (T4A box 22)" },
+  box_202: { type: "income", category: "other_income",     labelFr: "PCRE (T4A case 202)",                               labelEn: "Canada Recovery Benefit (T4A box 202)" },
+  box_203: { type: "income", category: "other_income",     labelFr: "PCMRE (T4A case 203)",                              labelEn: "Canada Recovery Sickness Benefit (T4A box 203)" },
   box_024: { type: "income", category: "pension",          labelFr: "Rentes (T4A case 24)",                              labelEn: "Annuities (T4A box 24)" },
   box_048: { type: "income", category: "self_employment",  labelFr: "Honoraires pour services (T4A case 48)",           labelEn: "Fees for services (T4A box 48)" },
   box_105: { type: "income", category: "other_income",     labelFr: "Bourses ou subventions (T4A case 105)",            labelEn: "Scholarships or grants (T4A box 105)" },
