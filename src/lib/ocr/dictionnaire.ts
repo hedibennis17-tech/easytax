@@ -615,7 +615,12 @@ export function findBoxValueInText(
   ];
   for (const pat of codePatterns) {
     const m = ocrText.match(pat);
-    if (m?.[1] && parseMontantOCR(m[1]) !== null) return m[1].trim();
+    if (m?.[1]) {
+      // Tronquer au premier newline : un montant ne s'étale jamais sur plusieurs lignes.
+      // Ex: "018\n020\n012" capture "020\n012" ; firstLine = "020" → parseMontantOCR null → skip.
+      const firstLine = m[1].split(/\r?\n/)[0].trim();
+      if (firstLine && parseMontantOCR(firstLine) !== null) return firstLine;
+    }
   }
 
   // 3b. T5007 box 10 : le montant d’indemnisation est souvent la toute première
