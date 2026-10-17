@@ -3118,8 +3118,16 @@
           "t1_line": null,
           "tp1_line": null,
           "data_type": "money",
-          "keywords_fr": ["015", "prestations dentaires", "dentaire"],
-          "keywords_en": ["015", "dental benefits", "payer-offered dental"],
+          "keywords_fr": [
+            "015",
+            "prestations dentaires",
+            "dentaire"
+          ],
+          "keywords_en": [
+            "015",
+            "dental benefits",
+            "payer-offered dental"
+          ],
           "label_source": "arc_fr",
           "notes": "Renseignement du feuillet; valeur conservée pour validation, sans addition automatique au revenu."
         },
@@ -3241,7 +3249,7 @@
             "other"
           ],
           "label_source": "arc_fr",
-          "notes": "Code « Autres renseignements »; 13499-14300 si travail indépendant"
+          "notes": "Autres revenus. Déclaration à la ligne 13000 selon les instructions de l’ARC."
         },
         {
           "code": "030",
@@ -3263,7 +3271,8 @@
             "allocations",
             "patronage"
           ],
-          "label_source": "arc_fr"
+          "label_source": "arc_fr",
+          "notes": "Répartitions selon l’apport commercial. Déclaration à la ligne 13000 selon les instructions de l’ARC."
         },
         {
           "code": "032",
@@ -3378,7 +3387,7 @@
             "resp"
           ],
           "label_source": "arc_fr",
-          "notes": "+ formulaire T1172 (impôt supplémentaire)"
+          "notes": "Paiements de revenu accumulé d’un REEE. Déclaration à la ligne 13000 selon les instructions de l’ARC."
         },
         {
           "code": "042",
@@ -3401,7 +3410,8 @@
             "payments",
             "resp"
           ],
-          "label_source": "arc_fr"
+          "label_source": "arc_fr",
+          "notes": "Paiements d’aide aux études d’un REEE. Déclaration à la ligne 13000 selon les instructions de l’ARC."
         },
         {
           "code": "046",
@@ -3443,7 +3453,7 @@
           ],
           "label_source": "arc_fr",
           "t1_line_condition": "Revenu d'entreprise/profession/commission (T2125 : 13500/13700/13900); sinon 13000",
-          "notes": "T2125 → lignes 13499-14300 (fédéral); TP-1 → 164 via annexe L. Sauf indication contraire au verso."
+          "notes": "Honoraires ou autres sommes pour services rendus : revenu d’entreprise ou de profession libérale; le montant ne doit être pris que s’il est réellement inscrit dans la case 048."
         },
         {
           "code": "102",
@@ -3969,9 +3979,9 @@
           "code": "129",
           "label_fr": "Part de votre coopérative à imposition différée",
           "label_en": "Deferred patronage allocation from your cooperative",
-          "t1_line": null,
+          "t1_line": "13000",
           "tp1_line": null,
-          "data_type": "amount",
+          "data_type": "money",
           "keywords_fr": [
             "part",
             "votre",
@@ -3990,7 +4000,7 @@
             "cooperative"
           ],
           "label_source": "arc_fr",
-          "notes": "Case ajoutée — absente du dictionnaire, tirée du guide officiel 2025."
+          "notes": "Part de coopérative à imposition différée. Déclaration à la ligne 13000 selon les instructions de l’ARC."
         },
         {
           "code": "130",
@@ -4580,9 +4590,9 @@
           "code": "197",
           "label_fr": "Prestation canadienne d'urgence (PCU)",
           "label_en": "Canada Emergency Response Benefit (CERB)",
-          "t1_line": null,
+          "t1_line": "13000",
           "tp1_line": null,
-          "data_type": "amount",
+          "data_type": "money",
           "keywords_fr": [
             "prestation",
             "canadienne",
@@ -4599,15 +4609,15 @@
             "box 197"
           ],
           "label_source": "arc_fr",
-          "notes": "Case ajoutée — absente du dictionnaire, tirée du guide officiel 2025. Historique COVID-19."
+          "notes": "Prestation canadienne d’urgence (PCU). Déclaration à la ligne 13000 selon les instructions de l’ARC."
         },
         {
           "code": "198",
           "label_fr": "Prestation canadienne d'urgence pour les étudiants (PCUE)",
           "label_en": "Canada Emergency Student Benefit (CESB)",
-          "t1_line": null,
+          "t1_line": "13000",
           "tp1_line": null,
-          "data_type": "amount",
+          "data_type": "money",
           "keywords_fr": [
             "prestation",
             "canadienne",
@@ -4627,15 +4637,15 @@
             "box 198"
           ],
           "label_source": "arc_fr",
-          "notes": "Case ajoutée — absente du dictionnaire, tirée du guide officiel 2025. Historique COVID-19."
+          "notes": "Prestation canadienne d’urgence pour les étudiants (PCUE). Déclaration à la ligne 13000 selon les instructions de l’ARC."
         },
         {
           "code": "199",
           "label_fr": "PCUE – étudiants admissibles ayant un handicap ou des personnes à charge",
           "label_en": "CESB – eligible students with a disability or dependants",
-          "t1_line": null,
+          "t1_line": "13000",
           "tp1_line": null,
-          "data_type": "amount",
+          "data_type": "money",
           "keywords_fr": [
             "pcue",
             "étudiants",
@@ -4655,7 +4665,7 @@
             "dependants"
           ],
           "label_source": "arc_fr",
-          "notes": "Case ajoutée — absente du dictionnaire, tirée du guide officiel 2025. Historique COVID-19."
+          "notes": "PCUE — étudiants admissibles ayant un handicap ou des personnes à charge. Déclaration à la ligne 13000 selon les instructions de l’ARC."
         },
         {
           "code": "200",
@@ -4679,7 +4689,8 @@
             "provincial",
             "territorial"
           ],
-          "label_source": "arc_fr"
+          "label_source": "arc_fr",
+          "notes": "Prestations provinciales ou territoriales de soutien financier COVID-19. Déclaration à la ligne 13000 selon les instructions de l’ARC."
         },
         {
           "code": "201",
@@ -4701,7 +4712,8 @@
             "covid",
             "repayment"
           ],
-          "label_source": "arc_fr"
+          "label_source": "arc_fr",
+          "notes": "Remboursement de prestations COVID : ligne 23210 pour une prestation fédérale antérieure; ligne 23200 pour une prestation provinciale ou territoriale."
         },
         {
           "code": "202",
@@ -4726,7 +4738,7 @@
             "box 202"
           ],
           "label_source": "arc_fr",
-          "notes": "Prestation COVID historique. À déclarer à la ligne 13000; le remboursement éventuel est traité séparément selon l'année fiscale."
+          "notes": "Prestation canadienne de la relance économique (PCRE). Déclaration à la ligne 13000 selon les instructions de l’ARC."
         },
         {
           "code": "203",
@@ -4754,15 +4766,15 @@
             "box 203"
           ],
           "label_source": "arc_fr",
-          "notes": "Prestation COVID historique. À déclarer à la ligne 13000 selon les instructions de l'ARC."
+          "notes": "Prestation canadienne de maladie pour la relance économique (PCMRE). Déclaration à la ligne 13000 selon les instructions de l’ARC."
         },
         {
           "code": "204",
           "label_fr": "Prestation canadienne de la relance économique pour proches aidants (PCREPA)",
           "label_en": "Canada Recovery Caregiving Benefit (CRCB)",
-          "t1_line": null,
+          "t1_line": "13000",
           "tp1_line": null,
-          "data_type": "amount",
+          "data_type": "money",
           "keywords_fr": [
             "prestation",
             "canadienne",
@@ -4782,7 +4794,33 @@
             "box 204"
           ],
           "label_source": "arc_fr",
-          "notes": "Case ajoutée — absente du dictionnaire, tirée du guide officiel 2025. Historique COVID-19."
+          "notes": "Prestation canadienne de la relance économique pour proches aidants (PCREPA). Déclaration à la ligne 13000 selon les instructions de l’ARC."
+        },
+        {
+          "code": "211",
+          "label_fr": "Prestation canadienne pour les travailleurs en cas de confinement (PCTCC)",
+          "label_en": "Canada Worker Lockdown Benefit (CWLB)",
+          "t1_line": "13000",
+          "tp1_line": null,
+          "data_type": "money",
+          "keywords_fr": [
+            "prestation",
+            "travailleurs",
+            "confinement",
+            "pctcc",
+            "case 211",
+            "211"
+          ],
+          "keywords_en": [
+            "canada",
+            "worker",
+            "lockdown",
+            "benefit",
+            "cwlb",
+            "box 211"
+          ],
+          "label_source": "arc_fr",
+          "notes": "Prestation COVID historique. À déclarer à la ligne 13000 selon les instructions de l’ARC."
         },
         {
           "code": "210",
@@ -4823,6 +4861,151 @@
         "nom_employeur": true,
         "nas_beneficiaire": true,
         "montants": true
+      },
+      "reporting_instructions": {
+        "authority": "Agence du revenu du Canada (ARC)",
+        "source": "Instructions « Déclarez ces montants dans votre déclaration de revenus » du feuillet T4A.",
+        "line_11500": [
+          "016",
+          "024",
+          "194"
+        ],
+        "line_13000": [
+          "028",
+          "030",
+          "040",
+          "042",
+          "129",
+          "197",
+          "198",
+          "199",
+          "200",
+          "202",
+          "203",
+          "204",
+          "205",
+          "211"
+        ],
+        "line_13010": [
+          "105"
+        ],
+        "line_13499_13500": [
+          "105"
+        ],
+        "line_13500_business_or_professional_income": [
+          "048"
+        ],
+        "line_13899_and_13900": [
+          "020"
+        ],
+        "line_10400": [
+          "104",
+          "107",
+          "118",
+          "119",
+          "127",
+          "132",
+          "152",
+          "156"
+        ],
+        "line_12500": [
+          "131"
+        ],
+        "line_13000_with_special_forms": [
+          "040",
+          "042"
+        ],
+        "line_20700": [
+          "032"
+        ],
+        "line_20600": [
+          "034"
+        ],
+        "line_23200_or_23210_repayment": [
+          "201"
+        ],
+        "line_25600": [
+          "196"
+        ],
+        "line_33099": [
+          "135"
+        ],
+        "informational_only_do_not_report": [
+          "012",
+          "014",
+          "036",
+          "037",
+          "116",
+          "124",
+          "144",
+          "146",
+          "148",
+          "195",
+          "210"
+        ],
+        "included_in_other_box": {
+          "016": [
+            "128"
+          ],
+          "018": [
+            "102",
+            "108",
+            "110",
+            "158",
+            "180",
+            "190"
+          ],
+          "024": [
+            "111",
+            "115"
+          ],
+          "032": [
+            "126",
+            "162"
+          ],
+          "040": [
+            "122"
+          ]
+        },
+        "covid_cases": {
+          "197": {
+            "name": "PCU",
+            "line": "13000"
+          },
+          "198": {
+            "name": "PCUE",
+            "line": "13000"
+          },
+          "199": {
+            "name": "PCUE admissible",
+            "line": "13000"
+          },
+          "200": {
+            "name": "Prestation provinciale ou territoriale COVID-19",
+            "line": "13000"
+          },
+          "201": {
+            "name": "Remboursement COVID-19",
+            "line": "23200 ou 23210 selon la prestation"
+          },
+          "202": {
+            "name": "PCRE",
+            "line": "13000"
+          },
+          "203": {
+            "name": "PCMRE",
+            "line": "13000"
+          },
+          "204": {
+            "name": "PCREPA",
+            "line": "13000"
+          },
+          "211": {
+            "name": "PCTCC",
+            "line": "13000"
+          }
+        },
+        "validation_rule": "Une case est calculée uniquement si une valeur monétaire est effectivement extraite de la zone de cette case. Les numéros d’adresse, codes de case, NAS et valeurs provenant des instructions ne sont jamais des montants fiscaux."
       }
     },
     {
